@@ -1,0 +1,3 @@
+# Pencetakan Struk menggunakan Raw ESC/POS via Windows Print Spooler
+
+Pencetakan **Receipt** (58mm/80mm) dan pemicu **Cash Drawer** (RJ11) dieksekusi langsung oleh backend Rust Tauri di masing-masing terminal dengan mengirimkan byte **Raw ESC/POS** ke *Windows Print Spooler* (menggunakan Win32 API `OpenPrinterW` / `WritePrinter`), dilengkapi mode pratinjau layar untuk pengujian tanpa printer fisik. Pendekatan ini dipilih dibanding fungsi cetak bawaan WebView (`window.print()`) karena `window.print()` memunculkan dialog konfirmasi Windows yang menghambat kecepatan transaksi **Cashier**, sering mengacaukan margin kertas thermal gulung, dan tidak dapat mengirimkan pulsa elektrik (`ESC p`) untuk membuka **Cash Drawer** secara otomatis.

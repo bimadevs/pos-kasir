@@ -1,0 +1,3 @@
+# Pemotongan Stok Atomik saat Pembayaran Tanpa Reservasi pada Held Bill
+
+Meskipun sistem menerapkan blokir keras terhadap stok kosong (produk dengan stok `0` tidak dapat dimasukkan ke keranjang atau dibeli melebihi sisa stok), penyimpanan **Held Bill** tidak mengunci atau mengurangi stok **Product** di database. Validasi kecukupan stok (`stok >= kuantitas`) dan pemotongan stok hanya dilakukan secara atomik di dalam satu transaksi database SQLite di **Server Terminal** tepat saat pembayaran **Sale** dikonfirmasi. Keputusan ini diambil agar keranjang yang ditahan (**Held Bill**) lalu ditinggalkan pembeli tidak menyandera stok barang fisik terakhir dan menghalangi pembeli lain yang siap membayar tunai di meja kasir lain.
