@@ -199,7 +199,7 @@ fn send_raw_bytes_os(printer_name: &str, raw_bytes: &[u8]) -> AppResult<bool> {
             pDatatype: data_type_wide.as_mut_ptr(),
         };
 
-        let job_id = StartDocPrinterW(h_printer, 1, &doc_info as *const DOC_INFO_1W as *const u8);
+        let job_id = StartDocPrinterW(h_printer, 1, &doc_info);
         if job_id == 0 {
             let _ = ClosePrinter(h_printer);
             return Err(AppError::Hardware(format!(
