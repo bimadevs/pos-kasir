@@ -1,5 +1,6 @@
 # POS-Kasir — Desktop Retail Minimarket Point-of-Sale System
 
+[![Build Windows (.exe)](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml/badge.svg)](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-2021_Edition-000000?style=flat-square&logo=rust&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -11,6 +12,18 @@
 **POS-Kasir** adalah aplikasi *Point-of-Sale* (kasir) desktop *offline-first* berkinerja tinggi untuk operasional ritel minimarket, dibangun menggunakan **Tauri v2 (Rust)** pada sisi backend dan **React 19 + TypeScript + Tailwind CSS v4** pada sisi frontend.
 
 Aplikasi ini dirancang dengan arsitektur **Dual-Mode LAN** dalam satu paket instalasi (*single binary installer*): komputer kasir utama dapat beroperasi sebagai **Server Terminal** (menyimpan database SQLite `WAL` terpusat dan menjalankan server HTTP `Axum` di jaringan lokal), sementara 3–5 komputer kasir tambahan dapat terhubung secara *real-time* sebagai **Client Terminal** tanpa memerlukan koneksi internet maupun instalasi server database terpisah.
+
+---
+
+## Unduh Installer Windows 10/11 (64-bit)
+
+Setiap *push* ke branch `main` secara otomatis diuji dan di-*build* menggunakan **GitHub Actions (`windows-latest`)** menjadi 3 format siap pakai:
+
+- [**Halaman GitHub Releases (Unduh `.exe` & `.msi` Terbaru)**](https://github.com/bimadevs/pos-kasir/releases/latest)
+  - `pos-kasir_0.1.0_x64-setup.exe` — Installer standar Windows (NSIS — **Direkomendasikan**).
+  - `pos-kasir_0.1.0_x64_en-US.msi` — Paket installer Windows MSI.
+  - `pos-kasir.exe` — File *portable executable* (langsung jalan tanpa instalasi).
+- [**GitHub Actions Workflow Runs & Artifacts**](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml)
 
 ---
 
