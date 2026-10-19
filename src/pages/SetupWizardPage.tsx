@@ -14,6 +14,7 @@ import {
 import { ipc } from "../services/ipc";
 import { useTerminal } from "../context/TerminalContext";
 import type { HealthCheckResponse } from "../types/domain";
+import { APP_VERSION_LABEL } from "../version";
 
 export const SetupWizardPage: React.FC = () => {
   const { refreshTerminalStatus } = useTerminal();
@@ -119,8 +120,11 @@ export const SetupWizardPage: React.FC = () => {
             <Store className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white">
-              POS-KASIR — Konfigurasi Awal Terminal
+            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              <span>POS-KASIR — Konfigurasi Awal Terminal</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-emerald-400">
+                {APP_VERSION_LABEL}
+              </span>
             </h1>
             <p className="text-xs text-slate-400">
               Arsitektur Dual-Mode LAN Minimarket (1 Server Terminal + hingga 5
@@ -564,7 +568,7 @@ export const SetupWizardPage: React.FC = () => {
       </main>
 
       <footer className="max-w-5xl w-full mx-auto text-center text-xs text-slate-400 border-t border-slate-800 pt-4">
-        POS-Kasir Desktop • Penyimpanan Lokal{" "}
+        POS-Kasir Desktop {APP_VERSION_LABEL} • Penyimpanan Lokal{" "}
         <code>%APPDATA%\com.bimadev.pos-kasir</code>
       </footer>
     </div>

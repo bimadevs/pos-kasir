@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTerminal } from "../../context/TerminalContext";
 import type { AppNavTab } from "../../types/domain";
+import { APP_VERSION_LABEL } from "../../version";
 
 interface TopBarProps {
   activeTab: AppNavTab;
@@ -100,8 +101,11 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             <Store className="w-4 h-4 text-white" />
           </div>
           <div className="leading-tight">
-            <div className="font-bold text-sm text-white tracking-tight">
-              {terminalStatus?.store_name || "POS-KASIR"}
+            <div className="font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
+              <span>{terminalStatus?.store_name || "POS-KASIR"}</span>
+              <span className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-emerald-400">
+                {APP_VERSION_LABEL}
+              </span>
             </div>
             <div className="text-[10px] text-slate-400 flex items-center gap-1">
               <Monitor className="w-3 h-3 text-slate-400" />

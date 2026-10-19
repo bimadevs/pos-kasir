@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
+import { APP_VERSION_LABEL } from "../version";
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -151,7 +152,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <footer className="max-w-5xl w-full mx-auto flex items-center justify-between text-xs text-slate-400 border-t border-slate-800 pt-4">
-        <span>POS-Kasir v0.1.0 • Keyboard-First Retail System</span>
+        <span>POS-Kasir {APP_VERSION_LABEL} • Keyboard-First Retail System</span>
         <span>
           IP Lokal Mesin:{" "}
           {terminalStatus?.local_lan_ips?.join(", ") || "127.0.0.1"}

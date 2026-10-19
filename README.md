@@ -1,10 +1,11 @@
 # POS-Kasir — Desktop Retail Minimarket Point-of-Sale System
 
 [![Build Windows (.exe)](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml/badge.svg)](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml)
+[![Latest Release](https://img.shields.io/github/v/release/bimadevs/pos-kasir?style=flat-square&label=Release&color=10b981)](https://github.com/bimadevs/pos-kasir/releases/latest)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-2021_Edition-000000?style=flat-square&logo=rust&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-2024_Edition-000000?style=flat-square&logo=rust&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![SQLite WAL](https://img.shields.io/badge/SQLite-WAL_Atomic-003B57?style=flat-square&logo=sqlite&logoColor=white)
 ![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![Platform](https://img.shields.io/badge/Target-Windows_10%2F11_(64--bit)-0078D6?style=flat-square&logo=windows&logoColor=white)
@@ -17,12 +18,13 @@ Aplikasi ini dirancang dengan arsitektur **Dual-Mode LAN** dalam satu paket inst
 
 ## Unduh Installer Windows 10/11 (64-bit)
 
-Setiap *push* ke branch `main` secara otomatis diuji dan di-*build* menggunakan **GitHub Actions (`windows-latest`)** menjadi 3 format siap pakai:
+Setiap *push* ke branch `main` secara otomatis diuji dan di-*build* menggunakan **GitHub Actions (`windows-latest`)** mengikuti standar **SemVer Lockstep** menjadi 3 format siap pakai:
 
 - [**Halaman GitHub Releases (Unduh `.exe` & `.msi` Terbaru)**](https://github.com/bimadevs/pos-kasir/releases/latest)
-  - `pos-kasir_0.1.0_x64-setup.exe` — Installer standar Windows (NSIS — **Direkomendasikan**).
-  - `pos-kasir_0.1.0_x64_en-US.msi` — Paket installer Windows MSI.
+  - `pos-kasir_<versi>_x64-setup.exe` — Installer standar Windows (NSIS — **Direkomendasikan**).
+  - `pos-kasir_<versi>_x64_en-US.msi` — Paket installer Windows MSI.
   - `pos-kasir.exe` — File *portable executable* (langsung jalan tanpa instalasi).
+- [**Catatan Perubahan Versi (`CHANGELOG.md`)**](CHANGELOG.md)
 - [**GitHub Actions Workflow Runs & Artifacts**](https://github.com/bimadevs/pos-kasir/actions/workflows/build-windows.yml)
 
 ---

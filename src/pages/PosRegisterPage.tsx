@@ -34,6 +34,7 @@ import {
   updateCartItemQuantity,
 } from "../utils/posCalculator";
 import { playErrorBeep, playScanSuccessBeep } from "../utils/sound";
+import { APP_VERSION_LABEL } from "../version";
 
 export const PosRegisterPage: React.FC = () => {
   const { openReceiptPreview } = useTerminal();
@@ -791,7 +792,9 @@ export const PosRegisterPage: React.FC = () => {
             <kbd className="kbd-key">F10</kbd> Cetak Ulang
           </span>
         </div>
-        <div className="font-mono text-slate-400">POS-Kasir v0.1.0</div>
+        <div className="font-mono text-slate-400">
+          POS-Kasir {APP_VERSION_LABEL}
+        </div>
       </footer>
 
       {/* Payment Modal (F8 / F9) */}

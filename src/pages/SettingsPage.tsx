@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
 import { ipc } from "../services/ipc";
 import type { PrinterConfig } from "../types/domain";
+import { APP_VERSION_LABEL } from "../version";
 
 export const SettingsPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -253,13 +254,18 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-slate-100 space-y-5">
-      <div>
-        <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-          Pengaturan Perangkat, Toko &amp; Pemeliharaan Sistem
-        </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Konfigurasi printer thermal ESC/POS lokal, laci uang RJ11, jaringan LAN, serta Backup/Restore SQLite.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            Pengaturan Perangkat, Toko &amp; Pemeliharaan Sistem
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Konfigurasi printer thermal ESC/POS lokal, laci uang RJ11, jaringan LAN, serta Backup/Restore SQLite.
+          </p>
+        </div>
+        <span className="px-3 py-1 rounded-full bg-slate-900 text-emerald-400 font-mono text-xs font-bold border border-slate-800">
+          POS-Kasir {APP_VERSION_LABEL}
+        </span>
       </div>
 
       {feedback && (
