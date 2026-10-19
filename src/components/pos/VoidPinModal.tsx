@@ -53,14 +53,14 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
-        <div className="bg-red-600 text-white px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md overflow-hidden">
+        <div className="bg-zinc-900 text-white px-6 py-4 flex items-center justify-between border-b border-zinc-800">
           <div className="flex items-center gap-2.5">
-            <ShieldAlert className="w-5 h-5" />
+            <ShieldAlert className="w-5 h-5 text-rose-400" />
             <div>
               <h3 className="font-bold text-sm">Otorisasi Void Transaksi</h3>
-              <p className="text-xs text-red-100 font-mono">
+              <p className="text-xs text-zinc-400 font-mono">
                 {sale.receipt_number} • {formatRupiah(sale.total_amount)}
               </p>
             </div>
@@ -68,7 +68,7 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-red-100 hover:text-white p-1 rounded-lg cursor-pointer"
+            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -76,17 +76,17 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs font-semibold">
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-2.5 rounded-xl text-xs font-semibold">
               {error}
             </div>
           )}
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+          <div className="bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs leading-relaxed">
             <strong>Perhatian:</strong> Pembatalan transaksi (Void) akan mengembalikan stok seluruh barang pada struk ini secara otomatis dan tidak dapat dibatalkan.
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1">
               Alasan Void / Pembatalan
             </label>
             <input
@@ -96,12 +96,12 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
               value={voidReason}
               onChange={(e) => setVoidReason(e.target.value)}
               placeholder="Contoh: Pelanggan batal beli / salah input barang"
-              className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-red-600"
+              className="w-full px-3.5 py-2 text-sm border border-zinc-300 rounded-xl focus:outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20 text-zinc-900 transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1">
               PIN Otorisasi Admin (4–6 Digit)
             </label>
             <input
@@ -112,7 +112,7 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value.replace(/[^0-9]/g, ""))}
               placeholder="••••••"
-              className="w-full px-3.5 py-2.5 text-center font-mono text-xl tracking-[0.4em] font-bold border border-slate-300 rounded-xl focus:outline-none focus:border-red-600"
+              className="w-full px-3.5 py-2.5 text-center font-mono text-xl tracking-[0.4em] font-bold border border-zinc-300 rounded-xl focus:outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20 text-zinc-900 transition-all"
             />
           </div>
 
@@ -121,14 +121,14 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="px-4 py-2 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-700 hover:bg-zinc-100 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               {submitting ? "Memverifikasi..." : "Konfirmasi Void"}
             </button>

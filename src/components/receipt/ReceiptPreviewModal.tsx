@@ -130,17 +130,17 @@ export const ReceiptPreviewModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-xl shadow-2xl border border-zinc-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-zinc-800">
           <div className="flex items-center gap-2.5">
-            <FileText className="w-5 h-5 text-emerald-400" />
+            <FileText className="w-5 h-5 text-indigo-400" />
             <div>
               <h3 className="font-bold text-sm tracking-wide">
                 Pratinjau Struk Thermal ({paperWidth}mm)
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-zinc-400">
                 {previewOutcome?.simulated
                   ? "Mode Virtual Thermal Printer (Simulasi ESC/POS)"
                   : `Printer: ${
@@ -154,7 +154,7 @@ export const ReceiptPreviewModal: React.FC = () => {
           <button
             type="button"
             onClick={closeReceiptPreview}
-            className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
             title="Tutup (Esc)"
           >
             <X className="w-5 h-5" />
@@ -162,28 +162,28 @@ export const ReceiptPreviewModal: React.FC = () => {
         </div>
 
         {/* Info Banner */}
-        <div className="bg-slate-100 border-b border-slate-200 px-5 py-2.5 flex items-center justify-between text-xs text-slate-600">
-          <span className="flex items-center gap-1.5 font-medium text-emerald-700">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="bg-zinc-100/80 border-b border-zinc-200 px-5 py-2.5 flex items-center justify-between text-xs text-zinc-600">
+          <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
             {previewReceipt?.is_reprint
               ? "Status: Cetakan Ulang"
               : "Status: Struk Transaksi"}
           </span>
-          <span className="font-mono text-[11px] text-slate-500">
+          <span className="font-mono text-[11px] text-zinc-500">
             ESC/POS Raw ({cols} kolom)
           </span>
         </div>
 
         {statusMessage && (
-          <div className="bg-blue-50 border-b border-blue-200 px-5 py-2 text-xs text-blue-800 font-medium">
+          <div className="bg-indigo-50 border-b border-indigo-200 px-5 py-2 text-xs text-indigo-900 font-medium">
             {statusMessage}
           </div>
         )}
 
         {/* Thermal Paper Scroll Area */}
-        <div className="p-6 overflow-y-auto bg-slate-200/70 flex justify-center flex-1">
+        <div className="p-6 overflow-y-auto bg-zinc-200/80 flex justify-center flex-1">
           <div
-            className={`thermal-paper bg-white text-slate-900 shadow-lg border border-slate-300 px-5 py-6 rounded-xs select-all ${
+            className={`thermal-paper bg-white text-zinc-900 shadow-md border border-zinc-300/80 px-5 py-6 rounded-xs select-all ${
               paperWidth === 80 ? "w-[410px]" : "w-[310px]"
             }`}
           >
@@ -194,8 +194,8 @@ export const ReceiptPreviewModal: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-slate-50 border-t border-slate-200 px-5 py-3.5 flex items-center justify-between">
-          <span className="text-xs text-slate-500">
+        <div className="bg-zinc-50 border-t border-zinc-200 px-5 py-3.5 flex items-center justify-between">
+          <span className="text-xs text-zinc-500">
             Tekan <kbd className="kbd-key">Esc</kbd> untuk menutup
           </span>
           <div className="flex items-center gap-2.5">
@@ -204,7 +204,7 @@ export const ReceiptPreviewModal: React.FC = () => {
                 type="button"
                 onClick={() => void handlePrintAgain()}
                 disabled={printing}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-750 text-white transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
                 {printing ? "Mencetak..." : "Cetak Ulang"}
@@ -213,7 +213,7 @@ export const ReceiptPreviewModal: React.FC = () => {
             <button
               type="button"
               onClick={closeReceiptPreview}
-              className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer shadow-xs"
             >
               Selesai (Esc)
             </button>

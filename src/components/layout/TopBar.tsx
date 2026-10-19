@@ -93,22 +93,22 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
   const visibleTabs = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <header className="h-13 bg-slate-900 text-slate-100 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 select-none">
+    <header className="h-13 bg-zinc-950 text-zinc-100 border-b border-zinc-800/80 px-4 flex items-center justify-between shrink-0 select-none">
       {/* Kiri: Identitas Toko & Navigasi Peran */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5 pr-3 border-r border-slate-700">
-          <div className="w-7 h-7 rounded bg-emerald-600 flex items-center justify-center">
+        <div className="flex items-center gap-2.5 pr-3 border-r border-zinc-800">
+          <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center shadow-xs">
             <Store className="w-4 h-4 text-white" />
           </div>
           <div className="leading-tight">
             <div className="font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
               <span>{terminalStatus?.store_name || "POS-KASIR"}</span>
-              <span className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-emerald-400">
+              <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-300">
                 {APP_VERSION_LABEL}
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 flex items-center gap-1">
-              <Monitor className="w-3 h-3 text-slate-400" />
+            <div className="text-[10px] text-zinc-400 flex items-center gap-1">
+              <Monitor className="w-3 h-3 text-zinc-400" />
               <span>
                 {cfg?.terminal_name} ({isServer ? "Server" : "Client"})
               </span>
@@ -127,8 +127,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                 onClick={() => onSelectTab(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   active
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
                 }`}
               >
                 {tab.icon}
@@ -148,9 +148,9 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                 ? `Server LAN berjalan di port ${cfg?.server_bind_port}`
                 : `Terhubung ke Server ${cfg?.client_target_ip}:${cfg?.client_target_port}`
             }
-            className="px-2.5 py-1 rounded-full bg-emerald-950/90 border border-emerald-600/50 text-emerald-300 text-xs font-medium flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-1.5"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <Wifi className="w-3.5 h-3.5 text-emerald-400" />
             <span>
               {isServer
@@ -161,28 +161,28 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
         ) : (
           <div
             title={terminalStatus?.server_error || "Koneksi ke Server terputus"}
-            className="px-3 py-1 rounded-full bg-red-950 border border-red-500 text-red-200 text-xs font-bold flex items-center gap-1.5 animate-pulse"
+            className="px-3 py-1 rounded-full bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs font-bold flex items-center gap-1.5 animate-pulse"
           >
-            <WifiOff className="w-3.5 h-3.5 text-red-400" />
+            <WifiOff className="w-3.5 h-3.5 text-rose-400" />
             <span>TERPUTUS DARI SERVER</span>
           </div>
         )}
 
-        <div className="text-xs font-mono tabular-nums text-slate-300 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded">
+        <div className="text-xs font-mono tabular-nums text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-md">
           {clock}
         </div>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
+        <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
           <div className="text-right leading-tight">
             <div className="text-xs font-semibold text-white">
               {user?.full_name}
             </div>
             <div className="text-[10px]">
               <span
-                className={`px-1.5 py-0.2 rounded font-bold uppercase ${
+                className={`px-1.5 py-0.5 rounded font-bold uppercase ${
                   isAdmin
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                    : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                    ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                    : "bg-zinc-800 text-zinc-300 border border-zinc-700"
                 }`}
               >
                 {user?.role}
@@ -194,7 +194,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             type="button"
             onClick={() => void logout()}
             title="Keluar Sesi Kasir"
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-900/70 text-slate-300 hover:text-red-200 border border-slate-700 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-800/60 transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
           </button>

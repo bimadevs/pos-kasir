@@ -115,20 +115,20 @@ export const StockAdjustmentPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-slate-100 space-y-5">
+    <div className="flex-1 overflow-y-auto p-6 bg-zinc-100/70 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
             Penyesuaian Stok &amp; Audit Mutasi (Stock Opname)
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-zinc-500 mt-0.5">
             Catat barang masuk (Restock), barang rusak/kedaluwarsa, kehilangan, atau koreksi stok opname.
           </p>
         </div>
         <button
           type="button"
           onClick={() => void loadData()}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-xs font-bold text-zinc-700 transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Muat Ulang
@@ -140,7 +140,7 @@ export const StockAdjustmentPage: React.FC = () => {
           className={`px-4 py-3 rounded-xl border text-xs font-semibold ${
             feedback.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-red-50 border-red-200 text-red-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
           }`}
         >
           {feedback.message}
@@ -149,10 +149,10 @@ export const StockAdjustmentPage: React.FC = () => {
 
       <div className="grid grid-cols-12 gap-5">
         {/* Form Card (4 cols) */}
-        <div className="col-span-4 bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 h-fit">
-          <div className="flex items-center gap-2 pb-3 mb-4 border-b border-slate-200">
-            <PackageCheck className="w-5 h-5 text-blue-600" />
-            <h2 className="font-bold text-sm text-slate-900">
+        <div className="col-span-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 h-fit">
+          <div className="flex items-center gap-2 pb-3 mb-4 border-b border-zinc-200">
+            <PackageCheck className="w-5 h-5 text-indigo-600" />
+            <h2 className="font-bold text-sm text-zinc-900">
               Formulir Penyesuaian Stok
             </h2>
           </div>
@@ -162,13 +162,13 @@ export const StockAdjustmentPage: React.FC = () => {
             className="space-y-4 text-xs"
           >
             <div>
-              <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
                 Pilih Produk *
               </label>
               <select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-slate-900 font-medium focus:outline-none focus:border-blue-600"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               >
                 {products.map((prod) => (
                   <option key={prod.id} value={prod.id}>
@@ -179,7 +179,7 @@ export const StockAdjustmentPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
                 Jenis Penyesuaian *
               </label>
               <select
@@ -187,7 +187,7 @@ export const StockAdjustmentPage: React.FC = () => {
                 onChange={(e) =>
                   setAdjustmentType(e.target.value as AdjustmentType)
                 }
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-slate-900 font-medium focus:outline-none focus:border-blue-600"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               >
                 <option value="RESTOCK">
                   RESTOCK — Barang Masuk / Kulakan (+)
@@ -206,17 +206,17 @@ export const StockAdjustmentPage: React.FC = () => {
 
             {adjustmentType === "CORRECTION" && (
               <div>
-                <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
                   Arah Koreksi Opname
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setCorrectionDirection("ADD")}
-                    className={`py-2 rounded-xl font-bold border cursor-pointer ${
+                    className={`py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
                       correctionDirection === "ADD"
                         ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-slate-50 text-slate-700 border-slate-200"
+                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                     }`}
                   >
                     + Tambah Stok
@@ -224,10 +224,10 @@ export const StockAdjustmentPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCorrectionDirection("SUB")}
-                    className={`py-2 rounded-xl font-bold border cursor-pointer ${
+                    className={`py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
                       correctionDirection === "SUB"
-                        ? "bg-red-600 text-white border-red-600"
-                        : "bg-slate-50 text-slate-700 border-slate-200"
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                     }`}
                   >
                     - Kurangi Stok
@@ -237,7 +237,7 @@ export const StockAdjustmentPage: React.FC = () => {
             )}
 
             <div>
-              <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
                 Jumlah Unit (Qty) *
               </label>
               <input
@@ -246,12 +246,12 @@ export const StockAdjustmentPage: React.FC = () => {
                 required
                 value={qtyMagnitude}
                 onChange={(e) => setQtyMagnitude(e.target.value)}
-                className="w-full px-3 py-2.5 font-mono font-bold text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-blue-600"
+                className="w-full px-3 py-2.5 font-mono font-bold text-sm border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               />
             </div>
 
             <div>
-              <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
                 Catatan / Keterangan Audit *
               </label>
               <input
@@ -260,14 +260,14 @@ export const StockAdjustmentPage: React.FC = () => {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Contoh: Nota Supplier PT Indofood #8821"
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-600"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
               />
             </div>
 
             {/* Live Stock Preview Box */}
-            <div className="bg-slate-900 text-white rounded-xl p-4 flex items-center justify-between">
+            <div className="bg-zinc-950 text-white rounded-xl p-4 flex items-center justify-between border border-zinc-800">
               <div>
-                <div className="text-[10px] uppercase text-slate-400">
+                <div className="text-[10px] uppercase text-zinc-400">
                   Stok Awal
                 </div>
                 <div className="text-lg font-mono font-bold tabular-nums">
@@ -279,20 +279,20 @@ export const StockAdjustmentPage: React.FC = () => {
                   className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
                     signedDelta >= 0
                       ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-red-500/20 text-red-300"
+                      : "bg-rose-500/20 text-rose-300"
                   }`}
                 >
                   {signedDelta >= 0 ? `+${signedDelta}` : signedDelta}
                 </span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
+                <ArrowRight className="w-4 h-4 text-zinc-400" />
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase text-slate-400">
+                <div className="text-[10px] uppercase text-zinc-400">
                   Stok Akhir
                 </div>
                 <div
                   className={`text-xl font-mono font-extrabold tabular-nums ${
-                    stockAfter >= 0 ? "text-emerald-400" : "text-red-400"
+                    stockAfter >= 0 ? "text-emerald-400" : "text-rose-400"
                   }`}
                 >
                   {stockAfter}
@@ -303,7 +303,7 @@ export const StockAdjustmentPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || stockAfter < 0}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-extrabold text-xs tracking-wide transition-colors cursor-pointer"
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 text-white font-bold text-xs tracking-wide transition-colors cursor-pointer shadow-xs"
             >
               {submitting ? "Menyimpan..." : "Simpan Mutasi Stok"}
             </button>
@@ -311,11 +311,11 @@ export const StockAdjustmentPage: React.FC = () => {
         </div>
 
         {/* Audit History Table (8 cols) */}
-        <div className="col-span-8 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="col-span-8 bg-white rounded-2xl border border-zinc-200 shadow-2xs overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ClipboardCheck className="w-5 h-5 text-slate-700" />
-              <h2 className="font-bold text-sm text-slate-900">
+              <ClipboardCheck className="w-5 h-5 text-zinc-700" />
+              <h2 className="font-bold text-sm text-zinc-900">
                 Log Riwayat Mutasi Stok ({adjustments.length})
               </h2>
             </div>
@@ -323,7 +323,7 @@ export const StockAdjustmentPage: React.FC = () => {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+              <thead className="bg-zinc-50 border-b border-zinc-200 text-[11px] font-bold uppercase tracking-wider text-zinc-600">
                 <tr>
                   <th className="py-3 px-4">Waktu</th>
                   <th className="py-3 px-4">Produk</th>
@@ -333,41 +333,41 @@ export const StockAdjustmentPage: React.FC = () => {
                   <th className="py-3 px-4">Catatan &amp; Admin</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
+              <tbody className="divide-y divide-zinc-200 text-xs">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-500">
+                    <td colSpan={6} className="py-10 text-center text-zinc-500">
                       Memuat riwayat penyesuaian stok...
                     </td>
                   </tr>
                 ) : adjustments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-500">
+                    <td colSpan={6} className="py-10 text-center text-zinc-500">
                       Belum ada riwayat penyesuaian stok.
                     </td>
                   </tr>
                 ) : (
                   adjustments.map((adj) => (
-                    <tr key={adj.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
+                    <tr key={adj.id} className="hover:bg-zinc-50/80 transition-colors">
+                      <td className="py-3 px-4 font-mono text-zinc-500 whitespace-nowrap">
                         {formatDateTimeId(adj.created_at)}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-bold text-slate-900">
+                        <div className="font-bold text-zinc-900">
                           {adj.product_name}
                         </div>
-                        <div className="font-mono text-[11px] text-slate-500">
+                        <div className="font-mono text-[11px] text-zinc-500">
                           {adj.product_sku}
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                             adj.adjustment_type === "RESTOCK"
-                              ? "bg-emerald-100 text-emerald-800"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200/60"
                               : adj.adjustment_type === "CORRECTION"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-red-100 text-red-700"
+                              ? "bg-indigo-50 text-indigo-800 border border-indigo-200/60"
+                              : "bg-rose-50 text-rose-700 border border-rose-200/60"
                           }`}
                         >
                           {adj.adjustment_type}
@@ -377,24 +377,24 @@ export const StockAdjustmentPage: React.FC = () => {
                         className={`py-3 px-4 text-right font-mono font-bold tabular-nums ${
                           adj.quantity_delta >= 0
                             ? "text-emerald-700"
-                            : "text-red-600"
+                            : "text-rose-600"
                         }`}
                       >
                         {adj.quantity_delta >= 0
                           ? `+${adj.quantity_delta}`
                           : adj.quantity_delta}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-800 tabular-nums">
-                        <span className="text-slate-400">
+                      <td className="py-3 px-4 text-right font-mono text-zinc-800 tabular-nums">
+                        <span className="text-zinc-400">
                           {adj.stock_before} →{" "}
                         </span>
                         <strong>{adj.stock_after}</strong>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-slate-800 font-medium">
+                        <div className="text-zinc-800 font-medium">
                           {adj.note || "-"}
                         </div>
-                        <div className="text-[11px] text-slate-500">
+                        <div className="text-[11px] text-zinc-500">
                           Oleh: {adj.user_name} ({adj.terminal_name})
                         </div>
                       </td>

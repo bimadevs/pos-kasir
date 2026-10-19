@@ -473,15 +473,15 @@ export const PosRegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-100 select-none">
+    <div className="flex-1 flex flex-col min-h-0 bg-zinc-100/70 select-none">
       {/* Main 2-Column Split Workspace */}
       <div className="flex-1 grid grid-cols-12 gap-3 p-3 min-h-0">
         {/* LEFT COLUMN (8 cols / ~67%): Search Bar + Alert Banner + Cart Table */}
         <div className="col-span-8 flex flex-col gap-2.5 min-h-0">
           {/* Search & Barcode Input Bar */}
           <div className="relative z-20">
-            <div className="flex items-center bg-white border-2 border-slate-300 focus-within:border-blue-600 rounded-xl shadow-xs px-3.5 py-2 transition-colors">
-              <Search className="w-5 h-5 text-slate-400 mr-2.5 shrink-0" />
+            <div className="flex items-center bg-white border border-zinc-300 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl shadow-2xs px-3.5 py-2 transition-all">
+              <Search className="w-5 h-5 text-zinc-400 mr-2.5 shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -489,11 +489,11 @@ export const PosRegisterPage: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => void handleSearchKeyDown(e)}
                 placeholder="Scan Barcode otomatis atau ketik nama / SKU barang..."
-                className="flex-1 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none bg-transparent"
+                className="flex-1 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none bg-transparent"
               />
               <div className="flex items-center gap-2 ml-2 shrink-0">
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                  <Barcode className="w-3.5 h-3.5" />
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-700 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded-md">
+                  <Barcode className="w-3.5 h-3.5 text-zinc-500" />
                   USB Scanner Aktif
                 </span>
                 <kbd className="kbd-key">F1</kbd>
@@ -502,7 +502,7 @@ export const PosRegisterPage: React.FC = () => {
 
             {/* Autocomplete Search Results Dropdown */}
             {searchDropdownOpen && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-80 overflow-y-auto z-30 divide-y divide-slate-100">
+              <div className="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden max-h-80 overflow-y-auto z-30 divide-y divide-zinc-100">
                 {searchResults.map((prod, idx) => {
                   const isOut = prod.stock <= 0;
                   const isLow = prod.stock > 0 && prod.stock <= 5;
@@ -514,20 +514,20 @@ export const PosRegisterPage: React.FC = () => {
                       type="button"
                       onClick={() => handleAddProductObject(prod)}
                       className={`w-full px-4 py-2.5 text-left flex items-center justify-between transition-colors cursor-pointer ${
-                        isActiveRow ? "bg-blue-50" : "hover:bg-slate-50"
+                        isActiveRow ? "bg-indigo-50/70" : "hover:bg-zinc-50"
                       }`}
                     >
                       <div>
-                        <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                        <div className="font-bold text-sm text-zinc-900 flex items-center gap-2">
                           <span>{prod.name}</span>
                           {prod.discount_type !== "NONE" &&
                             prod.discount_value > 0 && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200/60">
                                 PROMO
                               </span>
                             )}
                         </div>
-                        <div className="text-xs text-slate-500 font-mono">
+                        <div className="text-xs text-zinc-500 font-mono">
                           SKU: {prod.sku}
                           {prod.barcode ? ` • Barcode: ${prod.barcode}` : ""}
                         </div>
@@ -535,19 +535,19 @@ export const PosRegisterPage: React.FC = () => {
 
                       <div className="flex items-center gap-3">
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
                             isOut
-                              ? "bg-red-100 text-red-700"
+                              ? "bg-rose-50 text-rose-700 border-rose-200/70"
                               : isLow
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-emerald-50 text-emerald-700"
+                              ? "bg-amber-50 text-amber-700 border-amber-200/70"
+                              : "bg-zinc-100 text-zinc-700 border-zinc-200/70"
                           }`}
                         >
                           {isOut
                             ? "HABIS (0)"
                             : `Stok: ${prod.stock} ${prod.unit}`}
                         </span>
-                        <span className="font-mono font-bold text-sm text-slate-900 tabular-nums w-28 text-right">
+                        <span className="font-mono font-bold text-sm text-zinc-900 tabular-nums w-28 text-right">
                           {formatRupiah(prod.selling_price)}
                         </span>
                       </div>
@@ -563,10 +563,10 @@ export const PosRegisterPage: React.FC = () => {
             <div
               className={`px-4 py-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-2xs ${
                 alertBanner.type === "error"
-                  ? "bg-red-50 border-red-300 text-red-800"
+                  ? "bg-rose-50 border-rose-200 text-rose-800"
                   : alertBanner.type === "warning"
-                  ? "bg-amber-50 border-amber-300 text-amber-900"
-                  : "bg-emerald-50 border-emerald-300 text-emerald-800"
+                  ? "bg-amber-50 border-amber-200 text-amber-800"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-800"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -612,16 +612,16 @@ export const PosRegisterPage: React.FC = () => {
           />
         </div>
 
-        {/* RIGHT COLUMN (4 cols / ~33%): High-Contrast Dark Total Summary & Cashier Actions */}
-        <div className="col-span-4 bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-lg border border-slate-800">
+        {/* RIGHT COLUMN (4 cols / ~33%): High-Contrast Modern Zinc Total Summary & Cashier Actions */}
+        <div className="col-span-4 bg-zinc-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl border border-zinc-800">
           {/* Top Summary Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                   Ringkasan Pembayaran
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   {totals.totalItemsCount} baris produk ({totals.totalUnitsQty}{" "}
                   pcs)
                 </p>
@@ -633,7 +633,7 @@ export const PosRegisterPage: React.FC = () => {
                     setCart([]);
                     setSelectedIndex(0);
                   }}
-                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-xs text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
                   title="Kosongkan Keranjang"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -644,7 +644,7 @@ export const PosRegisterPage: React.FC = () => {
 
             {/* Subtotal & Discount Breakdown */}
             <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between text-slate-300">
+              <div className="flex items-center justify-between text-zinc-300">
                 <span>Subtotal Harga Normal</span>
                 <span className="font-mono font-semibold tabular-nums">
                   {formatRupiah(totals.subtotalGross)}
@@ -659,11 +659,11 @@ export const PosRegisterPage: React.FC = () => {
             </div>
 
             {/* Giant Grand Total Display */}
-            <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 shadow-inner">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
                 TOTAL TAGIHAN
               </div>
-              <div className="text-4xl font-extrabold font-mono text-emerald-400 tracking-tight mt-1 tabular-nums">
+              <div className="text-4xl font-extrabold font-mono text-zinc-50 tracking-tight mt-1 tabular-nums">
                 {formatRupiah(totals.totalAmount)}
               </div>
             </div>
@@ -674,10 +674,10 @@ export const PosRegisterPage: React.FC = () => {
                 type="button"
                 onClick={handleOpenHoldModal}
                 disabled={cart.length === 0}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-left text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 disabled:opacity-40 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-1.5">
-                  <PauseCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <PauseCircle className="w-4 h-4 text-zinc-300 shrink-0" />
                   Tahan (Hold)
                 </span>
                 <kbd className="kbd-key-dark">F4</kbd>
@@ -686,10 +686,10 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenRecallModal()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-left text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-blue-400 shrink-0" />
+                  <Clock className="w-4 h-4 text-zinc-300 shrink-0" />
                   Recall ({heldBills.length})
                 </span>
                 <kbd className="kbd-key-dark">F5</kbd>
@@ -698,10 +698,10 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenTodaySales()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-left text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-purple-400 shrink-0" />
+                  <History className="w-4 h-4 text-zinc-300 shrink-0" />
                   Riwayat / Void
                 </span>
                 <kbd className="kbd-key-dark">F6</kbd>
@@ -710,10 +710,10 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleReprintLastReceipt()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-left text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-1.5">
-                  <Printer className="w-4 h-4 text-teal-400 shrink-0" />
+                  <Printer className="w-4 h-4 text-zinc-300 shrink-0" />
                   Reprint Struk
                 </span>
                 <kbd className="kbd-key-dark">F10</kbd>
@@ -722,15 +722,15 @@ export const PosRegisterPage: React.FC = () => {
           </div>
 
           {/* Primary Checkout CTAs */}
-          <div className="space-y-2.5 pt-4 border-t border-slate-800">
+          <div className="space-y-2.5 pt-4 border-t border-zinc-800">
             <button
               type="button"
               disabled={cart.length === 0 || submittingSale}
               onClick={() => void executeCheckout(totals.totalAmount, false)}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 border border-slate-700 text-emerald-300 font-bold text-xs flex items-center justify-between transition-colors cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl bg-zinc-800/90 hover:bg-zinc-800 disabled:opacity-40 border border-zinc-700 text-zinc-200 font-bold text-xs flex items-center justify-between transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-emerald-400" />
+                <Zap className="w-4 h-4 text-indigo-400" />
                 Bayar Cepat Uang Pas ({formatRupiah(totals.totalAmount)})
               </span>
               <kbd className="kbd-key-dark">F9</kbd>
@@ -745,7 +745,7 @@ export const PosRegisterPage: React.FC = () => {
                 setPaymentError(null);
                 setPaymentModalOpen(true);
               }}
-              className="w-full py-4 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold text-base tracking-wide flex items-center justify-between shadow-lg transition-colors cursor-pointer"
+              className="w-full py-4 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-extrabold text-base tracking-wide flex items-center justify-between shadow-md transition-all active:scale-[0.99] cursor-pointer"
             >
               <span className="flex items-center gap-2.5">
                 <Banknote className="w-5 h-5" />
@@ -758,7 +758,7 @@ export const PosRegisterPage: React.FC = () => {
       </div>
 
       {/* Bottom Mechanical Keycap Shortcut Legend */}
-      <footer className="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[11px] text-slate-600 shrink-0">
+      <footer className="bg-white border-t border-zinc-200 px-4 py-1.5 flex items-center justify-between text-[11px] text-zinc-600 shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
           <span>
             <kbd className="kbd-key">F1</kbd> Cari Barang
@@ -792,7 +792,7 @@ export const PosRegisterPage: React.FC = () => {
             <kbd className="kbd-key">F10</kbd> Cetak Ulang
           </span>
         </div>
-        <div className="font-mono text-slate-400">
+        <div className="font-mono text-zinc-400">
           POS-Kasir {APP_VERSION_LABEL}
         </div>
       </footer>

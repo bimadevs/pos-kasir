@@ -2,18 +2,30 @@
 
 @layer base {
   :root {
-    --surface-ground: #f1f5f9;
+    /* Modern Zinc & Deep Indigo Design System (Linear/Stripe Inspired) */
+    --surface-ground: #fafafa;
     --surface-card: #ffffff;
-    --surface-panel-dark: #0f172a;
-    --surface-panel-darker: #090d16;
-    --ink-primary: #0f172a;
-    --ink-secondary: #334155;
-    --ink-muted: #64748b;
-    --border-strong: #cbd5e1;
-    --border-subtle: #e2e8f0;
-    --accent-emerald: #059669;
-    --accent-amber: #d97706;
-    --accent-danger: #dc2626;
+    --surface-panel-dark: #09090b;
+    --surface-panel-darker: #020203;
+    --surface-panel-elevated: #18181b;
+    --surface-muted: #f4f4f5;
+
+    --ink-primary: #09090b;
+    --ink-secondary: #27272a;
+    --ink-muted: #71717a;
+
+    --border-strong: #d4d4d8;
+    --border-subtle: #e4e4e7;
+    --border-dark: #27272a;
+    --border-dark-subtle: #1f1f23;
+
+    --accent-indigo: #4f46e5;
+    --accent-indigo-hover: #4338ca;
+    --accent-indigo-light: #eef2ff;
+
+    --accent-emerald: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
   }
 
   * {
@@ -54,7 +66,7 @@
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* Keycap fisik mekanikal untuk shortcut F1-F10 */
+/* Keycap fisik mekanikal untuk shortcut keyboard F1-F10 */
 .kbd-key {
   display: inline-flex;
   align-items: center;
@@ -68,11 +80,11 @@
   line-height: 1;
   letter-spacing: 0.02em;
   border-radius: 0.25rem;
-  border: 1px solid #94a3b8;
+  border: 1px solid #d4d4d8;
   border-bottom-width: 2px;
-  background-color: #f8fafc;
-  color: #0f172a;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.12);
+  background-color: #f4f4f5;
+  color: #18181b;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
 
 .kbd-key-dark {
@@ -88,40 +100,40 @@
   line-height: 1;
   letter-spacing: 0.02em;
   border-radius: 0.25rem;
-  border: 1px solid #475569;
+  border: 1px solid #3f3f46;
   border-bottom-width: 2px;
-  background-color: #1e293b;
-  color: #f8fafc;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  background-color: #27272a;
+  color: #fafafa;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 /* Kertas struk thermal 58mm / 80mm di layar */
 .thermal-paper {
   font-family: "JetBrains Mono", "Consolas", "Lucida Console", "Courier New", monospace;
   font-variant-numeric: tabular-nums;
-  background-color: #fffef9;
-  color: #111827;
+  background-color: #ffffff;
+  color: #09090b;
   line-height: 1.38;
   box-shadow:
-    0 10px 25px -5px rgba(15, 23, 42, 0.25),
-    0 0 0 1px rgba(15, 23, 42, 0.08);
+    0 10px 25px -5px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-/* Scrollbar bersih untuk tabel kasir */
+/* Scrollbar bersih minimalis untuk antarmuka kasir */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: #d4d4d8;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a1a1aa;
 }

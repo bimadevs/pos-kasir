@@ -28,9 +28,9 @@ const AppShell: React.FC = () => {
 
   if (loadingTerminal || loadingAuth) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white select-none">
-        <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-3" />
-        <div className="text-sm font-bold tracking-wide">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 select-none">
+        <div className="w-9 h-9 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="text-sm font-semibold tracking-wide text-zinc-300">
           Memuat Sistem POS-Kasir...
         </div>
       </div>
@@ -47,7 +47,7 @@ const AppShell: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-100 text-slate-900">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-zinc-100/80 text-zinc-900">
       <TopBar activeTab={activeTab} onSelectTab={setActiveTab} />
 
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">

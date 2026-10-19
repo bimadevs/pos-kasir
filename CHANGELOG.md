@@ -3,6 +3,18 @@
 Seluruh perubahan penting pada aplikasi **POS-Kasir** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [0.1.2] - 2026-10-19
+
+### Changed
+- **Redesain Menyeluruh Frontend (Modern Zinc & Deep Indigo)**:
+  - Menggantikan tampilan *AI slop* (perpaduan slate-900 kasar, putih kontras tajam, tombol hijau generik, dan warna-warni jenuh yang bersaing) dengan palet netral modern berkarakter: **Modern Zinc** (`zinc-950`/`zinc-900`/`zinc-100`) dan aksen primer terpadu **Deep Indigo** (`indigo-600`/`indigo-500`).
+  - Merestrukturisasi tata letak kasir (`PosRegisterPage`): panel pembayaran kanan *high-contrast* dengan visual grand total yang tegas, tombol bayar primer indigo, serta tabel kasir (`CartTable`) ergonomis dengan sorotan baris terpilih yang presisi.
+  - Memperbarui seluruh modal kasir (`PaymentModal`, `HeldBillsModal`, `VoidPinModal`, `TodaySalesDrawer`, `ReceiptPreviewModal`) dengan backdrop blur lembut (`backdrop-blur-xs`), sudut lengkung konsisten (`rounded-2xl`), dan penataan tombol yang terstruktur rapi.
+  - Memperbarui halaman otentikasi & setup (`LoginPage` dan `SetupWizardPage`) dengan tampilan modern profesional berbasis kartu Zinc berelevasi halus.
+  - Memperbarui seluruh modul Admin (`ProductsPage`, `StockAdjustmentPage`, `ReportsPage`, `SettingsPage`, `UsersPage`): kartu KPI keuangan bersih dengan kontras terukur, tabel data dengan *header* Zinc lembut dan garis pemisah halus, serta formulir input dengan *focus ring* indigo (`focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600`).
+  - Menetapkan batas ketat untuk warna semantik: hijau emerald murni untuk transaksi sukses & nilai moneter positif, rose untuk pembatalan/void, dan amber untuk diskon & peringatan stok menipis.
+  - Menyempurnakan tipografi keyboard shortcut kasir (`kbd-key` & `kbd-key-dark`) dengan tampilan tuts fisik taktil untuk ergonomi kasir minimarket.
+
 ## [0.1.1] - 2026-10-19
 
 ### Added
