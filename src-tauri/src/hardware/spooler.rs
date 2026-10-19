@@ -33,9 +33,10 @@ pub fn print_receipt_local(
     receipt: &ReceiptData,
 ) -> AppResult<PrintOutcome> {
     let paper_width = if printer_cfg.paper_width == 58 { 58 } else { 80 };
+    let left_margin_chars = printer_cfg.left_margin_chars;
     let open_drawer = printer_cfg.auto_open_drawer && !receipt.is_reprint;
-    let rendered_text = render_receipt_text(receipt, paper_width);
-    let raw_bytes = build_escpos_bytes(receipt, paper_width, open_drawer);
+    let rendered_text = render_receipt_text(receipt, paper_width, left_margin_chars);
+    let raw_bytes = build_escpos_bytes(receipt, paper_width, open_drawer, left_margin_chars);
 
     // Simpan salinan byte ESC/POS dan teks struk terakhir ke app_data_dir untuk audit/diagnostik
     let _ = fs::create_dir_all(app_data_dir);
@@ -58,6 +59,7 @@ pub fn print_receipt_local(
             printer_name.to_string()
         },
         paper_width,
+        left_margin_chars,
         simulated,
         drawer_kicked: open_drawer,
         bytes_written: raw_bytes.len(),
@@ -88,6 +90,7 @@ pub fn kick_drawer_local(app_data_dir: &Path, printer_cfg: &PrinterConfig) -> Ap
             printer_name.to_string()
         },
         paper_width: printer_cfg.paper_width,
+        left_margin_chars: printer_cfg.left_margin_chars,
         simulated,
         drawer_kicked: true,
         bytes_written: raw_bytes.len(),

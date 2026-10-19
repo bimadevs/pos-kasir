@@ -32,6 +32,9 @@ export const SettingsPage: React.FC = () => {
   const [paperWidth, setPaperWidth] = useState<number>(
     cfg?.printer.paper_width || 58
   );
+  const [leftMarginChars, setLeftMarginChars] = useState<number>(
+    cfg?.printer.left_margin_chars ?? 0
+  );
   const [autoOpenDrawer, setAutoOpenDrawer] = useState<boolean>(
     cfg?.printer.auto_open_drawer ?? true
   );
@@ -80,12 +83,23 @@ export const SettingsPage: React.FC = () => {
     void loadSettings();
   }, [loadSettings]);
 
+  useEffect(() => {
+    if (cfg?.printer) {
+      setPrinterName(cfg.printer.printer_name || "POS-Kasir Virtual Thermal Printer (Simulasi)");
+      setPaperWidth(cfg.printer.paper_width || 58);
+      setLeftMarginChars(cfg.printer.left_margin_chars ?? 0);
+      setAutoOpenDrawer(cfg.printer.auto_open_drawer ?? true);
+      setPreviewOnScreen(cfg.printer.preview_on_screen ?? true);
+    }
+  }, [cfg]);
+
   const handleSavePrinter = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const newPrinter: PrinterConfig = {
         printer_name: printerName,
         paper_width: paperWidth,
+        left_margin_chars: leftMarginChars,
         auto_open_drawer: autoOpenDrawer,
         preview_on_screen: previewOnScreen,
       };
@@ -108,6 +122,7 @@ export const SettingsPage: React.FC = () => {
       const currentPrinter: PrinterConfig = {
         printer_name: printerName,
         paper_width: paperWidth,
+        left_margin_chars: leftMarginChars,
         auto_open_drawer: autoOpenDrawer,
         preview_on_screen: previewOnScreen,
       };
@@ -352,6 +367,39 @@ export const SettingsPage: React.FC = () => {
                 >
                   80mm (48 Karakter / Baris)
                 </button>
+              </div>
+            </div>
+
+            {/* Offset Margin Kiri (Presisi Tengah Kertas Fisik) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-bold uppercase tracking-wider text-zinc-600 text-xs">
+                  Offset Margin Kiri (Presisi Tengah)
+                </label>
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-200">
+                  {leftMarginChars === 0
+                    ? "0 Spasi (Bawaan Printer)"
+                    : `+${leftMarginChars} Spasi (~${(leftMarginChars * 1.5).toFixed(1)} mm)`}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 mb-2">
+                Geser cetakan struk ke kanan apabila hasil cetak pada kertas printer fisik Anda terlalu mepet ke sisi kiri.
+              </p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {[0, 1, 2, 3, 4, 5, 6].map((spaces) => (
+                  <button
+                    key={spaces}
+                    type="button"
+                    onClick={() => setLeftMarginChars(spaces)}
+                    className={`py-2 px-1 rounded-lg border font-mono font-bold text-xs transition-colors cursor-pointer text-center ${
+                      leftMarginChars === spaces
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                    }`}
+                  >
+                    {spaces === 0 ? "0" : `+${spaces}`}
+                  </button>
+                ))}
               </div>
             </div>
 

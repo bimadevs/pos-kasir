@@ -476,6 +476,8 @@ pub struct TerminalStatus {
 pub struct PrintOutcome {
     pub printer_name: String,
     pub paper_width: u16,
+    #[serde(default)]
+    pub left_margin_chars: u8,
     pub simulated: bool,
     pub drawer_kicked: bool,
     pub bytes_written: usize,

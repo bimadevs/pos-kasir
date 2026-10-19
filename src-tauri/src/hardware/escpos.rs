@@ -107,87 +107,141 @@ fn format_timestamp_short(iso_or_str: &str) -> String {
 }
 
 /// Merender representasi teks murni struk thermal (58mm = 32 kolom, 80mm = 48 kolom) untuk pratinjau layar.
-pub fn render_receipt_text(receipt: &ReceiptData, paper_width: u16) -> String {
-    let cols = columns_for_paper_width(paper_width);
+pub fn render_receipt_text(receipt: &ReceiptData, paper_width: u16, left_margin_chars: u8) -> String {
+    let total_cols = columns_for_paper_width(paper_width);
+    let margin_count = (left_margin_chars as usize).min(total_cols.saturating_sub(16));
+    let cols = total_cols.saturating_sub(margin_count);
+    let margin = " ".repeat(margin_count);
     let divider = "-".repeat(cols);
     let mut lines: Vec<String> = Vec::new();
 
-    // Header Toko
-    lines.push(center_line(&receipt.store_name.to_uppercase(), cols));
+    // Header Toko (Presisi di tengah)
+    for line in wrap_text(&receipt.store_name.to_uppercase(), cols) {
+        lines.push(format!("{}{}", margin, center_line(&line, cols)));
+    }
     if !receipt.store_address.trim().is_empty() {
-        lines.push(center_line(&receipt.store_address, cols));
+        for line in wrap_text(&receipt.store_address, cols) {
+            lines.push(format!("{}{}", margin, center_line(&line, cols)));
+        }
     }
     if !receipt.store_phone.trim().is_empty() {
-        lines.push(center_line(&format!("Telp: {}", receipt.store_phone.trim()), cols));
+        let phone = format!("Telp: {}", receipt.store_phone.trim());
+        for line in wrap_text(&phone, cols) {
+            lines.push(format!("{}{}", margin, center_line(&line, cols)));
+        }
     }
-    lines.push(divider.clone());
+    lines.push(format!("{}{}", margin, divider));
 
-    // Metadata Transaksi
-    lines.push(format!("No   : {}", receipt.sale.receipt_number));
-    lines.push(format!(
+    // Metadata Transaksi (dengan pembungkusan rapi jika teks kasir/no panjang)
+    let no_line = format!("No   : {}", receipt.sale.receipt_number);
+    for line in wrap_text(&no_line, cols) {
+        lines.push(format!("{}{}", margin, line));
+    }
+    let tgl_line = format!(
         "Tgl  : {}",
         format_timestamp_short(&receipt.sale.created_at)
-    ));
-    lines.push(format!(
+    );
+    for line in wrap_text(&tgl_line, cols) {
+        lines.push(format!("{}{}", margin, line));
+    }
+    let cashier_raw = format!(
         "Kasir: {} ({})",
         receipt.sale.cashier_name_snapshot, receipt.sale.terminal_name
-    ));
-    lines.push(divider.clone());
+    );
+    for line in wrap_text(&cashier_raw, cols) {
+        lines.push(format!("{}{}", margin, line));
+    }
+    lines.push(format!("{}{}", margin, divider));
 
     // Penanda Cetakan Ulang atau Void
     if receipt.is_reprint {
-        lines.push(center_line("*** CETAKAN ULANG ***", cols));
+        lines.push(format!(
+            "{}{}",
+            margin,
+            center_line("*** CETAKAN ULANG ***", cols)
+        ));
     }
     if receipt.sale.status == SaleStatus::VOIDED {
-        lines.push(center_line("*** TRANSAKSI DIBATALKAN (VOID) ***", cols));
+        lines.push(format!(
+            "{}{}",
+            margin,
+            center_line("*** TRANSAKSI DIBATALKAN (VOID) ***", cols)
+        ));
     }
 
     // Daftar Line Item
     for item in &receipt.items {
-        append_line_item_text(&mut lines, item, cols);
+        append_line_item_text(&mut lines, item, cols, &margin);
     }
-    lines.push(divider.clone());
+    lines.push(format!("{}{}", margin, divider));
 
     // Ringkasan Pembayaran
-    lines.push(format_two_column_line(
-        "Subtotal",
-        &format_rupiah_plain(receipt.sale.subtotal),
-        cols,
+    lines.push(format!(
+        "{}{}",
+        margin,
+        format_two_column_line(
+            "Subtotal",
+            &format_rupiah_plain(receipt.sale.subtotal),
+            cols,
+        )
     ));
     if receipt.sale.discount_total > 0 {
-        lines.push(format_two_column_line(
-            "Total Diskon",
-            &format!("({})", format_rupiah_plain(receipt.sale.discount_total)),
-            cols,
+        lines.push(format!(
+            "{}{}",
+            margin,
+            format_two_column_line(
+                "Total Diskon",
+                &format!("({})", format_rupiah_plain(receipt.sale.discount_total)),
+                cols,
+            )
         ));
     }
-    lines.push(format_two_column_line(
-        "TOTAL",
-        &format_rupiah_plain(receipt.sale.total_amount),
-        cols,
+    lines.push(format!(
+        "{}{}",
+        margin,
+        format_two_column_line(
+            "TOTAL",
+            &format_rupiah_plain(receipt.sale.total_amount),
+            cols,
+        )
     ));
-    lines.push(format_two_column_line(
-        "Tunai",
-        &format_rupiah_plain(receipt.sale.cash_received),
-        cols,
+    lines.push(format!(
+        "{}{}",
+        margin,
+        format_two_column_line(
+            "Tunai",
+            &format_rupiah_plain(receipt.sale.cash_received),
+            cols,
+        )
     ));
-    lines.push(format_two_column_line(
-        "Kembalian",
-        &format_rupiah_plain(receipt.sale.change_amount),
-        cols,
+    lines.push(format!(
+        "{}{}",
+        margin,
+        format_two_column_line(
+            "Kembalian",
+            &format_rupiah_plain(receipt.sale.change_amount),
+            cols,
+        )
     ));
-    lines.push(divider);
+    lines.push(format!("{}{}", margin, divider));
 
     if !receipt.receipt_footer.trim().is_empty() {
-        lines.push(center_line(&receipt.receipt_footer, cols));
+        for line in wrap_text(&receipt.receipt_footer, cols) {
+            lines.push(format!("{}{}", margin, center_line(&line, cols)));
+        }
     }
 
     lines.join("\n")
 }
 
-fn append_line_item_text(lines: &mut Vec<String>, item: &SaleLineItem, cols: usize) {
+fn append_line_item_text(
+    lines: &mut Vec<String>,
+    item: &SaleLineItem,
+    cols: usize,
+    margin: &str,
+) {
     for wrapped in wrap_text(&item.product_name_snapshot, cols) {
-        lines.push(wrapped);
+        lines.push(format!("{}{}", margin, wrapped));
     }
     let gross_line = item.selling_price_snapshot * item.quantity;
     let qty_price_left = format!(
@@ -196,25 +250,41 @@ fn append_line_item_text(lines: &mut Vec<String>, item: &SaleLineItem, cols: usi
         item.unit_snapshot,
         format_rupiah_plain(item.selling_price_snapshot)
     );
-    lines.push(format_two_column_line(
-        &qty_price_left,
-        &format_rupiah_plain(gross_line),
-        cols,
+    lines.push(format!(
+        "{}{}",
+        margin,
+        format_two_column_line(
+            &qty_price_left,
+            &format_rupiah_plain(gross_line),
+            cols,
+        )
     ));
 
     if item.unit_discount_amount > 0 {
         let total_item_disc = item.unit_discount_amount * item.quantity;
-        lines.push(format_two_column_line(
-            "  Diskon Produk",
-            &format!("({})", format_rupiah_plain(total_item_disc)),
-            cols,
+        lines.push(format!(
+            "{}{}",
+            margin,
+            format_two_column_line(
+                "  Diskon Produk",
+                &format!("({})", format_rupiah_plain(total_item_disc)),
+                cols,
+            )
         ));
     }
 }
 
 /// Merakit barisan byte Raw ESC/POS (`Vec<u8>`) lengkap untuk printer thermal 58mm/80mm & Cash Drawer.
-pub fn build_escpos_bytes(receipt: &ReceiptData, paper_width: u16, open_drawer: bool) -> Vec<u8> {
-    let cols = columns_for_paper_width(paper_width);
+pub fn build_escpos_bytes(
+    receipt: &ReceiptData,
+    paper_width: u16,
+    open_drawer: bool,
+    left_margin_chars: u8,
+) -> Vec<u8> {
+    let total_cols = columns_for_paper_width(paper_width);
+    let margin_count = (left_margin_chars as usize).min(total_cols.saturating_sub(16));
+    let cols = total_cols.saturating_sub(margin_count);
+    let margin = " ".repeat(margin_count);
     let divider = "-".repeat(cols);
     let mut buf: Vec<u8> = Vec::with_capacity(1024);
 
@@ -226,134 +296,204 @@ pub fn build_escpos_bytes(receipt: &ReceiptData, paper_width: u16, open_drawer: 
         buf.extend_from_slice(&ESC_KICK_DRAWER);
     }
 
-    // 3. Header Identitas Toko (Center + Bold pada nama toko)
-    buf.extend_from_slice(&ESC_ALIGN_CENTER);
-    buf.extend_from_slice(&ESC_BOLD_ON);
-    for line in wrap_text(&receipt.store_name.to_uppercase(), cols) {
-        buf.extend_from_slice(line.as_bytes());
-        buf.push(b'\n');
-    }
-    buf.extend_from_slice(&ESC_BOLD_OFF);
-
-    if !receipt.store_address.trim().is_empty() {
-        for line in wrap_text(&receipt.store_address, cols) {
-            buf.extend_from_slice(line.as_bytes());
-            buf.push(b'\n');
-        }
-    }
-    if !receipt.store_phone.trim().is_empty() {
-        let phone_line = format!("Telp: {}", receipt.store_phone.trim());
-        for line in wrap_text(&phone_line, cols) {
-            buf.extend_from_slice(line.as_bytes());
-            buf.push(b'\n');
-        }
-    }
-
-    // 4. Metadata Struk (Rata Kiri)
-    buf.extend_from_slice(&ESC_ALIGN_LEFT);
-    buf.extend_from_slice(divider.as_bytes());
-    buf.push(b'\n');
-    buf.extend_from_slice(format!("No   : {}\n", receipt.sale.receipt_number).as_bytes());
-    buf.extend_from_slice(
-        format!(
-            "Tgl  : {}\n",
-            format_timestamp_short(&receipt.sale.created_at)
-        )
-        .as_bytes(),
-    );
-    buf.extend_from_slice(
-        format!(
-            "Kasir: {} ({})\n",
-            receipt.sale.cashier_name_snapshot, receipt.sale.terminal_name
-        )
-        .as_bytes(),
-    );
-    buf.extend_from_slice(divider.as_bytes());
-    buf.push(b'\n');
-
-    // 5. Penanda "*** CETAKAN ULANG ***" tepat di atas item pertama jika is_reprint == true
-    if receipt.is_reprint {
+    // 3. Header Identitas Toko
+    // Jika margin_count == 0, gunakan ESC_ALIGN_CENTER hardware printer; jika ada margin offset, gunakan teks terpusat rata kiri dengan margin
+    if margin_count == 0 {
+        buf.extend_from_slice(&ESC_ALIGN_CENTER);
         buf.extend_from_slice(&ESC_BOLD_ON);
-        buf.extend_from_slice(center_line("*** CETAKAN ULANG ***", cols).as_bytes());
-        buf.push(b'\n');
+        for line in wrap_text(&receipt.store_name.to_uppercase(), cols) {
+            buf.extend_from_slice(line.as_bytes());
+            buf.push(b'\n');
+        }
         buf.extend_from_slice(&ESC_BOLD_OFF);
+
+        if !receipt.store_address.trim().is_empty() {
+            for line in wrap_text(&receipt.store_address, cols) {
+                buf.extend_from_slice(line.as_bytes());
+                buf.push(b'\n');
+            }
+        }
+        if !receipt.store_phone.trim().is_empty() {
+            let phone_line = format!("Telp: {}", receipt.store_phone.trim());
+            for line in wrap_text(&phone_line, cols) {
+                buf.extend_from_slice(line.as_bytes());
+                buf.push(b'\n');
+            }
+        }
+        buf.extend_from_slice(&ESC_ALIGN_LEFT);
+    } else {
+        buf.extend_from_slice(&ESC_ALIGN_LEFT);
+        buf.extend_from_slice(&ESC_BOLD_ON);
+        for line in wrap_text(&receipt.store_name.to_uppercase(), cols) {
+            let centered = format!("{}{}\n", margin, center_line(&line, cols));
+            buf.extend_from_slice(centered.as_bytes());
+        }
+        buf.extend_from_slice(&ESC_BOLD_OFF);
+
+        if !receipt.store_address.trim().is_empty() {
+            for line in wrap_text(&receipt.store_address, cols) {
+                let centered = format!("{}{}\n", margin, center_line(&line, cols));
+                buf.extend_from_slice(centered.as_bytes());
+            }
+        }
+        if !receipt.store_phone.trim().is_empty() {
+            let phone_line = format!("Telp: {}", receipt.store_phone.trim());
+            for line in wrap_text(&phone_line, cols) {
+                let centered = format!("{}{}\n", margin, center_line(&line, cols));
+                buf.extend_from_slice(centered.as_bytes());
+            }
+        }
+    }
+
+    // 4. Metadata Struk
+    buf.extend_from_slice(format!("{}{}\n", margin, divider).as_bytes());
+    let no_line = format!("No   : {}", receipt.sale.receipt_number);
+    for line in wrap_text(&no_line, cols) {
+        buf.extend_from_slice(format!("{}{}\n", margin, line).as_bytes());
+    }
+    let tgl_line = format!(
+        "Tgl  : {}",
+        format_timestamp_short(&receipt.sale.created_at)
+    );
+    for line in wrap_text(&tgl_line, cols) {
+        buf.extend_from_slice(format!("{}{}\n", margin, line).as_bytes());
+    }
+    let cashier_raw = format!(
+        "Kasir: {} ({})",
+        receipt.sale.cashier_name_snapshot, receipt.sale.terminal_name
+    );
+    for line in wrap_text(&cashier_raw, cols) {
+        buf.extend_from_slice(format!("{}{}\n", margin, line).as_bytes());
+    }
+    buf.extend_from_slice(format!("{}{}\n", margin, divider).as_bytes());
+
+    // 5. Penanda Cetakan Ulang atau Void
+    if receipt.is_reprint {
+        if margin_count == 0 {
+            buf.extend_from_slice(&ESC_ALIGN_CENTER);
+            buf.extend_from_slice(&ESC_BOLD_ON);
+            buf.extend_from_slice(b"*** CETAKAN ULANG ***\n");
+            buf.extend_from_slice(&ESC_BOLD_OFF);
+            buf.extend_from_slice(&ESC_ALIGN_LEFT);
+        } else {
+            buf.extend_from_slice(&ESC_BOLD_ON);
+            let banner = format!(
+                "{}{}\n",
+                margin,
+                center_line("*** CETAKAN ULANG ***", cols)
+            );
+            buf.extend_from_slice(banner.as_bytes());
+            buf.extend_from_slice(&ESC_BOLD_OFF);
+        }
     }
     if receipt.sale.status == SaleStatus::VOIDED {
-        buf.extend_from_slice(&ESC_BOLD_ON);
-        buf.extend_from_slice(center_line("*** TRANSAKSI DIBATALKAN (VOID) ***", cols).as_bytes());
-        buf.push(b'\n');
-        buf.extend_from_slice(&ESC_BOLD_OFF);
+        if margin_count == 0 {
+            buf.extend_from_slice(&ESC_ALIGN_CENTER);
+            buf.extend_from_slice(&ESC_BOLD_ON);
+            buf.extend_from_slice(b"*** TRANSAKSI DIBATALKAN (VOID) ***\n");
+            buf.extend_from_slice(&ESC_BOLD_OFF);
+            buf.extend_from_slice(&ESC_ALIGN_LEFT);
+        } else {
+            buf.extend_from_slice(&ESC_BOLD_ON);
+            let banner = format!(
+                "{}{}\n",
+                margin,
+                center_line("*** TRANSAKSI DIBATALKAN (VOID) ***", cols)
+            );
+            buf.extend_from_slice(banner.as_bytes());
+            buf.extend_from_slice(&ESC_BOLD_OFF);
+        }
     }
 
     // 6. Rincian Line Item
     let mut item_lines = Vec::new();
     for item in &receipt.items {
-        append_line_item_text(&mut item_lines, item, cols);
+        append_line_item_text(&mut item_lines, item, cols, &margin);
     }
     for line in item_lines {
         buf.extend_from_slice(line.as_bytes());
         buf.push(b'\n');
     }
 
-    buf.extend_from_slice(divider.as_bytes());
-    buf.push(b'\n');
+    buf.extend_from_slice(format!("{}{}\n", margin, divider).as_bytes());
 
     // 7. Ringkasan Pembayaran
-    let subtotal_line = format_two_column_line(
-        "Subtotal",
-        &format_rupiah_plain(receipt.sale.subtotal),
-        cols,
+    let subtotal_line = format!(
+        "{}{}\n",
+        margin,
+        format_two_column_line(
+            "Subtotal",
+            &format_rupiah_plain(receipt.sale.subtotal),
+            cols,
+        )
     );
     buf.extend_from_slice(subtotal_line.as_bytes());
-    buf.push(b'\n');
 
     if receipt.sale.discount_total > 0 {
-        let disc_line = format_two_column_line(
-            "Total Diskon",
-            &format!("({})", format_rupiah_plain(receipt.sale.discount_total)),
-            cols,
+        let disc_line = format!(
+            "{}{}\n",
+            margin,
+            format_two_column_line(
+                "Total Diskon",
+                &format!("({})", format_rupiah_plain(receipt.sale.discount_total)),
+                cols,
+            )
         );
         buf.extend_from_slice(disc_line.as_bytes());
-        buf.push(b'\n');
     }
 
     buf.extend_from_slice(&ESC_BOLD_ON);
-    let total_line = format_two_column_line(
-        "TOTAL",
-        &format_rupiah_plain(receipt.sale.total_amount),
-        cols,
+    let total_line = format!(
+        "{}{}\n",
+        margin,
+        format_two_column_line(
+            "TOTAL",
+            &format_rupiah_plain(receipt.sale.total_amount),
+            cols,
+        )
     );
     buf.extend_from_slice(total_line.as_bytes());
-    buf.push(b'\n');
     buf.extend_from_slice(&ESC_BOLD_OFF);
 
-    let cash_line = format_two_column_line(
-        "Tunai",
-        &format_rupiah_plain(receipt.sale.cash_received),
-        cols,
+    let cash_line = format!(
+        "{}{}\n",
+        margin,
+        format_two_column_line(
+            "Tunai",
+            &format_rupiah_plain(receipt.sale.cash_received),
+            cols,
+        )
     );
     buf.extend_from_slice(cash_line.as_bytes());
-    buf.push(b'\n');
 
-    let change_line = format_two_column_line(
-        "Kembalian",
-        &format_rupiah_plain(receipt.sale.change_amount),
-        cols,
+    let change_line = format!(
+        "{}{}\n",
+        margin,
+        format_two_column_line(
+            "Kembalian",
+            &format_rupiah_plain(receipt.sale.change_amount),
+            cols,
+        )
     );
     buf.extend_from_slice(change_line.as_bytes());
-    buf.push(b'\n');
 
-    buf.extend_from_slice(divider.as_bytes());
-    buf.push(b'\n');
+    buf.extend_from_slice(format!("{}{}\n", margin, divider).as_bytes());
 
     // 8. Footer Struk
     if !receipt.receipt_footer.trim().is_empty() {
-        buf.extend_from_slice(&ESC_ALIGN_CENTER);
-        for line in wrap_text(&receipt.receipt_footer, cols) {
-            buf.extend_from_slice(line.as_bytes());
-            buf.push(b'\n');
+        if margin_count == 0 {
+            buf.extend_from_slice(&ESC_ALIGN_CENTER);
+            for line in wrap_text(&receipt.receipt_footer, cols) {
+                buf.extend_from_slice(line.as_bytes());
+                buf.push(b'\n');
+            }
+            buf.extend_from_slice(&ESC_ALIGN_LEFT);
+        } else {
+            for line in wrap_text(&receipt.receipt_footer, cols) {
+                let centered = format!("{}{}\n", margin, center_line(&line, cols));
+                buf.extend_from_slice(centered.as_bytes());
+            }
         }
-        buf.extend_from_slice(&ESC_ALIGN_LEFT);
     }
 
     // 9. Feed 4 baris & Partial Cut (1D 56 42 00)
@@ -442,7 +582,7 @@ mod tests {
     #[test]
     fn test_escpos_58mm_and_80mm_column_formatting() {
         let receipt = sample_receipt(false);
-        let text_58 = render_receipt_text(&receipt, 58);
+        let text_58 = render_receipt_text(&receipt, 58, 0);
         for line in text_58.lines() {
             assert!(
                 line.chars().count() <= 32,
@@ -454,7 +594,7 @@ mod tests {
         assert!(text_58.contains("TOTAL                     17.500"));
         assert!(!text_58.contains("*** CETAKAN ULANG ***"));
 
-        let text_80 = render_receipt_text(&receipt, 80);
+        let text_80 = render_receipt_text(&receipt, 80, 0);
         for line in text_80.lines() {
             assert!(
                 line.chars().count() <= 48,
@@ -468,7 +608,7 @@ mod tests {
     fn test_escpos_drawer_kick_and_reprint_behavior() {
         // 1. Transaksi normal dengan open_drawer = true -> wajib memuat byte ESC_KICK_DRAWER (1B 70 00 19 FA)
         let normal = sample_receipt(false);
-        let bytes_normal = build_escpos_bytes(&normal, 58, true);
+        let bytes_normal = build_escpos_bytes(&normal, 58, true, 0);
         assert!(bytes_normal
             .windows(ESC_KICK_DRAWER.len())
             .any(|w| w == ESC_KICK_DRAWER));
@@ -476,11 +616,61 @@ mod tests {
         // 2. Cetakan ulang (is_reprint = true) meskipun open_drawer = true -> TIDAK BOLEH membuka Cash Drawer
         //    dan WAJIB memuat "*** CETAKAN ULANG ***"
         let reprint = sample_receipt(true);
-        let bytes_reprint = build_escpos_bytes(&reprint, 58, true);
+        let bytes_reprint = build_escpos_bytes(&reprint, 58, true, 0);
         assert!(!bytes_reprint
             .windows(ESC_KICK_DRAWER.len())
             .any(|w| w == ESC_KICK_DRAWER));
         let reprint_str = String::from_utf8_lossy(&bytes_reprint);
         assert!(reprint_str.contains("*** CETAKAN ULANG ***"));
+    }
+
+    #[test]
+    fn test_escpos_left_margin_and_long_text_wrapping() {
+        let mut receipt = sample_receipt(false);
+        receipt.store_name = "Supermarket Berkah Abadi Sejahtera Indonesia".to_string();
+        receipt.store_address = "Jl. Boulevard Raya Barat Blok AB No. 88, Kelapa Gading".to_string();
+        receipt.sale.cashier_name_snapshot = "Ahmad Saifullah Hidayat".to_string();
+        receipt.sale.terminal_name = "Terminal Kasir 01".to_string();
+        receipt.items.push(SaleLineItem {
+            id: "li-3".to_string(),
+            sale_id: "sale-1".to_string(),
+            product_id: "p-3".to_string(),
+            sku_snapshot: "SKU-003".to_string(),
+            barcode_snapshot: Some("89930055".to_string()),
+            product_name_snapshot: "Minyak Goreng Sawit Bimoli Spesial Pouch 2000ml Kemasan Refill".to_string(),
+            unit_snapshot: "pouch".to_string(),
+            quantity: 1,
+            cost_price_snapshot: 32_000,
+            selling_price_snapshot: 38_500,
+            discount_type_snapshot: DiscountType::NONE,
+            discount_value_snapshot: 0,
+            unit_discount_amount: 0,
+            subtotal: 38_500,
+        });
+
+        // Uji dengan offset margin 2 karakter spasi pada kertas 58mm
+        let text_58_margin = render_receipt_text(&receipt, 58, 2);
+        for line in text_58_margin.lines() {
+            assert!(
+                line.chars().count() <= 32,
+                "Baris 58mm dengan margin melebihi 32 karakter: '{line}' (len: {})",
+                line.chars().count()
+            );
+            assert!(
+                line.starts_with("  "),
+                "Baris harus memiliki offset margin 2 spasi: '{line}'"
+            );
+        }
+
+        // Pastikan nama produk panjang terbungkus rapi tanpa terpotong
+        assert!(text_58_margin.contains("Minyak"));
+        assert!(text_58_margin.contains("Goreng"));
+        assert!(text_58_margin.contains("Bimoli"));
+
+        // Uji byte ESC/POS dengan margin offset
+        let escpos_bytes = build_escpos_bytes(&receipt, 58, false, 2);
+        assert!(!escpos_bytes.is_empty());
+        let escpos_text = String::from_utf8_lossy(&escpos_bytes);
+        assert!(escpos_text.contains("Ahmad"));
     }
 }

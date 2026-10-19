@@ -3,6 +3,21 @@
 Seluruh perubahan penting pada aplikasi **POS-Kasir** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [0.1.4] - 2026-10-19
+
+### Added
+- **Kontrol Offset Margin Kiri Printer Fisik**:
+  - Menambahkan field `left_margin_chars` (0–8 karakter spasi, default `0`) pada `PrinterConfig` di backend Rust (`src-tauri/src/config.rs`) dan `src/types/domain.ts`.
+  - Menambahkan kontrol interaktif **Offset Margin Kiri (Presisi Tengah)** di halaman Pengaturan Printer (`SettingsPage.tsx`) dengan tombol pemilih spasi cepat (`0` s/d `+6`) dan tombol uji coba langsung (*Test Print*).
+
+### Changed
+- **Redesain Pratinjau Struk Kasir (`ReceiptPreviewModal.tsx`)**:
+  - Menggantikan tampilan teks mentah dengan **Kartu Struk Thermal Modern & Elegan** yang terstruktur, proporsional, dan simetris tepat di tengah layar.
+  - Mengeliminasi masalah teks meluber (*zero overflow*): nama produk panjang, nama kasir, toko, dan alamat dibungkus (*word-wrapped*) secara dinamis dan rapi di dalam batas kertas 58mm maupun 80mm.
+  - Menyediakan tombol *tab/toggle* di bilah atas pratinjau untuk beralih antara **"Tampilan Visual Struk"** dan **"Teks Asli ESC/POS"** (lengkap dengan fitur *Salin Teks*).
+- **Presisi Perataan Tengah Cetakan Fisik ESC/POS**:
+  - Menyelaraskan logika `build_escpos_bytes` dan `render_receipt_text` di `src-tauri/src/hardware/escpos.rs` agar penanda cetakan ulang (`*** CETAKAN ULANG ***`), void, header toko, dan footer struk menggunakan perataan tengah hardware atau offset margin yang terkalibrasi secara konsisten.
+
 ## [0.1.3] - 2026-10-19
 
 ### Added

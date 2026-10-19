@@ -9,6 +9,7 @@ export type SaleStatus = "COMPLETED" | "VOIDED";
 export interface PrinterConfig {
   printer_name: string;
   paper_width: 58 | 80 | number;
+  left_margin_chars?: number;
   auto_open_drawer: boolean;
   preview_on_screen: boolean;
 }
@@ -326,6 +327,7 @@ export interface UpdateStoreSettingsRequest {
 export interface PrintOutcome {
   printer_name: string;
   paper_width: number;
+  left_margin_chars?: number;
   simulated: boolean;
   drawer_kicked: boolean;
   bytes_written: number;

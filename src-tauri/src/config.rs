@@ -24,6 +24,8 @@ impl Default for TerminalMode {
 pub struct PrinterConfig {
     pub printer_name: String,
     pub paper_width: u16,
+    #[serde(default)]
+    pub left_margin_chars: u8,
     pub auto_open_drawer: bool,
     pub preview_on_screen: bool,
 }
@@ -33,6 +35,7 @@ impl Default for PrinterConfig {
         Self {
             printer_name: VIRTUAL_PRINTER_NAME.to_string(),
             paper_width: 80,
+            left_margin_chars: 0,
             auto_open_drawer: true,
             preview_on_screen: true,
         }
