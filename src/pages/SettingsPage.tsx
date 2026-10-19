@@ -9,7 +9,6 @@ import {
   Printer,
   RefreshCw,
   Save,
-  Store,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
@@ -407,8 +406,12 @@ export const SettingsPage: React.FC = () => {
 
         {/* Card 2: Store Profile & LAN Pairing (6 cols) */}
         <div className="col-span-6 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-200">
-            <Store className="w-5 h-5 text-indigo-600" />
+          <div className="flex items-center gap-3 pb-3 border-b border-zinc-200">
+            <img
+              src="/logo.png"
+              alt="Logo POS-Kasir"
+              className="w-10 h-10 rounded-lg object-contain bg-zinc-950 border border-zinc-200 p-0.5 shadow-xs"
+            />
             <div>
               <h2 className="font-bold text-sm text-zinc-900">
                 Identitas Minimarket &amp; Konektivitas LAN

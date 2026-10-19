@@ -3,6 +3,19 @@
 Seluruh perubahan penting pada aplikasi **POS-Kasir** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [0.1.3] - 2026-10-19
+
+### Added
+- **Integrasi Penuh Logo Resmi Aplikasi**:
+  - Mengonversi aset logo resmi (`public/logo.jpg`) menjadi aset beresolusi tinggi (`public/logo.png`), favicon web (`public/favicon.ico`, `public/favicon.png`), dan ikon *apple-touch-icon*.
+  - Menghasilkan seluruh bundel ikon desktop Windows & macOS (`src-tauri/icons/icon.ico`, `icon.icns`, PNG multi-resolusi 32x32 hingga 128x128@2x, dan logo UWP/Store) menggunakan Tauri CLI (`pnpm tauri icon`).
+  - Menampilkan logo resmi pada bilah navigasi utama (`TopBar`), kartu otentikasi kasir (`LoginPage`), panduan setup terminal (`SetupWizardPage`), dan profil toko (`SettingsPage`).
+
+### Removed
+- **Pembersihan Total Logo Default**:
+  - Menghapus file SVG bawaan template (`public/tauri.svg` dan `public/vite.svg`).
+  - Menggantikan placeholder ikon toko generik di seluruh antarmuka dengan logo resmi aplikasi.
+
 ## [0.1.2] - 2026-10-19
 
 ### Changed

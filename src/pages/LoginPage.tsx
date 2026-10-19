@@ -4,7 +4,6 @@ import {
   KeyRound,
   LogIn,
   Server,
-  Store,
   UserCheck,
   Wifi,
   WifiOff,
@@ -44,9 +43,11 @@ export const LoginPage: React.FC = () => {
       {/* Top Status Strip */}
       <div className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-zinc-800/80 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-xs">
-            <Store className="w-4 h-4 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Logo POS-Kasir"
+            className="w-8 h-8 rounded-lg object-contain bg-zinc-900 border border-zinc-800 shadow-xs"
+          />
           <span className="font-bold text-sm tracking-wide text-white">
             {terminalStatus?.store_name || "POS-KASIR MINIMARKET"}
           </span>
@@ -77,14 +78,21 @@ export const LoginPage: React.FC = () => {
       {/* Kartu Login */}
       <div className="max-w-md w-full mx-auto my-auto">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-7 shadow-2xl">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Masuk Operator Kasir
-            </h1>
-            <p className="text-xs text-zinc-400 mt-1">
-              Gunakan akun <strong>Cashier</strong> atau <strong>Admin</strong>{" "}
-              untuk membuka meja kasir.
-            </p>
+          <div className="mb-6 flex items-center gap-3.5">
+            <img
+              src="/logo.png"
+              alt="Logo POS-Kasir"
+              className="w-12 h-12 rounded-xl object-contain bg-zinc-950 border border-zinc-800 p-1 shadow-md"
+            />
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">
+                Masuk Operator Kasir
+              </h1>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Gunakan akun <strong>Cashier</strong> atau <strong>Admin</strong>{" "}
+                untuk membuka meja kasir.
+              </p>
+            </div>
           </div>
 
           {error && (

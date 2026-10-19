@@ -6,7 +6,6 @@ import {
   Network,
   Server,
   ShieldCheck,
-  Store,
   Wifi,
   AlertTriangle,
   ArrowLeft,
@@ -116,9 +115,11 @@ export const SetupWizardPage: React.FC = () => {
       {/* Header Identitas Setup */}
       <header className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-zinc-800/80 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center shadow-xs">
-            <Store className="w-6 h-6 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Logo POS-Kasir"
+            className="w-10 h-10 rounded-lg object-contain bg-zinc-900 border border-zinc-800 shadow-xs"
+          />
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
               <span>POS-KASIR — Konfigurasi Awal Terminal</span>

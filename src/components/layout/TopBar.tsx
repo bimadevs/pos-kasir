@@ -7,7 +7,6 @@ import {
   Package,
   Settings,
   ShoppingCart,
-  Store,
   Users,
   Wifi,
   WifiOff,
@@ -97,9 +96,11 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
       {/* Kiri: Identitas Toko & Navigasi Peran */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5 pr-3 border-r border-zinc-800">
-          <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center shadow-xs">
-            <Store className="w-4 h-4 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Logo POS-Kasir"
+            className="w-7 h-7 rounded-md object-contain bg-zinc-900 border border-zinc-800 shadow-xs"
+          />
           <div className="leading-tight">
             <div className="font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
               <span>{terminalStatus?.store_name || "POS-KASIR"}</span>
