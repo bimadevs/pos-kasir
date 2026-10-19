@@ -3,6 +3,17 @@
 Seluruh perubahan penting pada aplikasi **POS-Kasir** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [0.1.5] - 2026-10-19
+
+### Changed
+- **Redesain Modern & Responsif Bilah Navigasi Utama (`TopBar.tsx`)**:
+  - **Eliminasi Teks Terpotong / 2 Baris**: Menerapkan `whitespace-nowrap` pada seluruh tab dan teks identitas toko, memastikan judul tombol seperti *"Kasir (POS)"*, *"Produk & CSV"*, *"Stok / Koreksi"*, dan *"Laporan & Laba"* selalu tampil rapi dalam satu baris.
+  - **Gaya Navigasi Segmented Control Elegan**: Menggantikan tombol ungu gonjreng (`bg-indigo-600`) dengan kapsul *segmented control* gelap (`bg-zinc-900/90`) bergaya aplikasi desktop modern (macOS/Linear), di mana tab aktif berupa *elevated pill* Zinc halus (`bg-zinc-800` dengan border `zinc-700/60`).
+  - **Adaptasi Responsif Hybrid untuk Monitor POS**: Tab prioritas *"Kasir (POS)"* selalu tampil penuh. Pada resolusi $\ge 1280$px, seluruh tab manajemen Admin tampil berjajar; sementara pada layar kasir yang lebih sempit (< 1280px), tab admin otomatis dirangkum ke dalam dropdown interaktif *"Menu Manajemen ▾"* lengkap dengan penutup klik-luar dan tombol `Escape`.
+  - **Smart Terminal Chip & Brand Identity**: Menata ulang logo dan identitas toko, serta membersihkan nama terminal agar tidak terjadi redundansi kata (contoh: *"Kasir 1 • Server"* alih-alih duplikasi *"Kasir 1 (Server Utama) (Server)"*).
+  - **Kapsul Status Terpadu (LAN & Jam Monospace)**: Menggabungkan indikator jaringan LAN (*pulsing status dot* hijau/merah) dan jam digital kasir (`tabular-nums`) ke dalam satu kapsul status minimalis berpresisi tinggi.
+  - **Pill Profil Pengguna & Logout Terintegrasi**: Mengemas inisial avatar pengguna, nama kasir, badge peran (`ADMIN`/`CASHIER`), dan tombol keluar sesi kasir ke dalam satu pill interaktif yang ergonomis.
+
 ## [0.1.4] - 2026-10-19
 
 ### Added
