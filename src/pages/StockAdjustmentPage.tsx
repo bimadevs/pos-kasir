@@ -128,7 +128,7 @@ export const StockAdjustmentPage: React.FC = () => {
         <button
           type="button"
           onClick={() => void loadData()}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-xs font-bold text-zinc-700 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-xs font-bold text-zinc-700 shadow-2xs transition-all cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Muat Ulang
@@ -151,7 +151,7 @@ export const StockAdjustmentPage: React.FC = () => {
         {/* Form Card (4 cols) */}
         <div className="col-span-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 h-fit">
           <div className="flex items-center gap-2 pb-3 mb-4 border-b border-zinc-200">
-            <PackageCheck className="w-5 h-5 text-indigo-600" />
+            <PackageCheck className="w-5 h-5 text-teal-600" />
             <h2 className="font-bold text-sm text-zinc-900">
               Formulir Penyesuaian Stok
             </h2>
@@ -168,7 +168,7 @@ export const StockAdjustmentPage: React.FC = () => {
               <select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               >
                 {products.map((prod) => (
                   <option key={prod.id} value={prod.id}>
@@ -187,7 +187,7 @@ export const StockAdjustmentPage: React.FC = () => {
                 onChange={(e) =>
                   setAdjustmentType(e.target.value as AdjustmentType)
                 }
-                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               >
                 <option value="RESTOCK">
                   RESTOCK — Barang Masuk / Kulakan (+)
@@ -213,9 +213,9 @@ export const StockAdjustmentPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCorrectionDirection("ADD")}
-                    className={`py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
+                    className={`py-2 rounded-xl font-bold border transition-all cursor-pointer active:scale-[0.98] ${
                       correctionDirection === "ADD"
-                        ? "bg-emerald-600 text-white border-emerald-600"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                         : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                     }`}
                   >
@@ -224,9 +224,9 @@ export const StockAdjustmentPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCorrectionDirection("SUB")}
-                    className={`py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
+                    className={`py-2 rounded-xl font-bold border transition-all cursor-pointer active:scale-[0.98] ${
                       correctionDirection === "SUB"
-                        ? "bg-rose-600 text-white border-rose-600"
+                        ? "bg-rose-600 text-white border-rose-600 shadow-xs"
                         : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                     }`}
                   >
@@ -246,7 +246,7 @@ export const StockAdjustmentPage: React.FC = () => {
                 required
                 value={qtyMagnitude}
                 onChange={(e) => setQtyMagnitude(e.target.value)}
-                className="w-full px-3 py-2.5 font-mono font-bold text-sm border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3 py-2.5 font-mono font-bold text-sm border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
             </div>
 
@@ -260,12 +260,12 @@ export const StockAdjustmentPage: React.FC = () => {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Contoh: Nota Supplier PT Indofood #8821"
-                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                className="w-full px-3 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
               />
             </div>
 
             {/* Live Stock Preview Box */}
-            <div className="bg-zinc-950 text-white rounded-xl p-4 flex items-center justify-between border border-zinc-800">
+            <div className="bg-slate-900 text-white rounded-xl p-4 flex items-center justify-between border border-slate-800">
               <div>
                 <div className="text-[10px] uppercase text-zinc-400">
                   Stok Awal
@@ -303,7 +303,7 @@ export const StockAdjustmentPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || stockAfter < 0}
-              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 text-white font-bold text-xs tracking-wide transition-colors cursor-pointer shadow-xs"
+              className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 text-white font-bold text-xs tracking-wide transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {submitting ? "Menyimpan..." : "Simpan Mutasi Stok"}
             </button>
@@ -366,7 +366,7 @@ export const StockAdjustmentPage: React.FC = () => {
                             adj.adjustment_type === "RESTOCK"
                               ? "bg-emerald-50 text-emerald-800 border border-emerald-200/60"
                               : adj.adjustment_type === "CORRECTION"
-                              ? "bg-indigo-50 text-indigo-800 border border-indigo-200/60"
+                              ? "bg-teal-50 text-teal-800 border border-teal-200/60"
                               : "bg-rose-50 text-rose-700 border border-rose-200/60"
                           }`}
                         >

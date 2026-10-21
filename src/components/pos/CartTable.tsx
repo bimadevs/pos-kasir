@@ -68,11 +68,11 @@ export const CartTable: React.FC<CartTableProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl border border-zinc-200 p-8 text-center select-none shadow-2xs">
-        <div className="w-14 h-14 rounded-2xl bg-zinc-100 border border-zinc-200/80 flex items-center justify-center text-zinc-400 mb-3">
+      <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-2xl border border-zinc-200/90 p-8 text-center select-none shadow-2xs">
+        <div className="w-14 h-14 rounded-2xl bg-zinc-100 border border-zinc-200/80 flex items-center justify-center text-zinc-400 mb-3 shadow-inner">
           <ShoppingBag className="w-7 h-7" />
         </div>
-        <h3 className="text-base font-bold text-zinc-800 mb-1">
+        <h3 className="text-base font-extrabold text-zinc-900 mb-1 tracking-tight">
           Keranjang Belanja Kosong
         </h3>
         <p className="text-xs text-zinc-500 max-w-sm leading-relaxed">
@@ -84,10 +84,10 @@ export const CartTable: React.FC<CartTableProps> = ({
   }
 
   return (
-    <div className="flex-1 bg-white rounded-xl border border-zinc-200 shadow-2xs overflow-hidden flex flex-col min-h-0">
+    <div className="flex-1 bg-white rounded-2xl border border-zinc-200/90 shadow-2xs overflow-hidden flex flex-col min-h-0">
       <div className="overflow-y-auto flex-1">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-zinc-600">
+          <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
             <tr>
               <th className="py-2.5 px-3 w-10 text-center">#</th>
               <th className="py-2.5 px-3">Nama Produk &amp; Kode</th>
@@ -99,7 +99,7 @@ export const CartTable: React.FC<CartTableProps> = ({
               <th className="py-2.5 px-3 w-14 text-center">Hapus</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 text-sm">
+          <tbody className="divide-y divide-zinc-100 text-sm">
             {items.map((item, idx) => {
               const { product, quantity } = item;
               const isSelected = idx === selectedIndex;
@@ -125,10 +125,10 @@ export const CartTable: React.FC<CartTableProps> = ({
                   onClick={() => onSelectRow(idx)}
                   className={`transition-colors cursor-pointer ${
                     isHighlighted
-                      ? "bg-indigo-100/70"
+                      ? "bg-teal-100/70 border-l-4 border-l-teal-600"
                       : isSelected
-                      ? "bg-indigo-50/70"
-                      : "hover:bg-zinc-50/80"
+                      ? "bg-teal-50/70 border-l-4 border-l-teal-600"
+                      : "hover:bg-zinc-50/80 border-l-4 border-l-transparent"
                   }`}
                 >
                   <td className="py-3 px-3 text-center font-mono text-xs font-semibold text-zinc-500">
@@ -184,7 +184,7 @@ export const CartTable: React.FC<CartTableProps> = ({
                               onCancelEditQty();
                             }
                           }}
-                          className="w-20 text-center font-mono font-bold text-sm px-2 py-1 border-2 border-indigo-600 rounded-lg bg-white text-zinc-900 focus:outline-none tabular-nums"
+                          className="w-20 text-center font-mono font-bold text-sm px-2 py-1 border-2 border-teal-600 rounded-lg bg-white text-zinc-900 focus:outline-none tabular-nums"
                         />
                       </div>
                     ) : (

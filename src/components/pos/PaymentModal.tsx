@@ -91,7 +91,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (completedReceipt) {
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
         <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md overflow-hidden">
           <div className="bg-zinc-900 text-white px-6 py-5 text-center border-b border-zinc-800">
             <CheckCircle2 className="w-11 h-11 mx-auto mb-2 text-emerald-400" />
@@ -126,7 +126,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             {printWarning && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-xs font-medium">
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs font-semibold">
                 Catatan Printer: {printWarning}
               </div>
             )}
@@ -135,7 +135,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="button"
                 onClick={onShowReceiptPreview}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-100 font-semibold text-xs transition-colors cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] font-bold text-xs transition-all cursor-pointer shadow-2xs"
               >
                 <Printer className="w-4 h-4" />
                 Lihat / Cetak Struk
@@ -144,7 +144,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={onStartNewTransaction}
                 autoFocus
-                className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
               >
                 Transaksi Baru (Enter)
               </button>
@@ -156,19 +156,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-zinc-900 text-white px-6 py-4 flex items-center justify-between border-b border-zinc-800">
+        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-2.5">
-            <Banknote className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-bold text-base">Pembayaran Tunai (CASH)</h3>
+            <Banknote className="w-5 h-5 text-teal-400" />
+            <h3 className="font-extrabold text-base tracking-tight">Pembayaran Tunai (CASH)</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-zinc-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-zinc-800"
           >
             <X className="w-5 h-5" />
           </button>
@@ -176,13 +176,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         <form onSubmit={handleFormSubmit} className="p-6 space-y-5">
           {errorMessage && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-semibold">
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl text-xs font-semibold">
               {errorMessage}
             </div>
           )}
 
           {/* Total Tagihan */}
-          <div className="bg-zinc-950 text-white rounded-xl p-4 flex items-center justify-between border border-zinc-800">
+          <div className="bg-zinc-950 text-white rounded-xl p-4 flex items-center justify-between border border-zinc-800 shadow-inner">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                 Total Tagihan
@@ -198,7 +198,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
           {/* Input Nominal Uang Diterima */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 mb-1.5">
               Uang Tunai Diterima (Rp)
             </label>
             <input
@@ -209,7 +209,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               value={cashInput}
               onChange={(e) => setCashInput(e.target.value)}
               disabled={submitting}
-              className="w-full px-4 py-3 text-2xl font-mono font-extrabold text-zinc-900 bg-zinc-50/70 border border-zinc-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 rounded-xl focus:outline-none focus:bg-white tabular-nums transition-all"
+              className="w-full px-4 py-3 text-2xl font-mono font-extrabold text-zinc-900 bg-zinc-50/70 border border-zinc-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 rounded-xl focus:outline-none focus:bg-white tabular-nums transition-all shadow-2xs"
               placeholder="Masukkan nominal uang diterima..."
             />
           </div>
@@ -223,7 +223,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCashInput(String(totalAmount))}
-                className="col-span-3 py-2 px-3 rounded-lg bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 text-indigo-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="col-span-3 py-2 px-3 rounded-xl bg-teal-50 hover:bg-teal-100/80 active:scale-[0.98] border border-teal-200 text-teal-900 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
               >
                 <span>Uang Pas ({formatRupiah(totalAmount)})</span>
                 <kbd className="kbd-key">F9</kbd>
@@ -233,7 +233,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   key={denom}
                   type="button"
                   onClick={() => setCashInput(String(denom))}
-                  className="py-2 px-3 rounded-lg bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200 text-zinc-800 font-mono font-bold text-xs tabular-nums transition-colors cursor-pointer"
+                  className="py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-zinc-800 font-mono font-bold text-xs tabular-nums transition-all cursor-pointer shadow-2xs"
                 >
                   {formatRupiah(denom)}
                 </button>
@@ -268,19 +268,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-200">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-100 text-xs font-bold transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-xs font-bold transition-all cursor-pointer shadow-2xs"
             >
               Batal (Esc)
             </button>
             <button
               type="submit"
               disabled={!isSufficient || submitting}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-200 disabled:text-zinc-400 text-white text-xs font-extrabold tracking-wide shadow-xs transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 text-white text-xs font-extrabold tracking-wide shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {submitting ? "Memproses..." : "Konfirmasi & Cetak Struk (Enter)"}
             </button>

@@ -26,7 +26,7 @@ pub struct BackendDispatcher {
 impl BackendDispatcher {
     pub fn new(app_data_dir: PathBuf) -> AppResult<Self> {
         let config = LocalConfig::load_or_default(&app_data_dir)?;
-        let db_path = app_data_dir.join("pos_kasir.db");
+        let db_path = app_data_dir.join("kassio.db");
         let db = Arc::new(Database::open_file(&db_path)?);
         let core = Arc::new(CoreService::new(db));
 

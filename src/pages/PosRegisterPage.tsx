@@ -480,7 +480,7 @@ export const PosRegisterPage: React.FC = () => {
         <div className="col-span-8 flex flex-col gap-2.5 min-h-0">
           {/* Search & Barcode Input Bar */}
           <div className="relative z-20">
-            <div className="flex items-center bg-white border border-zinc-300 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl shadow-2xs px-3.5 py-2 transition-all">
+            <div className="flex items-center bg-white border border-zinc-300 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-500/20 rounded-xl shadow-2xs px-3.5 py-2 transition-all">
               <Search className="w-5 h-5 text-zinc-400 mr-2.5 shrink-0" />
               <input
                 ref={searchInputRef}
@@ -514,7 +514,7 @@ export const PosRegisterPage: React.FC = () => {
                       type="button"
                       onClick={() => handleAddProductObject(prod)}
                       className={`w-full px-4 py-2.5 text-left flex items-center justify-between transition-colors cursor-pointer ${
-                        isActiveRow ? "bg-indigo-50/70" : "hover:bg-zinc-50"
+                        isActiveRow ? "bg-teal-50/70" : "hover:bg-zinc-50"
                       }`}
                     >
                       <div>
@@ -674,7 +674,7 @@ export const PosRegisterPage: React.FC = () => {
                 type="button"
                 onClick={handleOpenHoldModal}
                 disabled={cart.length === 0}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 disabled:opacity-40 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] disabled:opacity-40 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
                   <PauseCircle className="w-4 h-4 text-zinc-300 shrink-0" />
@@ -686,7 +686,7 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenRecallModal()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-zinc-300 shrink-0" />
@@ -698,7 +698,7 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenTodaySales()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
                   <History className="w-4 h-4 text-zinc-300 shrink-0" />
@@ -710,7 +710,7 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleReprintLastReceipt()}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
                   <Printer className="w-4 h-4 text-zinc-300 shrink-0" />
@@ -727,10 +727,10 @@ export const PosRegisterPage: React.FC = () => {
               type="button"
               disabled={cart.length === 0 || submittingSale}
               onClick={() => void executeCheckout(totals.totalAmount, false)}
-              className="w-full py-2.5 px-4 rounded-xl bg-zinc-800/90 hover:bg-zinc-800 disabled:opacity-40 border border-zinc-700 text-zinc-200 font-bold text-xs flex items-center justify-between transition-colors cursor-pointer"
+              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700 text-white font-bold text-xs flex items-center justify-between transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:active:scale-100"
             >
               <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-indigo-400" />
+                <Zap className="w-4 h-4 text-emerald-200" />
                 Bayar Cepat Uang Pas ({formatRupiah(totals.totalAmount)})
               </span>
               <kbd className="kbd-key-dark">F9</kbd>
@@ -745,11 +745,11 @@ export const PosRegisterPage: React.FC = () => {
                 setPaymentError(null);
                 setPaymentModalOpen(true);
               }}
-              className="w-full py-4 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-extrabold text-base tracking-wide flex items-center justify-between shadow-md transition-all active:scale-[0.99] cursor-pointer"
+              className="w-full py-3.5 px-5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-extrabold text-sm tracking-wide flex items-center justify-between shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30"
             >
               <span className="flex items-center gap-2.5">
-                <Banknote className="w-5 h-5" />
-                PROSES PEMBAYARAN
+                <Banknote className="w-5 h-5 text-teal-200" />
+                PROSES PEMBAYARAN TUNAI
               </span>
               <kbd className="kbd-key-dark text-xs">F8</kbd>
             </button>
@@ -793,7 +793,7 @@ export const PosRegisterPage: React.FC = () => {
           </span>
         </div>
         <div className="font-mono text-zinc-400">
-          POS-Kasir {APP_VERSION_LABEL}
+          Kassio {APP_VERSION_LABEL}
         </div>
       </footer>
 

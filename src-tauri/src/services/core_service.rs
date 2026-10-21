@@ -2125,14 +2125,14 @@ impl CoreService {
             ));
         }
 
-        // Validasi terlebih dahulu bahwa source_path adalah file SQLite POS-Kasir yang sah
+        // Validasi terlebih dahulu bahwa source_path adalah file SQLite Kassio yang sah
         {
             let src_conn = Connection::open(source_path)?;
             let store_count: i64 = src_conn
                 .query_row("SELECT COUNT(*) FROM store_settings", [], |r| r.get(0))
                 .map_err(|_| {
                     AppError::Validation(
-                        "File yang dipilih bukan database cadangan POS-Kasir yang valid."
+                        "File yang dipilih bukan database cadangan Kassio yang valid."
                             .to_string(),
                     )
                 })?;

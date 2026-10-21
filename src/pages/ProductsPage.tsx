@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   AlertTriangle,
   Download,
   Edit3,
@@ -39,6 +40,7 @@ export const ProductsPage: React.FC = () => {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formSku, setFormSku] = useState<string>("");
   const [formBarcode, setFormBarcode] = useState<string>("");
@@ -83,6 +85,17 @@ export const ProductsPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [loadProducts]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modalOpen && !saving) {
+        setModalOpen(false);
+        setModalError(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalOpen, saving]);
+
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormSku(`PRD-${Date.now().toString().slice(-5)}`);
@@ -96,6 +109,7 @@ export const ProductsPage: React.FC = () => {
     setFormDiscountValue("0");
     setFormInitialStock("10");
     setFormIsActive(true);
+    setModalError(null);
     setModalOpen(true);
   };
 
@@ -112,6 +126,7 @@ export const ProductsPage: React.FC = () => {
     setFormDiscountValue(String(product.discount_value));
     setFormInitialStock(String(product.stock));
     setFormIsActive(product.is_active);
+    setModalError(null);
     setModalOpen(true);
   };
 
@@ -124,8 +139,25 @@ export const ProductsPage: React.FC = () => {
       formDiscountType === "NONE" ? 0 : parseInt(formDiscountValue, 10) || 0;
     const initialStock = parseInt(formInitialStock, 10) || 0;
 
+    if (!formSku.trim()) {
+      setModalError("Kode SKU produk wajib diisi.");
+      return;
+    }
+    if (!formName.trim()) {
+      setModalError("Nama produk wajib diisi.");
+      return;
+    }
+    if (costPrice < 0) {
+      setModalError("Harga modal (HPP) tidak boleh bernilai negatif.");
+      return;
+    }
+    if (sellingPrice < 0) {
+      setModalError("Harga jual tidak boleh bernilai negatif.");
+      return;
+    }
+
     setSaving(true);
-    setFeedback(null);
+    setModalError(null);
     try {
       const payload: UpsertProductRequest = {
         id: editingProduct?.id ?? null,
@@ -143,6 +175,7 @@ export const ProductsPage: React.FC = () => {
       };
       await ipc.upsertProduct(payload);
       setModalOpen(false);
+      setModalError(null);
       await loadProducts();
       setFeedback({
         type: "success",
@@ -151,10 +184,20 @@ export const ProductsPage: React.FC = () => {
           : `Produk "${payload.name}" berhasil ditambahkan ke katalog.`,
       });
     } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err instanceof Error ? err.message : String(err),
-      });
+      const raw = err instanceof Error ? err.message : String(err);
+      let readable = raw;
+      if (
+        raw.includes("UNIQUE constraint failed: products.sku") ||
+        raw.includes("sku") && raw.includes("already exists")
+      ) {
+        readable = `Kode SKU "${formSku.trim()}" sudah digunakan oleh produk lain. Silakan masukkan SKU unik.`;
+      } else if (
+        raw.includes("UNIQUE constraint failed: products.barcode") ||
+        raw.includes("barcode") && raw.includes("already exists")
+      ) {
+        readable = `Kode Barcode "${formBarcode.trim()}" sudah terdaftar pada produk lain.`;
+      }
+      setModalError(readable);
     } finally {
       setSaving(false);
     }
@@ -209,7 +252,7 @@ export const ProductsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "template-import-produk-pos-kasir.csv";
+    a.download = "template-import-produk-kassio.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -293,7 +336,7 @@ export const ProductsPage: React.FC = () => {
           <button
             type="button"
             onClick={handleDownloadTemplateCsv}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
           >
             <FileSpreadsheet className="w-4 h-4 text-zinc-500" />
             Template CSV
@@ -301,15 +344,15 @@ export const ProductsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
           >
-            <Upload className="w-4 h-4 text-indigo-600" />
+            <Upload className="w-4 h-4 text-teal-600" />
             Import CSV
           </button>
           <button
             type="button"
             onClick={() => void handleExportCsv()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
           >
             <Download className="w-4 h-4 text-emerald-600" />
             Export CSV
@@ -317,7 +360,7 @@ export const ProductsPage: React.FC = () => {
           <button
             type="button"
             onClick={openCreateModal}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
           >
             <PackagePlus className="w-4 h-4" />
             + Tambah Produk
@@ -328,7 +371,7 @@ export const ProductsPage: React.FC = () => {
       {/* Feedback Banner */}
       {feedback && (
         <div
-          className={`px-4 py-3 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+          className={`px-4 py-3 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-2xs ${
             feedback.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-rose-50 border-rose-200 text-rose-800"
@@ -338,7 +381,7 @@ export const ProductsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="text-xs underline ml-4 cursor-pointer"
+            className="text-xs underline ml-4 cursor-pointer font-bold"
           >
             Tutup
           </button>
@@ -350,16 +393,19 @@ export const ProductsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setStockFilter("ALL")}
-          className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "ALL"
               ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
-              : "bg-white text-zinc-800 border-zinc-200 hover:border-zinc-300"
+              : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
-          <div className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Total Katalog
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
+              Total Katalog
+            </span>
+            <span className="w-2 h-2 rounded-full bg-zinc-400" />
           </div>
-          <div className="text-2xl font-extrabold font-mono mt-1 tabular-nums">
+          <div className="text-2xl font-extrabold font-mono mt-1.5 tabular-nums">
             {products.length}
           </div>
         </button>
@@ -367,16 +413,19 @@ export const ProductsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setStockFilter("LOW")}
-          className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "LOW"
-              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
-              : "bg-white text-zinc-800 border-zinc-200 hover:border-amber-300"
+              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
-          <div className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Stok Menipis (1–5)
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
+              Stok Menipis (1–5)
+            </span>
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono mt-1 tabular-nums">
+          <div className="text-2xl font-extrabold font-mono mt-1.5 tabular-nums">
             {lowCount}
           </div>
         </button>
@@ -384,16 +433,19 @@ export const ProductsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setStockFilter("OUT")}
-          className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "OUT"
-              ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-              : "bg-white text-zinc-800 border-zinc-200 hover:border-rose-300"
+              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
-          <div className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Stok Habis (0)
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
+              Stok Habis (0)
+            </span>
+            <span className="w-2 h-2 rounded-full bg-rose-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono mt-1 tabular-nums">
+          <div className="text-2xl font-extrabold font-mono mt-1.5 tabular-nums">
             {outCount}
           </div>
         </button>
@@ -401,16 +453,19 @@ export const ProductsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setStockFilter("PROMO")}
-          className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "PROMO"
-              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-              : "bg-white text-zinc-800 border-zinc-200 hover:border-indigo-300"
+              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
-          <div className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Produk Diskon Aktif
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
+              Produk Diskon Aktif
+            </span>
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono mt-1 tabular-nums">
+          <div className="text-2xl font-extrabold font-mono mt-1.5 tabular-nums">
             {promoCount}
           </div>
         </button>
@@ -418,7 +473,7 @@ export const ProductsPage: React.FC = () => {
 
       {/* Search & Toggles Bar */}
       <div className="bg-white p-3.5 rounded-xl border border-zinc-200 flex items-center justify-between gap-4 shadow-2xs">
-        <div className="flex items-center flex-1 bg-zinc-50 border border-zinc-300/80 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-600 transition-all">
+        <div className="flex items-center flex-1 bg-zinc-50 border border-zinc-300/80 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-600 transition-all">
           <Search className="w-4 h-4 text-zinc-400 mr-2" />
           <input
             type="text"
@@ -434,7 +489,7 @@ export const ProductsPage: React.FC = () => {
             type="checkbox"
             checked={includeInactive}
             onChange={(e) => setIncludeInactive(e.target.checked)}
-            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
           />
           Tampilkan Produk Nonaktif
         </label>
@@ -552,7 +607,7 @@ export const ProductsPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openEditModal(product)}
-                          className="p-1.5 rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-zinc-600 hover:text-teal-600 hover:bg-teal-50 transition-colors cursor-pointer"
                           title="Edit Produk"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -579,16 +634,36 @@ export const ProductsPage: React.FC = () => {
 
       {/* Add / Edit Product Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-xl overflow-hidden">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/75 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !saving) {
+              setModalOpen(false);
+              setModalError(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-zinc-200/80 w-full max-w-xl overflow-hidden my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-zinc-950 text-white px-6 py-4 flex items-center justify-between border-b border-zinc-800">
               <h3 className="font-bold text-base tracking-tight">
                 {editingProduct ? "Edit Data Produk" : "Tambah Produk Baru"}
               </h3>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer transition-colors"
+                onClick={() => {
+                  if (!saving) {
+                    setModalOpen(false);
+                    setModalError(null);
+                  }
+                }}
+                disabled={saving}
+                title="Tutup (Esc)"
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer transition-colors disabled:opacity-40"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -598,6 +673,33 @@ export const ProductsPage: React.FC = () => {
               onSubmit={(e) => void handleSaveProduct(e)}
               className="p-6 space-y-4 text-xs"
             >
+              {modalError && (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
+                >
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-xs text-rose-950 uppercase tracking-wider">
+                        Gagal Menyimpan Data Produk
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setModalError(null)}
+                        className="text-rose-400 hover:text-rose-700 p-0.5 rounded transition-colors cursor-pointer"
+                        aria-label="Tutup pesan error"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-rose-800 mt-1 font-semibold leading-relaxed">
+                      {modalError}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
@@ -608,7 +710,7 @@ export const ProductsPage: React.FC = () => {
                     required
                     value={formSku}
                     onChange={(e) => setFormSku(e.target.value)}
-                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   />
                 </div>
                 <div>
@@ -620,7 +722,7 @@ export const ProductsPage: React.FC = () => {
                     value={formBarcode}
                     onChange={(e) => setFormBarcode(e.target.value)}
                     placeholder="Scan atau ketik barcode..."
-                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                 </div>
               </div>
@@ -636,7 +738,7 @@ export const ProductsPage: React.FC = () => {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Contoh: Indomie Goreng 85g"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                 </div>
                 <div>
@@ -648,7 +750,7 @@ export const ProductsPage: React.FC = () => {
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
                     placeholder="Makanan / Minuman"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                 </div>
                 <div>
@@ -660,7 +762,7 @@ export const ProductsPage: React.FC = () => {
                     value={formUnit}
                     onChange={(e) => setFormUnit(e.target.value)}
                     placeholder="pcs / btl / bks"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                 </div>
               </div>
@@ -676,7 +778,7 @@ export const ProductsPage: React.FC = () => {
                     required
                     value={formCostPrice}
                     onChange={(e) => setFormCostPrice(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   />
                 </div>
                 <div>
@@ -689,7 +791,7 @@ export const ProductsPage: React.FC = () => {
                     required
                     value={formSellingPrice}
                     onChange={(e) => setFormSellingPrice(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   />
                 </div>
               </div>
@@ -704,7 +806,7 @@ export const ProductsPage: React.FC = () => {
                     onChange={(e) =>
                       setFormDiscountType(e.target.value as DiscountType)
                     }
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   >
                     <option value="NONE">Tanpa Diskon (NONE)</option>
                     <option value="NOMINAL">
@@ -726,7 +828,7 @@ export const ProductsPage: React.FC = () => {
                     disabled={formDiscountType === "NONE"}
                     value={formDiscountType === "NONE" ? "0" : formDiscountValue}
                     onChange={(e) => setFormDiscountValue(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   />
                 </div>
               </div>
@@ -742,7 +844,7 @@ export const ProductsPage: React.FC = () => {
                     required
                     value={formInitialStock}
                     onChange={(e) => setFormInitialStock(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                   />
                 </div>
               ) : (
@@ -757,7 +859,7 @@ export const ProductsPage: React.FC = () => {
                       type="checkbox"
                       checked={formIsActive}
                       onChange={(e) => setFormIsActive(e.target.checked)}
-                      className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
                     />
                     Produk Aktif
                   </label>
@@ -765,7 +867,7 @@ export const ProductsPage: React.FC = () => {
               )}
 
               {/* Live Price & Margin Preview */}
-              <div className="bg-zinc-900 text-white rounded-xl p-3.5 flex items-center justify-between border border-zinc-800">
+              <div className="bg-slate-900 text-white rounded-xl p-3.5 flex items-center justify-between border border-slate-800">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-zinc-400">
                     Harga Jual Efektif (Setelah Diskon)
@@ -788,18 +890,22 @@ export const ProductsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-2 border-t border-zinc-200">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-200">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-zinc-300 font-bold text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setModalOpen(false);
+                    setModalError(null);
+                  }}
+                  disabled={saving}
+                  className="px-4 py-2.5 rounded-xl border border-zinc-300 font-bold text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] transition-all cursor-pointer text-xs shadow-2xs disabled:opacity-50"
                 >
-                  Batal
+                  Batal (Esc)
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors cursor-pointer shadow-xs disabled:bg-zinc-300"
+                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold transition-all cursor-pointer shadow-xs disabled:bg-zinc-300 disabled:cursor-not-allowed text-xs"
                 >
                   {saving ? "Menyimpan..." : "Simpan Produk"}
                 </button>

@@ -19,7 +19,7 @@ fn setup_system_tray(app: &tauri::App) {
         tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     };
 
-    let Ok(open_item) = MenuItem::with_id(app, "open", "Buka POS-Kasir", true, None::<&str>) else {
+    let Ok(open_item) = MenuItem::with_id(app, "open", "Buka Kassio", true, None::<&str>) else {
         return;
     };
     let Ok(quit_item) = MenuItem::with_id(
@@ -36,7 +36,7 @@ fn setup_system_tray(app: &tauri::App) {
     };
 
     let mut builder = TrayIconBuilder::new()
-        .tooltip("POS-Kasir — Server & Kasir Minimarket")
+        .tooltip("Kassio — Server & Kasir Minimarket")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => {
@@ -82,11 +82,11 @@ pub fn run() {
             let app_data_dir = app
                 .path()
                 .app_data_dir()
-                .unwrap_or_else(|_| PathBuf::from("./pos_kasir_data"));
+                .unwrap_or_else(|_| PathBuf::from("./kassio_data"));
 
             let dispatcher = Arc::new(
                 BackendDispatcher::new(app_data_dir)
-                    .expect("Gagal menginisialisasi BackendDispatcher POS-Kasir"),
+                    .expect("Gagal menginisialisasi BackendDispatcher Kassio"),
             );
 
             // Jika terminal sudah dikonfigurasi sebagai SERVER, nyalakan Axum LAN HTTP Server otomatis

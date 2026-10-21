@@ -5,7 +5,7 @@ use std::net::UdpSocket;
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_LAN_PORT: u16 = 3847;
-pub const VIRTUAL_PRINTER_NAME: &str = "POS-Kasir Virtual Thermal Printer (Simulasi)";
+pub const VIRTUAL_PRINTER_NAME: &str = "Kassio Virtual Thermal Printer (Simulasi)";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TerminalMode {

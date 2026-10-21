@@ -39,22 +39,22 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between p-6">
+    <div className="min-h-screen bg-slate-950 text-zinc-100 flex flex-col justify-between p-6">
       {/* Top Status Strip */}
-      <div className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-zinc-800/80 pb-4">
+      <div className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo.png"
-            alt="Logo POS-Kasir"
-            className="w-8 h-8 rounded-lg object-contain bg-zinc-900 border border-zinc-800 shadow-xs"
+            src="/logo-dark.png"
+            alt="Logo Kassio"
+            className="h-8 object-contain"
           />
           <span className="font-bold text-sm tracking-wide text-white">
-            {terminalStatus?.store_name || "POS-KASIR MINIMARKET"}
+            {terminalStatus?.store_name || "KASSIO POINT OF SALE"}
           </span>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          <span className="px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 flex items-center gap-1.5 font-medium">
+          <span className="px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-zinc-200 flex items-center gap-1.5 font-medium">
             <Server className="w-3.5 h-3.5 text-zinc-400" />
             {cfg?.terminal_name} ({cfg?.terminal_mode})
           </span>
@@ -77,16 +77,16 @@ export const LoginPage: React.FC = () => {
 
       {/* Kartu Login */}
       <div className="max-w-md w-full mx-auto my-auto">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-7 shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-7 shadow-2xl">
           <div className="mb-6 flex items-center gap-3.5">
             <img
-              src="/logo.png"
-              alt="Logo POS-Kasir"
-              className="w-12 h-12 rounded-xl object-contain bg-zinc-950 border border-zinc-800 p-1 shadow-md"
+              src="/logo-emblem-dark.png"
+              alt="Logo Kassio"
+              className="w-12 h-12 rounded-xl object-contain bg-slate-950 border border-slate-800 p-1.5 shadow-md"
             />
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">
-                Masuk Operator Kasir
+              <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-1.5">
+                <span>Masuk <span className="text-white">Kas</span><span className="text-teal-400">sio</span></span>
               </h1>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Gunakan akun <strong>Cashier</strong> atau <strong>Admin</strong>{" "}
@@ -96,19 +96,19 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mb-5 p-3.5 rounded-lg bg-rose-950/50 border border-rose-500/50 text-rose-200 flex items-start gap-2.5 text-xs">
+            <div className="mb-5 p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 flex items-start gap-2.5 text-xs shadow-xs">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span className="font-medium leading-relaxed">{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+              <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Username
               </label>
               <div className="relative">
-                <UserCheck className="w-4 h-4 text-zinc-400 absolute left-3.5 top-2.5" />
+                <UserCheck className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   required
@@ -116,24 +116,24 @@ export const LoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Ketik username (misal: admin atau kasir1)"
-                  className="w-full pl-10 pr-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-zinc-500"
+                  className="w-full h-10 pl-10 pr-3.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+              <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-2.5" />
+                <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-zinc-500"
+                  className="w-full h-10 pl-10 pr-3.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
                 />
               </div>
             </div>
@@ -141,7 +141,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || !lanConnected}
-              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors"
+              className="w-full mt-2 h-11 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30"
             >
               <LogIn className="w-4 h-4" />
               {submitting ? "Memverifikasi Kredensial..." : "Buka Meja Kasir"}
@@ -149,9 +149,9 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {isServer && (
-            <div className="mt-6 pt-4 border-t border-zinc-800 text-xs text-zinc-400 flex items-center justify-between">
+            <div className="mt-6 pt-4 border-t border-slate-800 text-xs text-zinc-400 flex items-center justify-between">
               <span>Pairing Code LAN Toko:</span>
-              <code className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-indigo-300 font-mono font-bold tracking-widest">
+              <code className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-teal-300 font-mono font-bold tracking-widest shadow-2xs">
                 {cfg?.pairing_code || "-"}
               </code>
             </div>
@@ -160,7 +160,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <footer className="max-w-5xl w-full mx-auto flex items-center justify-between text-xs text-zinc-500 border-t border-zinc-800/80 pt-4">
-        <span>POS-Kasir {APP_VERSION_LABEL} • Keyboard-First Retail System</span>
+        <span>Kassio {APP_VERSION_LABEL} • Keyboard-First Retail System</span>
         <span>
           IP Lokal Mesin:{" "}
           {terminalStatus?.local_lan_ips?.join(", ") || "127.0.0.1"}

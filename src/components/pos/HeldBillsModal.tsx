@@ -55,18 +55,18 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="bg-zinc-900 text-white px-6 py-4 flex items-center justify-between border-b border-zinc-800">
+        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             {mode === "HOLD" ? (
-              <PauseCircle className="w-5 h-5 text-indigo-400" />
+              <PauseCircle className="w-5 h-5 text-teal-400" />
             ) : (
-              <Clock className="w-5 h-5 text-indigo-400" />
+              <Clock className="w-5 h-5 text-teal-400" />
             )}
             <div>
-              <h3 className="font-bold text-base">
+              <h3 className="font-extrabold text-base tracking-tight">
                 {mode === "HOLD"
                   ? "Tahan Transaksi (Hold Bill — F4)"
                   : `Daftar Transaksi Ditahan (${heldBills.length}) — F5`}
@@ -81,7 +81,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-zinc-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-zinc-800"
           >
             <X className="w-5 h-5" />
           </button>
@@ -90,7 +90,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
         {mode === "HOLD" ? (
           <form onSubmit={handleHoldSubmit} className="p-6 space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 mb-1.5">
                 Catatan / Nama Pelanggan (Opsional)
               </label>
               <input
@@ -99,15 +99,15 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                 value={holdLabel}
                 onChange={(e) => setHoldLabel(e.target.value)}
                 placeholder="Contoh: Ibu Rina (Ambil dompet di mobil)"
-                className="w-full px-3.5 py-2.5 text-sm border border-zinc-300 rounded-xl focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 text-zinc-900 transition-all"
+                className="w-full h-10 px-3.5 py-2 text-sm border border-zinc-300 rounded-xl focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 text-zinc-900 transition-all shadow-2xs"
               />
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 text-xs text-zinc-600">
-              <div className="font-bold text-zinc-800 mb-1">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-xs text-zinc-600">
+              <div className="font-bold text-zinc-800 mb-1.5">
                 Ringkasan Keranjang ({currentCart.length} baris produk):
               </div>
-              <ul className="space-y-1 max-h-40 overflow-y-auto">
+              <ul className="space-y-1.5 max-h-40 overflow-y-auto">
                 {currentCart.map((item) => {
                   const unitPrice = calculateEffectiveUnitPrice(
                     item.product.selling_price,
@@ -115,11 +115,11 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                     item.product.discount_value
                   );
                   return (
-                    <li key={item.product.id} className="flex justify-between">
-                      <span>
+                    <li key={item.product.id} className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-700">
                         {item.product.name} × {item.quantity}
                       </span>
-                      <span className="font-mono font-semibold text-zinc-800">
+                      <span className="font-mono font-bold text-zinc-900 tabular-nums">
                         {formatRupiah(unitPrice * item.quantity)}
                       </span>
                     </li>
@@ -128,18 +128,18 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
               </ul>
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-700 hover:bg-zinc-100 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
               >
                 Batal (Esc)
               </button>
               <button
                 type="submit"
                 disabled={submitting || currentCart.length === 0}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {submitting ? "Menyimpan..." : "Simpan ke Antrean Hold (Enter)"}
               </button>
@@ -165,7 +165,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
               heldBills.map((bill) => (
                 <div
                   key={bill.id}
-                  className="border border-zinc-200 rounded-xl p-4 hover:border-indigo-300 transition-colors bg-zinc-50/60"
+                  className="border border-zinc-200/90 rounded-xl p-4 hover:border-zinc-300 transition-colors bg-white shadow-2xs"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -173,7 +173,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                         <span className="font-bold text-sm text-zinc-900">
                           {bill.hold_label || "Pelanggan Umum"}
                         </span>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 font-bold">
                           {bill.items.length} produk
                         </span>
                       </div>
@@ -190,7 +190,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-zinc-200/80 flex items-center justify-between gap-2">
+                  <div className="mt-3 pt-2.5 border-t border-zinc-100 flex items-center justify-between gap-2">
                     <div className="text-xs text-zinc-600 truncate max-w-md">
                       {bill.items
                         .map((i) => `${i.product_name} (×${i.quantity})`)
@@ -200,7 +200,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                       <button
                         type="button"
                         onClick={() => void onDeleteBill(bill.id)}
-                        className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                         title="Hapus Hold Bill"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -208,7 +208,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
                       <button
                         type="button"
                         onClick={() => void onRecallBill(bill.id)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
                       >
                         <Play className="w-3.5 h-3.5" />
                         Panggil ke Keranjang

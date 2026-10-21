@@ -184,7 +184,7 @@ fn send_raw_bytes_os(printer_name: &str, raw_bytes: &[u8]) -> AppResult<bool> {
     };
 
     let mut printer_wide = to_wide_null(printer_name);
-    let mut doc_name_wide = to_wide_null("POS-Kasir Raw ESC/POS Receipt");
+    let mut doc_name_wide = to_wide_null("Kassio Raw ESC/POS Receipt");
     let mut data_type_wide = to_wide_null("RAW");
 
     unsafe {

@@ -1,7 +1,7 @@
 import pkg from "../package.json";
 
 /**
- * Single Source of Truth untuk versi aplikasi POS-Kasir di seluruh tampilan UI.
+ * Single Source of Truth untuk versi aplikasi Kassio POS di seluruh tampilan UI.
  * Diambil langsung dari `package.json` yang dijaga sinkron (SemVer Lockstep)
  * dengan `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, dan `CHANGELOG.md`.
  */

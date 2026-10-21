@@ -28,10 +28,10 @@ const AppShell: React.FC = () => {
 
   if (loadingTerminal || loadingAuth) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 select-none">
-        <div className="w-9 h-9 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-zinc-100 select-none">
+        <div className="w-9 h-9 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mb-3" />
         <div className="text-sm font-semibold tracking-wide text-zinc-300">
-          Memuat Sistem POS-Kasir...
+          Memuat Sistem Kassio POS...
         </div>
       </div>
     );

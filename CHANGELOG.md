@@ -1,7 +1,81 @@
 # Changelog
 
-Seluruh perubahan penting pada aplikasi **POS-Kasir** didokumentasikan di file ini.
+Seluruh perubahan penting pada aplikasi **Kassio** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
+
+## [0.2.0] - 2026-10-21
+
+### Added
+- **Rebranding Resmi Menjadi "Kassio" & Sistem Aset Logo Baru**:
+  - Mengubah identitas aplikasi dari *POS-Kasir* menjadi **Kassio** di seluruh tingkatan teknis dan antarmuka pengguna (`package.json`, `src-tauri/tauri.conf.json` dengan `identifier: "com.bimadev.kassio"`, window title, system tray, dan skema database `kassio.db`).
+  - Mengintegrasikan logo resmi Kassio dengan pembuatan aset transparan berkualitas tinggi: logo transparan (`/logo-transparent.png`), logo gelap dengan kata "Kas" putih dan "sio" teal (`/logo-dark.png`), emblem "K" transparan (`/logo-emblem.png`), emblem kontras tinggi untuk latar gelap (`/logo-emblem-dark.png`), dan favicon aplikasi (`/favicon.png`).
+  - Tipografi wordmark adaptif: pada latar gelap (TopBar, Login, Setup Wizard) kata "Kas" dirender putih bersih (`#ffffff`) dan "sio" dalam Kassio Teal (`#1da2a1`), sedangkan pada latar terang "Kas" menggunakan Charcoal Slate (`#394048`).
+
+### Changed
+- **Penyelarasan Palet Warna Mengikuti Logo Resmi Kassio (`#1da2a1` Teal & `#394048` Charcoal Slate)**:
+  - **`DESIGN.md`**: Memperbarui spesifikasi desain sistem menyeluruh ke *Kassio Design System* dengan token warna utama Kassio Teal (`#1da2a1`, hover `#22b8b7`, active `#0e6e6d`) dan Slate Framing (`#12161a`, `#1a2026`, `#394048`).
+  - **`src/App.css`**: Menambahkan pemetaan tema Tailwind CSS v4 `@theme` dengan skala warna Teal (`--color-teal-600: #1da2a1`, dll.) dan Charcoal Slate (`--color-charcoal: #394048`).
+  - **Konsistensi Seluruh Layar & Komponen**:
+    - **`TopBar.tsx`**: Menampilkan emblem resmi Kassio, tipografi dual-tone brand ("Kas" putih + "sio" teal), bingkai Charcoal Slate-950, dan avatar Admin Kassio Teal.
+    - **`LoginPage.tsx`**: Menggunakan logo kontras tinggi Kassio, tombol submit Kassio Teal, dan bingkai Slate gelap.
+    - **`SetupWizardPage.tsx`**: Mengadopsi palet Kassio Teal untuk kartu server/client, input, checkbox, dan tombol inisialisasi; memperbarui label penyimpanan lokal ke `%APPDATA%\com.bimadev.kassio`.
+    - **`PosRegisterPage.tsx`**: Tombol utama pembayaran kasir `[F8]` diubah menjadi Kassio Teal (`bg-teal-600 hover:bg-teal-500 active:bg-teal-700`), ring fokus dan dropdown pencarian barang menggunakan aksen Teal.
+    - **`CartTable.tsx`**: Indikator baris keranjang terpilih diselaraskan ke `border-l-teal-600 bg-teal-50/70` dan border input kuantitas ke `border-teal-600`.
+    - **`PaymentModal.tsx`**: Menyeragamkan input nominal, tombol uang pas, dan tombol transaksi baru ke palet Kassio Teal dan Slate.
+    - **`HeldBillsModal.tsx` & `TodaySalesDrawer.tsx`**: Menyeragamkan header modal ke Slate-900, ikon aksen, dan tombol panggil/simpan ke Kassio Teal.
+    - **`ReceiptPreviewModal.tsx`**: Header struk diselaraskan ke Slate-900 dan tombol aksi ke Kassio Teal; menyederhanakan pratinjau struk kasir agar langsung dan hanya menampilkan teks asli ESC/POS monospaced di atas kertas thermal proporsional (58mm / 80mm), meniadakan tab visual grafis dan tab switcher, serta menghapus tombol salin teks.
+    - **`ProductsPage.tsx`**: Tombol tambah produk, import CSV, indikator diskon aktif, input form, live preview margin laba, dan tombol simpan diselaraskan ke Kassio Teal dan Slate-900.
+    - **`UsersPage.tsx`**: Avatar identitas Admin menggunakan Kassio Teal (`bg-teal-600 text-white border-teal-500`), kartu pemilih peran Admin, dan tombol aksi form diselaraskan ke Kassio Teal.
+    - **`StockAdjustmentPage.tsx`**: Formulir mutasi stok, badge jenis mutasi CORRECTION, dan preview stok akhir diselaraskan ke Kassio Teal dan Slate-900.
+    - **`ReportsPage.tsx`**: Input filter tanggal, kasir, dan terminal diselaraskan ke focus ring Kassio Teal.
+    - **`SettingsPage.tsx`**: Nilai default printer virtual diubah menjadi `Kassio Virtual Thermal Printer (Simulasi)`, nama file backup menjadi `kassio-backup.db`, dan seluruh tombol aksi diselaraskan ke Kassio Teal.
+  - **Backend Rust (`src-tauri/`)**:
+    - Paket crate diubah menjadi `name = "kassio"` dan pustaka `kassio_lib`.
+    - Tray menu menampilkan "Buka Kassio" dan tooltip "Kassio — Server & Kasir Minimarket".
+    - Jalur penyimpanan data dan validasi database backup diselaraskan ke `kassio.db`.
+
+## [0.1.7] - 2026-10-21
+
+### Added
+- **Spesifikasi Desain Komprehensif (`DESIGN.md`)**:
+  - Menyusun panduan sistem desain resmi (*Single Source of Truth*) yang mencakup filosofi desain, token warna semantik normatif (Dark Zinc Frame, Precision Indigo, Operational Emerald, Amber Warning, Rose Danger), skala tipografi dan *tabular-nums*, radius kelengkungan standar (`rounded-2xl` untuk kartu/modal, `rounded-xl` untuk tombol/input, `rounded-md` untuk keycap/badge), standar micro-interactions (`active:scale-[0.98]`), serta aturan audit per komponen dan per layar.
+
+### Changed
+- **Penyelarasan Konsistensi UI/UX Seluruh Layar & Komponen (Full Redesign Polish)**:
+  - **`src/App.css`**: Menyelaraskan CSS custom properties token warna semantik (`--accent-indigo-hover: #6366f1`, `--accent-emerald`, `--accent-rose`) dan radius keycap fisik mekanikal (`0.375rem`).
+  - **`LoginPage.tsx`**: Menyeragamkan ketinggian input (`h-10 rounded-xl`), focus ring, dan tombol login primer (`h-11 rounded-xl active:scale-[0.98]`).
+  - **`SetupWizardPage.tsx`**: Menyelaraskan kartu pemilihan Server/Client ke `rounded-2xl`, form input ke `h-10 rounded-xl`, dan tombol aksi ke `rounded-xl active:scale-[0.98]`.
+  - **`TopBar.tsx`**: Menyeragamkan warna badge avatar inisial pengguna (`bg-indigo-600` untuk Admin, `bg-zinc-800` untuk Kasir) dan kapsul segmented control.
+  - **`PosRegisterPage.tsx`**: Menyeragamkan tombol operasional (Hold, Recall, Riwayat/Void, Reprint) dengan `active:scale-[0.98]`, tombol Bayar Cepat Uang Pas (`F9`) dengan tema Emerald `btnSuccess`, dan Proses Pembayaran (`F8`) dengan tema Indigo `btnPrimary`.
+  - **`CartTable.tsx`**: Memperbarui container keranjang ke `rounded-2xl border-zinc-200/90` dan baris terpilih ke `bg-indigo-50/70 border-l-4 border-l-indigo-600`.
+  - **`PaymentModal.tsx`**: Menghilangkan duplikasi tag penutup, menyelaraskan backdrop ke `bg-zinc-950/70 backdrop-blur-xs`, tombol pecahan cepat ke `rounded-xl active:scale-[0.98]`, dan tombol konfirmasi ke `btnSuccess` Emerald.
+  - **`HeldBillsModal.tsx`**: Menghilangkan duplikasi elemen JSX, menyeragamkan input, tombol aksi, dan kartu daftar hold bill.
+  - **`VoidPinModal.tsx`**: Menyeragamkan tombol aksi modal otorisasi void (`btnSecondary` Batal, `btnDanger` Konfirmasi Void) dengan micro-interaction `active:scale-[0.98]`.
+  - **`TodaySalesDrawer.tsx`**: Menyeragamkan badge status (Emerald untuk Completed, Rose untuk Voided) dan tombol aksi drawer.
+  - **`ReceiptPreviewModal.tsx`**: Menyeragamkan tombol cetak ulang dan tombol selesai dengan tema semantik konsisten.
+  - **`ProductsPage.tsx`**: Mengganti filter warna-warni acak dengan kartu Dark Zinc aktif terpadu beserta dot indikator status; menyeragamkan seluruh tombol aksi dan modal.
+  - **`UsersPage.tsx`**: Menghilangkan hash warna acak pelangi pada avatar pengguna; menyelaraskan avatar ke palet semantik berbasis peran (`Indigo` untuk Admin, `Zinc` untuk Kasir); menyeragamkan tombol segarkan dan aksi tabel.
+  - **`StockAdjustmentPage.tsx`**: Menyeragamkan tombol muat ulang, formulir mutasi, tombol arah koreksi (+ Tambah Stok / - Kurangi Stok), dan badge mutasi.
+  - **`ReportsPage.tsx`**: Menyeragamkan tombol preset tanggal, tombol export CSV, kartu KPI finansial, serta tombol aksi baris riwayat penjualan.
+  - **`SettingsPage.tsx`**: Menyeragamkan tombol Simpan Printer, Test Print, Buka Laci, Simpan Identitas Toko, Backup Database, dan Restore Database ke standar `hover:bg-indigo-500 active:bg-indigo-700 active:scale-[0.98]`.
+
+## [0.1.6] - 2026-10-20
+
+### Fixed
+- **Visibilitas Pesan Error Modal Pengguna (`UsersPage.tsx`) & Produk (`ProductsPage.tsx`)**:
+  - Memperbaiki bug kritis di mana pesan kesalahan (*validation* / *database error*) saat menambah atau mengedit akun pengguna tersembunyi di balik latar belakang overlay pop-up yang gelap dan buram (*blurred backdrop* `z-40`).
+  - Menghadirkan banner peringatan error interaktif (`role="alert"`, `aria-live="assertive"`) tepat di bagian atas formulir di dalam modal card dengan kontras tinggi, ikon `AlertCircle`, judul deskriptif, pesan solusi yang jelas, dan tombol tutup mandiri.
+  - Menghilangkan bug pesan error kabur yang serupa pada modal tambah/edit katalog produk (`ProductsPage.tsx`).
+  - Menerjemahkan pesan error teknis database SQLite (`UNIQUE constraint failed: users.username` / `products.sku`) menjadi instruksi bahasa Indonesia yang ramah dan langsung dapat dipahami kasir/admin.
+
+### Changed
+- **Peningkatan UI/UX Grade Maksimal Manajemen Pengguna (`UsersPage.tsx`)**:
+  - **Pilihan Peran Interaktif (Role Cards)**: Menggantikan dropdown standar dengan kartu pemilih peran visual antara `CASHIER` (Kasir Operasional) dan `ADMIN` (Pemilik / Manajer) lengkap dengan ikon, deskripsi hak akses, dan ring status aktif.
+  - **Fitur Lihat/Sembunyikan Kata Sandi & PIN**: Menambahkan tombol toggle mata (`Eye` / `EyeOff`) pada kolom Kata Sandi dan PIN Otorisasi Void agar admin/kasir dapat memverifikasi input tanpa salah ketik.
+  - **Sinkronisasi Validasi Panjang Kata Sandi**: Memperbarui instruksi dan validasi batas minimal kata sandi dari 4 karakter menjadi 6 karakter agar selaras dengan aturan keamanan backend Argon2id.
+  - **Metrik Ringkasan & Pencarian Real-Time**: Menambahkan 4 kartu ringkasan eksekutif (Total Pengguna, Kasir Operasional, Admin & Manajer, PIN Void Terkonfigurasi) serta bilah pencarian nama/username dan filter peran/status.
+  - **Ergonomi Keyboard Modal Desktop**: Mendukung penutupan modal cepat menggunakan tombol keyboard `Escape` dan klik di luar area backdrop modal.
+  - **Avatar Inisial Pengguna Otomatis**: Memberikan badge inisial nama dengan palet warna teratur pada tabel daftar pengguna untuk kemudahan pemindaian visual.
 
 ## [0.1.5] - 2026-10-19
 

@@ -27,7 +27,7 @@ export const SettingsPage: React.FC = () => {
   // Printer state (Local Terminal)
   const [printers, setPrinters] = useState<string[]>([]);
   const [printerName, setPrinterName] = useState<string>(
-    cfg?.printer.printer_name || "POS-Kasir Virtual Thermal Printer (Simulasi)"
+    cfg?.printer.printer_name || "Kassio Virtual Thermal Printer (Simulasi)"
   );
   const [paperWidth, setPaperWidth] = useState<number>(
     cfg?.printer.paper_width || 58
@@ -51,7 +51,7 @@ export const SettingsPage: React.FC = () => {
 
   // Database Backup & Restore state (Admin on Server)
   const [backupPath, setBackupPath] = useState<string>(
-    `pos-kasir-backup-${new Date().toISOString().slice(0, 10)}.db`
+    `kassio-backup-${new Date().toISOString().slice(0, 10)}.db`
   );
   const [restorePath, setRestorePath] = useState<string>("");
 
@@ -85,7 +85,7 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     if (cfg?.printer) {
-      setPrinterName(cfg.printer.printer_name || "POS-Kasir Virtual Thermal Printer (Simulasi)");
+      setPrinterName(cfg.printer.printer_name || "Kassio Virtual Thermal Printer (Simulasi)");
       setPaperWidth(cfg.printer.paper_width || 58);
       setLeftMarginChars(cfg.printer.left_margin_chars ?? 0);
       setAutoOpenDrawer(cfg.printer.auto_open_drawer ?? true);
@@ -132,7 +132,7 @@ export const SettingsPage: React.FC = () => {
       );
       openReceiptPreview(
         {
-          store_name: storeName || "Minimarket POS-Kasir",
+          store_name: storeName || "Minimarket Kassio",
           store_address: storeAddress || "Jl. Contoh No. 1",
           store_phone: storePhone || "0812-0000-0000",
           receipt_footer: receiptFooter || "Terima kasih!",
@@ -277,8 +277,8 @@ export const SettingsPage: React.FC = () => {
             Konfigurasi printer thermal ESC/POS lokal, laci uang RJ11, jaringan LAN, serta Backup/Restore SQLite.
           </p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-zinc-950 text-indigo-400 font-mono text-xs font-bold border border-zinc-800">
-          POS-Kasir {APP_VERSION_LABEL}
+        <span className="px-3 py-1 rounded-full bg-slate-950 text-teal-400 font-mono text-xs font-bold border border-slate-800">
+          Kassio {APP_VERSION_LABEL}
         </span>
       </div>
 
@@ -308,7 +308,7 @@ export const SettingsPage: React.FC = () => {
         {/* Card 1: Local Printer & Cash Drawer Configuration (6 cols) */}
         <div className="col-span-6 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-200">
-            <Printer className="w-5 h-5 text-indigo-600" />
+            <Printer className="w-5 h-5 text-teal-600" />
             <div>
               <h2 className="font-bold text-sm text-zinc-900">
                 Printer Struk Thermal &amp; Laci Kasir (Terminal Lokal)
@@ -330,7 +330,7 @@ export const SettingsPage: React.FC = () => {
               <select
                 value={printerName}
                 onChange={(e) => setPrinterName(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3.5 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               >
                 {printers.map((p) => (
                   <option key={p} value={p}>
@@ -376,7 +376,7 @@ export const SettingsPage: React.FC = () => {
                 <label className="block font-bold uppercase tracking-wider text-zinc-600 text-xs">
                   Offset Margin Kiri (Presisi Tengah)
                 </label>
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-200">
+                <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200">
                   {leftMarginChars === 0
                     ? "0 Spasi (Bawaan Printer)"
                     : `+${leftMarginChars} Spasi (~${(leftMarginChars * 1.5).toFixed(1)} mm)`}
@@ -393,7 +393,7 @@ export const SettingsPage: React.FC = () => {
                     onClick={() => setLeftMarginChars(spaces)}
                     className={`py-2 px-1 rounded-lg border font-mono font-bold text-xs transition-colors cursor-pointer text-center ${
                       leftMarginChars === spaces
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        ? "bg-teal-600 text-white border-teal-600 shadow-xs"
                         : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                     }`}
                   >
@@ -409,7 +409,7 @@ export const SettingsPage: React.FC = () => {
                   type="checkbox"
                   checked={autoOpenDrawer}
                   onChange={(e) => setAutoOpenDrawer(e.target.checked)}
-                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
                 />
                 Otomatis kirim sinyal buka laci kasir (RJ11 Pulse 0x1B 0x70) saat bayar
               </label>
@@ -419,7 +419,7 @@ export const SettingsPage: React.FC = () => {
                   type="checkbox"
                   checked={previewOnScreen}
                   onChange={(e) => setPreviewOnScreen(e.target.checked)}
-                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
                 />
                 Tampilkan pratinjau struk di layar setelah transaksi selesai
               </label>
@@ -428,7 +428,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-zinc-200">
               <button
                 type="submit"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold transition-all cursor-pointer shadow-xs"
               >
                 <Save className="w-3.5 h-3.5" />
                 Simpan Printer
@@ -436,7 +436,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleTestPrint()}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-semibold transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 active:scale-[0.98] text-white font-semibold transition-all cursor-pointer shadow-xs"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Test Print Struk
@@ -444,7 +444,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenCashDrawer()}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 hover:bg-zinc-50 text-zinc-700 font-semibold transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-700 font-semibold transition-all cursor-pointer shadow-2xs"
               >
                 Test Buka Laci (RJ11)
               </button>
@@ -456,9 +456,9 @@ export const SettingsPage: React.FC = () => {
         <div className="col-span-6 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 space-y-4">
           <div className="flex items-center gap-3 pb-3 border-b border-zinc-200">
             <img
-              src="/logo.png"
-              alt="Logo POS-Kasir"
-              className="w-10 h-10 rounded-lg object-contain bg-zinc-950 border border-zinc-200 p-0.5 shadow-xs"
+              src="/logo-dark.png"
+              alt="Logo Kassio"
+              className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-800 p-0.5 shadow-xs"
             />
             <div>
               <h2 className="font-bold text-sm text-zinc-900">
@@ -483,7 +483,7 @@ export const SettingsPage: React.FC = () => {
                 disabled={!isAdmin}
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
-                className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
             </div>
 
@@ -497,7 +497,7 @@ export const SettingsPage: React.FC = () => {
                   disabled={!isAdmin}
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                 />
               </div>
               <div>
@@ -509,7 +509,7 @@ export const SettingsPage: React.FC = () => {
                   disabled={!isAdmin}
                   value={storePhone}
                   onChange={(e) => setStorePhone(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                 />
               </div>
             </div>
@@ -523,7 +523,7 @@ export const SettingsPage: React.FC = () => {
                 disabled={!isAdmin}
                 value={receiptFooter}
                 onChange={(e) => setReceiptFooter(e.target.value)}
-                className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
             </div>
 
@@ -531,7 +531,7 @@ export const SettingsPage: React.FC = () => {
               <div className="pt-1">
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold transition-all cursor-pointer shadow-xs"
                 >
                   <Save className="w-3.5 h-3.5" />
                   Simpan Identitas Toko
@@ -541,7 +541,7 @@ export const SettingsPage: React.FC = () => {
           </form>
 
           {/* LAN Info Box */}
-          <div className="bg-zinc-950 text-white rounded-xl p-4 space-y-2.5 text-xs border border-zinc-800">
+          <div className="bg-slate-900 text-white rounded-xl p-4 space-y-2.5 text-xs border border-slate-800">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-bold text-zinc-200">
                 <Network className="w-4 h-4 text-emerald-400" />
@@ -560,7 +560,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {isAdmin && pairingCode && (
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
                 <div>
                   <span className="text-zinc-400 block text-[11px]">
                     LAN Pairing Code (X-Setup-Pairing-Code):
@@ -572,7 +572,7 @@ export const SettingsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={(e) => void handleSaveStore(e, true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-zinc-200 font-semibold transition-all cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Acak Ulang Kode
@@ -587,7 +587,7 @@ export const SettingsPage: React.FC = () => {
           <div className="col-span-12 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-200">
               <div className="flex items-center gap-2.5">
-                <Database className="w-5 h-5 text-indigo-600" />
+                <Database className="w-5 h-5 text-teal-600" />
                 <div>
                   <h2 className="font-bold text-sm text-zinc-900">
                     Pemeliharaan Database SQLite (Backup &amp; Restore Online)
@@ -601,7 +601,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void ipc.quitApplication()}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 active:scale-[0.98] border border-rose-200 text-rose-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                 title="Matikan Server Terminal dan keluar dari proses latar belakang"
               >
                 <Power className="w-4 h-4" />
@@ -618,7 +618,7 @@ export const SettingsPage: React.FC = () => {
                   1. Buat Cadangan Database (Backup SQLite)
                 </label>
                 <p className="text-zinc-500">
-                  Masukkan nama file atau path tujuan untuk menyimpan salinan utuh database <code>pos_kasir.db</code>.
+                  Masukkan nama file atau path tujuan untuk menyimpan salinan utuh database <code>kassio.db</code>.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -626,12 +626,12 @@ export const SettingsPage: React.FC = () => {
                     required
                     value={backupPath}
                     onChange={(e) => setBackupPath(e.target.value)}
-                    placeholder="pos-kasir-backup.db"
-                    className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    placeholder="kassio-backup.db"
+                    className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shrink-0 transition-colors cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold shrink-0 transition-all cursor-pointer shadow-xs"
                   >
                     <HardDriveDownload className="w-4 h-4" />
                     Backup Sekarang
@@ -655,12 +655,12 @@ export const SettingsPage: React.FC = () => {
                     required
                     value={restorePath}
                     onChange={(e) => setRestorePath(e.target.value)}
-                    placeholder="/path/ke/pos-kasir-backup.db"
-                    className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-zinc-400"
+                    placeholder="/path/ke/kassio-backup.db"
+                    className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 transition-colors cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 active:scale-[0.98] text-white font-bold shrink-0 transition-all cursor-pointer shadow-xs"
                   >
                     <HardDriveUpload className="w-4 h-4" />
                     Restore Database

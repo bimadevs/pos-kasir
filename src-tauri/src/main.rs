@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    pos_kasir_lib::run()
+    kassio_lib::run()
 }
