@@ -87,10 +87,16 @@ impl DiscountType {
     }
 
     pub fn from_str(raw: &str) -> AppResult<Self> {
-        match raw.trim().to_uppercase().as_str() {
-            "NONE" | "" => Ok(Self::NONE),
-            "NOMINAL" => Ok(Self::NOMINAL),
-            "PERCENT" => Ok(Self::PERCENT),
+        let upper = raw.trim().to_uppercase();
+        match upper.as_str() {
+            "NONE" | "" | "TIDAK ADA" | "TIDAK" | "0" => Ok(Self::NONE),
+            "NOMINAL" | "FIXED" | "RP" | "RUPIAH" => Ok(Self::NOMINAL),
+            "PERCENT" | "PERSEN" | "%" => Ok(Self::PERCENT),
+            _ if upper.contains("NOMINAL") || upper.contains("RP") || upper.contains("FIXED") => {
+                Ok(Self::NOMINAL)
+            }
+            _ if upper.contains("PERSEN") || upper.contains("%") => Ok(Self::PERCENT),
+            _ if upper.contains("TIDAK") || upper.contains("NONE") => Ok(Self::NONE),
             other => Err(AppError::Validation(format!(
                 "Jenis diskon produk tidak valid: {other}"
             ))),
@@ -490,6 +496,46 @@ pub struct CsvImportResult {
     pub inserted_count: usize,
     pub updated_count: usize,
     pub total_processed: usize,
+}
+
+pub type ImportProductsResult = CsvImportResult;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductImportRow {
+    pub sku: String,
+    #[serde(default)]
+    pub barcode: Option<String>,
+    pub name: String,
+    #[serde(default = "default_category_name")]
+    pub category_name: String,
+    #[serde(default = "default_unit_name")]
+    pub unit: String,
+    pub cost_price: i64,
+    pub selling_price: i64,
+    #[serde(default = "default_discount_type_str")]
+    pub discount_type: String,
+    #[serde(default)]
+    pub discount_value: i64,
+    #[serde(default)]
+    pub stock: i64,
+    #[serde(default = "default_active_bool")]
+    pub is_active: bool,
+}
+
+fn default_category_name() -> String {
+    "Umum".to_string()
+}
+
+fn default_unit_name() -> String {
+    "pcs".to_string()
+}
+
+fn default_discount_type_str() -> String {
+    "NONE".to_string()
+}
+
+fn default_active_bool() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

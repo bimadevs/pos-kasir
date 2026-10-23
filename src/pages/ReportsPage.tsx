@@ -13,6 +13,10 @@ import { useTerminal } from "../context/TerminalContext";
 import { ipc } from "../services/ipc";
 import type { Sale, SalesReport, User } from "../types/domain";
 import {
+  buildSalesReportExportWorkbook,
+  saveWorkbookAsFile,
+} from "../utils/excelService";
+import {
   formatDateTimeId,
   formatRupiah,
   todayLocalIsoDate,
@@ -28,7 +32,7 @@ function getLocalDateStr(offsetDays: number = 0): string {
 }
 
 export const ReportsPage: React.FC = () => {
-  const { openReceiptPreview } = useTerminal();
+  const { openReceiptPreview, terminalStatus } = useTerminal();
 
   const todayStr = todayLocalIsoDate();
   const [startDate, setStartDate] = useState<string>(todayStr);
@@ -98,29 +102,21 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  const handleExportCsv = async () => {
+  const handleExportExcel = async () => {
+    if (!report) return;
     try {
-      const csvContent = await ipc.exportSalesReportCsv({
-        start_date: startDate,
-        end_date: endDate,
-        cashier_id: cashierId || null,
-        terminal_name: terminalName.trim() || null,
-      });
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `laporan-penjualan-${startDate}-sd-${endDate}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const storeTitle = terminalStatus?.store_name || "Kassio POS";
+      const wb = buildSalesReportExportWorkbook(report, storeTitle);
+      const filename = `laporan-penjualan-${startDate}-sd-${endDate}.xlsx`;
+      await saveWorkbookAsFile(wb, filename);
       setFeedback({
         type: "success",
-        message: "Laporan penjualan berhasil diekspor ke file CSV.",
+        message: "Laporan penjualan berhasil diekspor ke file Excel (.xlsx).",
       });
     } catch (err) {
       setFeedback({
         type: "error",
-        message: `Gagal ekspor CSV: ${
+        message: `Gagal ekspor Excel: ${
           err instanceof Error ? err.message : String(err)
         }`,
       });
@@ -157,11 +153,13 @@ export const ReportsPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => void handleExportCsv()}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+          onClick={() => void handleExportExcel()}
+          disabled={!report || loading}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+          title="Ekspor Laporan Penjualan 2-Sheet (Ringkasan & Rincian) ke format Excel (.xlsx)"
         >
           <Download className="w-4 h-4 text-emerald-600" />
-          Export CSV Laporan
+          Ekspor Excel Laporan
         </button>
       </div>
 

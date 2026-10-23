@@ -1,12 +1,12 @@
 use crate::error::{AppError, AppResult};
 use crate::lan::middleware::{HEADER_PAIRING_CODE, HEADER_SESSION_TOKEN, HEADER_TERMINAL_NAME};
-use crate::lan::server::CsvPayload;
+use crate::lan::server::{CsvPayload, ImportProductsPayload};
 use crate::models::{
     AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, LoginRequest, Product, ProductFilter,
-    RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport, SalesReportFilter, StockAdjustment,
-    StoreSettings, UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User,
-    VoidSaleRequest,
+    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
+    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
+    SalesReportFilter, StockAdjustment, StoreSettings, UpdateStoreSettingsRequest,
+    UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use reqwest::{Client, Method, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -175,6 +175,21 @@ impl RemoteHttpClient {
             .request(Method::POST, "/api/v1/products/csv", Some(token))
             .json(&CsvPayload {
                 csv_content: csv_content.to_string(),
+            })
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn import_products(
+        &self,
+        token: &str,
+        rows: &[ProductImportRow],
+    ) -> AppResult<ImportProductsResult> {
+        let resp = self
+            .request(Method::POST, "/api/v1/products/import", Some(token))
+            .json(&ImportProductsPayload {
+                rows: rows.to_vec(),
             })
             .send()
             .await?;

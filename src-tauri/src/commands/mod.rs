@@ -3,11 +3,11 @@ use crate::error::AppResult;
 use crate::hardware::spooler::{kick_drawer_local, list_local_printers as enumerate_printers, print_receipt_local};
 use crate::models::{
     AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, DiscountType, HealthCheckResponse, HeldBill, LoginRequest, Product,
-    ProductFilter, PrintOutcome, RecalledHeldBill, ReceiptData, Sale, SaleLineItem, SaleStatus,
-    SaleWithItems, SalesReport, SalesReportFilter, SetupClientRequest, SetupServerRequest,
-    StockAdjustment, StoreSettings, TerminalStatus, UpdateStoreSettingsRequest,
-    UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    CsvImportResult, DiscountType, HealthCheckResponse, HeldBill, ImportProductsResult,
+    LoginRequest, PrintOutcome, Product, ProductFilter, ProductImportRow, RecalledHeldBill,
+    ReceiptData, Sale, SaleLineItem, SaleStatus, SaleWithItems, SalesReport, SalesReportFilter,
+    SetupClientRequest, SetupServerRequest, StockAdjustment, StoreSettings, TerminalStatus,
+    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use crate::services::dispatcher::BackendDispatcher;
@@ -116,6 +116,14 @@ pub async fn import_products_csv(
     csv_content: String,
 ) -> AppResult<CsvImportResult> {
     state.import_products_csv(&csv_content).await
+}
+
+#[tauri::command]
+pub async fn import_products(
+    state: DispatcherState<'_>,
+    rows: Vec<ProductImportRow>,
+) -> AppResult<ImportProductsResult> {
+    state.import_products(rows).await
 }
 
 // ============================================================================

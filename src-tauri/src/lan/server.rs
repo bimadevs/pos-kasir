@@ -4,10 +4,10 @@ use crate::lan::middleware::{
 };
 use crate::models::{
     AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, LoginRequest, Product, ProductFilter,
-    RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport, SalesReportFilter, StockAdjustment,
-    StoreSettings, UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User,
-    VoidSaleRequest,
+    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
+    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
+    SalesReportFilter, StockAdjustment, StoreSettings, UpdateStoreSettingsRequest,
+    UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use axum::{
@@ -47,6 +47,11 @@ pub struct CsvPayload {
     pub csv_content: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImportProductsPayload {
+    pub rows: Vec<ProductImportRow>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct VoidSaleBody {
     pub admin_pin: String,
@@ -67,6 +72,10 @@ pub fn build_lan_router(state: LanServerState) -> Router {
         .route(
             "/api/v1/products/csv",
             get(handle_export_products_csv).post(handle_import_products_csv),
+        )
+        .route(
+            "/api/v1/products/import",
+            post(handle_import_products),
         )
         .route("/api/v1/products/{id}", delete(handle_deactivate_product))
         .route(
@@ -216,6 +225,18 @@ async fn handle_import_products_csv(
     let res = state
         .core
         .import_products_csv(&user, &terminal_name, &payload.csv_content)?;
+    Ok(Json(res))
+}
+
+async fn handle_import_products(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(payload): Json<ImportProductsPayload>,
+) -> AppResult<Json<ImportProductsResult>> {
+    let (user, terminal_name) = authenticate_request(&state.core, &headers)?;
+    let res = state
+        .core
+        .import_products_rows(&user, &terminal_name, payload.rows)?;
     Ok(Json(res))
 }
 

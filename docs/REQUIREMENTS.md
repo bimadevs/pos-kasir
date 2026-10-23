@@ -71,7 +71,7 @@ Untuk satu transaksi **Sale**:
 | `FR-PROD-01` | CRUD **Product** oleh **Admin** | **Admin** dapat menambah dan mengubah **Product** dengan atribut: `sku` (unik), `barcode` (unik opsional, dapat di-scan langsung), `name` (wajib), `category_name`, `unit` (`pcs`, `bungkus`, `botol`, `pak`, `kotak`, `dus`), `cost_price` ($\ge 0$), `selling_price` ($\ge 0$), `discount_type`, `discount_value`, dan `stock` awal ($\ge 0$, hanya saat pembuatan produk baru). |
 | `FR-PROD-02` | *Soft Delete* Produk | Jika **Admin** menghapus/menonaktifkan **Product** yang sudah pernah tercatat di `sale_line_items` atau `stock_adjustments`, sistem melakukan *soft delete* (`is_active = false`). Produk nonaktif tidak muncul di pencarian kasir, namun riwayat laporan masa lalu tetap utuh. |
 | `FR-PROD-03` | Validasi Perubahan Harga | Ketika **Admin** mengubah `cost_price`, `selling_price`, atau `discount_value` suatu **Product**, perubahan langsung berlaku untuk transaksi baru di seluruh terminal, namun sama sekali tidak mengubah nilai pada transaksi **Sale** yang sudah tersimpan sebelumnya. |
-| `FR-PROD-04` | Import & Export CSV Produk | **Admin** dapat mengekspor seluruh katalog **Product** ke file `.csv` dan mengimpor file `.csv` (dengan pratinjau validasi baris: jika `sku` sudah ada maka perbarui data produk, jika belum ada maka buat produk baru). |
+| `FR-PROD-04` | Import & Export Excel (.xlsx) Produk | **Admin** dapat mengekspor seluruh katalog **Product** ke file Excel (`.xlsx`) 2-sheet (Data Produk & Petunjuk) dan mengimpor file `.xlsx` dengan modal pratinjau validasi baris atomik (jika `sku` sudah ada maka perbarui data produk, jika belum ada maka buat produk baru; kolom barcode terlindungi sebagai format teks). |
 
 ### 2.4. Penyesuaian Stok (`FR-INV`)
 
@@ -111,7 +111,7 @@ Untuk satu transaksi **Sale**:
 | :--- | :--- | :--- |
 | `FR-REP-01` | Ringkasan Omzet & Laba Kotor (**Admin**) | **Admin** dapat melihat laporan berdasarkan rentang tanggal (Hari Ini, Kemarin, 7 Hari Terakhir, Bulan Ini, atau Tanggal Kustom) serta filter per **Cashier** dan per Terminal. Laporan menghitung dari transaksi `COMPLETED` (mengecualikan `VOIDED`): `Jumlah Transaksi Sukses`, `Jumlah Transaksi Void`, `Total Penjualan Kotor`, `Total Diskon`, `Omzet Bersih (Net Sales)`, `Total HPP (Cost Price Snapshot)`, dan `Laba Kotor (Gross Profit)`. |
 | `FR-REP-02` | Laporan Produk Terlaris & Stok Menipis | **Admin** dapat melihat daftar produk terlaris berdasarkan kuantitas terjual / laba, serta daftar peringatan produk yang stoknya habis (`stock == 0`) atau menipis (`stock <= 5`). |
-| `FR-REP-03` | Ekspor Laporan ke CSV | **Admin** dapat mengekspor laporan transaksi dan rincian penjualan pada periode terpilih ke file `.csv`. |
+| `FR-REP-03` | Ekspor Laporan ke Excel (.xlsx) | **Admin** dapat mengekspor laporan transaksi dan rincian penjualan pada periode terpilih ke file Excel (`.xlsx`) 2-sheet (Sheet 1: Ringkasan Metrik Laba & Rekap Metode Bayar, Sheet 2: Rincian Penjualan per Item dengan format Rupiah rapi). |
 
 ### 2.9. Perangkat Keras Kasir & Backup (`FR-HW` & `FR-SYS`)
 

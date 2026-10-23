@@ -5,10 +5,11 @@ use crate::lan::client::RemoteHttpClient;
 use crate::lan::server::spawn_lan_server;
 use crate::models::{
     AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, LoginRequest, Product, ProductFilter,
-    RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport, SalesReportFilter,
-    SetupClientRequest, SetupServerRequest, StockAdjustment, StoreSettings, TerminalStatus,
-    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
+    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
+    SalesReportFilter, SetupClientRequest, SetupServerRequest, StockAdjustment, StoreSettings,
+    TerminalStatus, UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User,
+    VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use std::path::{Path, PathBuf};
@@ -390,6 +391,25 @@ impl BackendDispatcher {
             TerminalMode::CLIENT => {
                 Self::remote_client_for_config(&cfg)
                     .import_products_csv(&sess.session_token, csv_content)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn import_products(&self, rows: Vec<ProductImportRow>) -> AppResult<ImportProductsResult> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => {
+                self.core
+                    .import_products_rows(&sess.user, &cfg.terminal_name, rows)
+            }
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .import_products(&sess.session_token, &rows)
                     .await
             }
             TerminalMode::UNCONFIGURED => Err(AppError::Validation(

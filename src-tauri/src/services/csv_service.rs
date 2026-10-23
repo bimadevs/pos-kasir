@@ -1,6 +1,7 @@
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    calculate_unit_discount, CsvImportResult, DiscountType, ProductFilter, SalesReportFilter, User,
+    calculate_unit_discount, CsvImportResult, DiscountType, ImportProductsResult, ProductFilter,
+    ProductImportRow, SalesReportFilter, User,
 };
 use crate::services::core_service::CoreService;
 use rusqlite::{params, OptionalExtension, TransactionBehavior};
@@ -79,36 +80,17 @@ impl CoreService {
             .map_err(|e| AppError::Validation(format!("Enkoding UTF-8 CSV tidak valid: {e}")))
     }
 
-    /// Mengimpor (Upsert massal) katalog `Product` dari string CSV dalam satu transaksi atomik (`FR-PROD-04`).
-    pub fn import_products_csv(
+    /// Mengimpor (Upsert massal) katalog `Product` dari baris data terstruktur dalam satu transaksi atomik.
+    pub fn import_products_rows(
         &self,
         actor: &User,
         terminal_name: &str,
-        csv_content: &str,
-    ) -> AppResult<CsvImportResult> {
+        rows: Vec<ProductImportRow>,
+    ) -> AppResult<ImportProductsResult> {
         Self::require_admin(actor)?;
-        let trimmed = csv_content.trim();
-        if trimmed.is_empty() {
-            return Err(AppError::Validation(
-                "Konten file CSV kosong.".to_string(),
-            ));
-        }
-
-        let mut rdr = csv::ReaderBuilder::new()
-            .trim(csv::Trim::All)
-            .from_reader(trimmed.as_bytes());
-
-        let mut rows = Vec::new();
-        for (idx, result) in rdr.deserialize::<ProductCsvRow>().enumerate() {
-            let row = result.map_err(|e| {
-                AppError::Validation(format!("Kesalahan pada baris CSV ke-{}: {e}", idx + 2))
-            })?;
-            rows.push((idx + 2, row));
-        }
-
         if rows.is_empty() {
             return Err(AppError::Validation(
-                "Tidak ada baris produk di dalam file CSV.".to_string(),
+                "Tidak ada baris produk untuk diimpor.".to_string(),
             ));
         }
 
@@ -119,34 +101,38 @@ impl CoreService {
         let mut inserted_count = 0usize;
         let mut updated_count = 0usize;
 
-        for (line_no, row) in rows {
+        for (idx, row) in rows.into_iter().enumerate() {
+            let line_no = idx + 1;
             let sku = row.sku.trim();
             let name = row.name.trim();
             if sku.is_empty() || name.is_empty() {
                 return Err(AppError::Validation(format!(
-                    "Baris CSV ke-{line_no}: kolom 'sku' dan 'name' wajib diisi."
+                    "Baris ke-{line_no}: kolom 'sku' dan 'name' wajib diisi."
                 )));
             }
             if row.cost_price < 0 || row.selling_price < 0 || row.stock < 0 {
                 return Err(AppError::Validation(format!(
-                    "Baris CSV ke-{line_no} (SKU {sku}): harga dan stok tidak boleh bernilai negatif."
+                    "Baris ke-{line_no} (SKU {sku}): harga dan stok tidak boleh bernilai negatif."
                 )));
             }
             let disc_type = DiscountType::from_str(&row.discount_type).map_err(|e| {
-                AppError::Validation(format!("Baris CSV ke-{line_no} (SKU {sku}): {e}"))
+                AppError::Validation(format!("Baris ke-{line_no} (SKU {sku}): {e}"))
             })?;
             let _ = calculate_unit_discount(row.selling_price, disc_type, row.discount_value)
                 .map_err(|e| {
-                    AppError::Validation(format!("Baris CSV ke-{line_no} (SKU {sku}): {e}"))
+                    AppError::Validation(format!("Baris ke-{line_no} (SKU {sku}): {e}"))
                 })?;
 
-            let barcode_opt = {
-                let b = row.barcode.trim();
-                if b.is_empty() {
-                    None
-                } else {
-                    Some(b.to_string())
+            let barcode_opt = match row.barcode {
+                Some(b) => {
+                    let trimmed = b.trim();
+                    if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed.to_string())
+                    }
                 }
+                None => None,
             };
             let category = if row.category_name.trim().is_empty() {
                 "Umum"
@@ -158,7 +144,7 @@ impl CoreService {
             } else {
                 row.unit.trim()
             };
-            let is_active = if row.is_active != 0 { 1 } else { 0 };
+            let is_active = if row.is_active { 1 } else { 0 };
 
             let existing: Option<(String, i64)> = tx
                 .query_row(
@@ -196,7 +182,7 @@ impl CoreService {
                         "INSERT INTO stock_adjustments (
                             id, product_id, user_id, terminal_name, adjustment_type,
                             stock_before, quantity_delta, stock_after, note, created_at
-                         ) VALUES (?1, ?2, ?3, ?4, 'CORRECTION', ?5, ?6, ?7, 'Penyesuaian via Import CSV', ?8)",
+                         ) VALUES (?1, ?2, ?3, ?4, 'CORRECTION', ?5, ?6, ?7, 'Penyesuaian via Import Excel', ?8)",
                         params![
                             Uuid::new_v4().to_string(),
                             existing_id,
@@ -240,7 +226,7 @@ impl CoreService {
                         "INSERT INTO stock_adjustments (
                             id, product_id, user_id, terminal_name, adjustment_type,
                             stock_before, quantity_delta, stock_after, note, created_at
-                         ) VALUES (?1, ?2, ?3, ?4, 'RESTOCK', 0, ?5, ?5, 'Stok awal via Import CSV', ?6)",
+                         ) VALUES (?1, ?2, ?3, ?4, 'RESTOCK', 0, ?5, ?5, 'Stok awal via Import Excel', ?6)",
                         params![
                             Uuid::new_v4().to_string(),
                             new_id,
@@ -257,11 +243,63 @@ impl CoreService {
 
         tx.commit()?;
 
-        Ok(CsvImportResult {
+        Ok(ImportProductsResult {
             inserted_count,
             updated_count,
             total_processed: inserted_count + updated_count,
         })
+    }
+
+    /// Mengimpor (Upsert massal) katalog `Product` dari string CSV dalam satu transaksi atomik (`FR-PROD-04`).
+    pub fn import_products_csv(
+        &self,
+        actor: &User,
+        terminal_name: &str,
+        csv_content: &str,
+    ) -> AppResult<CsvImportResult> {
+        Self::require_admin(actor)?;
+        let trimmed = csv_content.trim();
+        if trimmed.is_empty() {
+            return Err(AppError::Validation(
+                "Konten file CSV kosong.".to_string(),
+            ));
+        }
+
+        let mut rdr = csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_reader(trimmed.as_bytes());
+
+        let mut rows = Vec::new();
+        for (idx, result) in rdr.deserialize::<ProductCsvRow>().enumerate() {
+            let row = result.map_err(|e| {
+                AppError::Validation(format!("Kesalahan pada baris CSV ke-{}: {e}", idx + 2))
+            })?;
+            rows.push(ProductImportRow {
+                sku: row.sku,
+                barcode: if row.barcode.trim().is_empty() {
+                    None
+                } else {
+                    Some(row.barcode.trim().to_string())
+                },
+                name: row.name,
+                category_name: row.category_name,
+                unit: row.unit,
+                cost_price: row.cost_price,
+                selling_price: row.selling_price,
+                discount_type: row.discount_type,
+                discount_value: row.discount_value,
+                stock: row.stock,
+                is_active: row.is_active != 0,
+            });
+        }
+
+        if rows.is_empty() {
+            return Err(AppError::Validation(
+                "Tidak ada baris produk di dalam file CSV.".to_string(),
+            ));
+        }
+
+        self.import_products_rows(actor, terminal_name, rows)
     }
 
     /// Mengekspor laporan penjualan periode terpilih ke format CSV (`FR-REP-03`).
@@ -332,8 +370,8 @@ impl CoreService {
 mod tests {
     use crate::db::Database;
     use crate::models::{
-        CreateSaleRequest, DiscountType, LoginRequest, ProductFilter, SaleItemInput,
-        SalesReportFilter, SetupServerRequest, UpsertProductRequest,
+        CreateSaleRequest, DiscountType, LoginRequest, ProductFilter, ProductImportRow,
+        SaleItemInput, SalesReportFilter, SetupServerRequest, UpsertProductRequest,
     };
     use crate::services::core_service::CoreService;
     use std::sync::Arc;
@@ -504,5 +542,147 @@ mod tests {
             .unwrap();
         assert_eq!(products_after_restore.len(), 1);
         assert_eq!(products_after_restore[0].sku, "BKP-001");
+    }
+
+    #[test]
+    fn test_import_products_rows_atomic_and_stock_adjustments() {
+        let db = Arc::new(Database::open_in_memory().unwrap());
+        let service = CoreService::new(db);
+        service
+            .setup_server(&SetupServerRequest {
+                store_name: "Toko Excel Import Test".to_string(),
+                store_address: "Jl. Excel 1".to_string(),
+                store_phone: "08222222".to_string(),
+                terminal_name: "Kasir Server".to_string(),
+                admin_username: "admin".to_string(),
+                admin_full_name: "Admin Excel".to_string(),
+                admin_password: "password123".to_string(),
+                admin_pin: "123456".to_string(),
+                seed_sample_data: false,
+            })
+            .unwrap();
+
+        let admin = service
+            .login(&LoginRequest {
+                username: "admin".to_string(),
+                password: "password123".to_string(),
+            })
+            .unwrap()
+            .user;
+
+        let rows = vec![
+            ProductImportRow {
+                sku: "XLS-001".to_string(),
+                barcode: Some("899111222".to_string()),
+                name: "Minyak Goreng 2L".to_string(),
+                category_name: "Sembako".to_string(),
+                unit: "pouch".to_string(),
+                cost_price: 28000,
+                selling_price: 34000,
+                discount_type: "NONE".to_string(),
+                discount_value: 0,
+                stock: 25,
+                is_active: true,
+            },
+            ProductImportRow {
+                sku: "XLS-002".to_string(),
+                barcode: None,
+                name: "Gula Pasir 1kg".to_string(),
+                category_name: "Sembako".to_string(),
+                unit: "kg".to_string(),
+                cost_price: 14000,
+                selling_price: 17500,
+                discount_type: "FIXED".to_string(),
+                discount_value: 500,
+                stock: 40,
+                is_active: true,
+            },
+        ];
+
+        let result = service
+            .import_products_rows(&admin, "Kasir Server", rows)
+            .unwrap();
+        assert_eq!(result.inserted_count, 2);
+        assert_eq!(result.updated_count, 0);
+
+        // Update stok XLS-001 dan ubah nama/harga XLS-002
+        let update_rows = vec![
+            ProductImportRow {
+                sku: "XLS-001".to_string(),
+                barcode: Some("899111222".to_string()),
+                name: "Minyak Goreng 2L".to_string(),
+                category_name: "Sembako".to_string(),
+                unit: "pouch".to_string(),
+                cost_price: 28000,
+                selling_price: 34000,
+                discount_type: "NONE".to_string(),
+                discount_value: 0,
+                stock: 30, // Stok berubah dari 25 menjadi 30 (+5 penyesuaian)
+                is_active: true,
+            },
+            ProductImportRow {
+                sku: "XLS-002".to_string(),
+                barcode: Some("899333444".to_string()), // tambah barcode
+                name: "Gula Pasir Premium 1kg".to_string(),
+                category_name: "Sembako".to_string(),
+                unit: "kg".to_string(),
+                cost_price: 14500,
+                selling_price: 18000,
+                discount_type: "NONE".to_string(),
+                discount_value: 0,
+                stock: 40, // stok tetap sama
+                is_active: true,
+            },
+        ];
+
+        let update_result = service
+            .import_products_rows(&admin, "Kasir Server", update_rows)
+            .unwrap();
+        assert_eq!(update_result.inserted_count, 0);
+        assert_eq!(update_result.updated_count, 2);
+
+        // Verifikasi Stock Adjustment tercatat untuk XLS-001
+        let adjs = service.list_stock_adjustments(&admin, None).unwrap();
+        let xls001_adj = adjs.iter().find(|a| a.product_sku == "XLS-001");
+        assert!(xls001_adj.is_some());
+
+        // Verifikasi atomic rollback jika ada 1 baris yang salah
+        let invalid_rows = vec![
+            ProductImportRow {
+                sku: "XLS-003".to_string(),
+                barcode: None,
+                name: "Kecap Manis".to_string(),
+                category_name: "Bumbu".to_string(),
+                unit: "botol".to_string(),
+                cost_price: 8000,
+                selling_price: 11000,
+                discount_type: "NONE".to_string(),
+                discount_value: 0,
+                stock: 10,
+                is_active: true,
+            },
+            ProductImportRow {
+                sku: "XLS-004".to_string(),
+                barcode: None,
+                name: "Saus Sambal".to_string(),
+                category_name: "Bumbu".to_string(),
+                unit: "botol".to_string(),
+                cost_price: -500, // Invalid: negatif!
+                selling_price: 9000,
+                discount_type: "NONE".to_string(),
+                discount_value: 0,
+                stock: 10,
+                is_active: true,
+            },
+        ];
+
+        let err = service
+            .import_products_rows(&admin, "Kasir Server", invalid_rows)
+            .unwrap_err();
+        assert!(err.to_string().contains("harga dan stok tidak boleh"));
+
+        // XLS-003 tidak boleh masuk karena rollback atomik
+        let p3 = service.find_product_by_code(&admin, "XLS-003");
+        assert!(p3.is_err());
     }
 }

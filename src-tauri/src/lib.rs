@@ -129,6 +129,7 @@ pub fn run() {
             commands::deactivate_product,
             commands::export_products_csv,
             commands::import_products_csv,
+            commands::import_products,
             commands::create_stock_adjustment,
             commands::list_stock_adjustments,
             commands::create_sale,

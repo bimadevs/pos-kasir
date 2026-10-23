@@ -98,7 +98,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
     },
     {
       id: "PRODUCTS",
-      label: "Produk & CSV",
+      label: "Katalog Produk",
       icon: <Package className="w-4 h-4 shrink-0" />,
       adminOnly: true,
     },

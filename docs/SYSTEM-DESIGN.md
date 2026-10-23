@@ -313,8 +313,9 @@ Ketika berjalan dalam mode `CLIENT`, Tauri Command meneruskan operasi domain ke 
 | **Produk** | `find_product_by_code` | `GET /api/v1/products/lookup?code=` | Cashier, Admin | Pencarian eksak berdasarkan `barcode` atau `sku` untuk pemindaian *Barcode Scanner* berkecepatan tinggi. |
 | **Produk** | `upsert_product` | `POST /api/v1/products` | **Admin** | Tambah produk baru atau perbarui produk yang sudah ada. |
 | **Produk** | `deactivate_product` | `DELETE /api/v1/products/:id` | **Admin** | *Soft delete* (`is_active = 0`) pada produk. |
-| **Produk CSV** | `export_products_csv` | `GET /api/v1/products/csv` | **Admin** | Menghasilkan konten CSV seluruh katalog produk. |
-| **Produk CSV** | `import_products_csv` | `POST /api/v1/products/csv` | **Admin** | Upsert massal produk dari file CSV dalam satu transaksi database. |
+| **Produk Impor/Ekspor** | `import_products` | `POST /api/v1/products/import` | **Admin** | Upsert massal produk dari baris data terstruktur (impor Excel .xlsx) secara atomik. |
+| **Produk Impor/Ekspor** | `export_products_csv` | `GET /api/v1/products/csv` | **Admin** | Menghasilkan konten data seluruh katalog produk. |
+| **Produk Impor/Ekspor** | `import_products_csv` | `POST /api/v1/products/csv` | **Admin** | Upsert massal produk dari file CSV dalam satu transaksi database. |
 | **Inventaris** | `create_stock_adjustment` | `POST /api/v1/stock-adjustments` | **Admin** | Mencatat barang masuk/rusak/koreksi dan memperbarui `products.stock` secara atomik. |
 | **Inventaris** | `list_stock_adjustments` | `GET /api/v1/stock-adjustments` | **Admin** | Riwayat mutasi penyesuaian stok. |
 | **Kasir (Sale)** | `create_sale` | `POST /api/v1/sales` | Cashier, Admin | Menyelesaikan pembayaran tunai secara atomik, memotong stok, dan mengembalikan objek `ReceiptData` lengkap untuk dicetak. |

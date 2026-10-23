@@ -341,6 +341,39 @@ export interface CsvImportResult {
   total_processed: number;
 }
 
+export type ImportProductsResult = CsvImportResult;
+
+export interface ProductImportRow {
+  sku: string;
+  barcode?: string | null;
+  name: string;
+  category_name: string;
+  unit: string;
+  cost_price: number;
+  selling_price: number;
+  discount_type: DiscountType;
+  discount_value: number;
+  stock: number;
+  is_active: boolean;
+}
+
+export interface ParsedImportRow {
+  rowNumber: number;
+  data: ProductImportRow;
+  isNew: boolean;
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface ParsedImportSummary {
+  rows: ParsedImportRow[];
+  totalRows: number;
+  newCount: number;
+  updateCount: number;
+  errorCount: number;
+  isValid: boolean;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;

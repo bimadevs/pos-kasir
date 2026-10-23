@@ -7,12 +7,14 @@ import type {
   CsvImportResult,
   HealthCheckResponse,
   HeldBill,
+  ImportProductsResult,
   LocalConfig,
   LoginRequest,
   PrinterConfig,
   PrintOutcome,
   Product,
   ProductFilter,
+  ProductImportRow,
   RecalledHeldBill,
   ReceiptData,
   SaleWithItems,
@@ -94,6 +96,8 @@ export const ipc = {
   exportProductsCsv: () => callCommand<string>("export_products_csv"),
   importProductsCsv: (csvContent: string) =>
     callCommand<CsvImportResult>("import_products_csv", { csvContent }),
+  importProducts: (rows: ProductImportRow[]) =>
+    callCommand<ImportProductsResult>("import_products", { rows }),
 
   // 4. Inventaris & Stock Adjustment
   createStockAdjustment: (req: CreateStockAdjustmentRequest) =>

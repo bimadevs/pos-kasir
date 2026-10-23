@@ -13,11 +13,20 @@ import {
   X,
 } from "lucide-react";
 import { ipc } from "../services/ipc";
+import { ProductImportPreviewModal } from "../components/products/ProductImportPreviewModal";
 import type {
   DiscountType,
+  ParsedImportSummary,
   Product,
+  ProductImportRow,
   UpsertProductRequest,
 } from "../types/domain";
+import {
+  buildProductTemplateWorkbook,
+  buildProductsExportWorkbook,
+  parseProductImportExcel,
+  saveWorkbookAsFile,
+} from "../utils/excelService";
 import {
   calculateEffectiveUnitPrice,
   calculateUnitDiscount,
@@ -57,6 +66,13 @@ export const ProductsPage: React.FC = () => {
   const [saving, setSaving] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Excel Import Preview Modal State
+  const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
+  const [importSummary, setImportSummary] =
+    useState<ParsedImportSummary | null>(null);
+  const [importFileName, setImportFileName] = useState<string>("");
+  const [isSavingImport, setIsSavingImport] = useState<boolean>(false);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -219,61 +235,60 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  const handleExportCsv = async () => {
+  const handleExportExcel = async () => {
     try {
-      const csvContent = await ipc.exportProductsCsv();
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `katalog-produk-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const wb = buildProductsExportWorkbook(products);
+      const filename = `katalog-produk-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      await saveWorkbookAsFile(wb, filename);
       setFeedback({
         type: "success",
-        message: "Katalog produk berhasil diekspor ke file CSV.",
+        message: "Katalog produk berhasil diekspor ke file Excel (.xlsx).",
       });
     } catch (err) {
       setFeedback({
         type: "error",
-        message: `Gagal ekspor CSV: ${
+        message: `Gagal ekspor Excel: ${
           err instanceof Error ? err.message : String(err)
         }`,
       });
     }
   };
 
-  const handleDownloadTemplateCsv = () => {
-    const sample =
-      "sku,barcode,name,category_name,unit,cost_price,selling_price,discount_type,discount_value,stock,is_active\n" +
-      "SKU-101,8991002101012,Kopi Kapal Api Special 165g,Minuman,pcs,11500,14500,NONE,0,30,true\n" +
-      "SKU-102,8991002101029,Biskuit Roma Kelapa 300g,Makanan,pcs,8200,10500,NOMINAL,500,25,true\n";
-    const blob = new Blob([sample], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "template-import-produk-kassio.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadTemplateExcel = async () => {
+    try {
+      const wb = buildProductTemplateWorkbook();
+      await saveWorkbookAsFile(wb, "template-import-produk-kassio.xlsx");
+      setFeedback({
+        type: "success",
+        message: "Template impor Excel berhasil diunduh.",
+      });
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: `Gagal mengunduh template Excel: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      });
+    }
   };
 
-  const handleImportCsvFile = async (
+  const handleSelectExcelFile = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const content = await file.text();
-      const result = await ipc.importProductsCsv(content);
-      await loadProducts();
-      setFeedback({
-        type: "success",
-        message: `Impor CSV berhasil! ${result.total_processed} baris diproses (${result.inserted_count} produk baru, ${result.updated_count} diperbarui).`,
-      });
+      const buffer = await file.arrayBuffer();
+      // Pastikan list produk lengkap termuat untuk lookup SKU
+      const allProducts = await ipc.listProducts({ only_active: false });
+      const summary = await parseProductImportExcel(buffer, allProducts);
+      setImportSummary(summary);
+      setImportFileName(file.name);
+      setImportModalOpen(true);
     } catch (err) {
       setFeedback({
         type: "error",
-        message: `Impor CSV dibatalkan (Atomic Rollback): ${
+        message: `Gagal membaca file Excel: ${
           err instanceof Error ? err.message : String(err)
         }`,
       });
@@ -281,6 +296,29 @@ export const ProductsPage: React.FC = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleConfirmImport = async (validRows: ProductImportRow[]) => {
+    setIsSavingImport(true);
+    try {
+      const result = await ipc.importProducts(validRows);
+      await loadProducts();
+      setImportModalOpen(false);
+      setImportSummary(null);
+      setFeedback({
+        type: "success",
+        message: `Impor Excel berhasil! ${result.total_processed} produk diproses (${result.inserted_count} baru ditambahkan, ${result.updated_count} diperbarui).`,
+      });
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: `Impor Excel dibatalkan (Atomic Rollback): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      });
+    } finally {
+      setIsSavingImport(false);
     }
   };
 
@@ -329,33 +367,36 @@ export const ProductsPage: React.FC = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => void handleImportCsvFile(e)}
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => void handleSelectExcelFile(e)}
             className="hidden"
           />
           <button
             type="button"
-            onClick={handleDownloadTemplateCsv}
+            onClick={() => void handleDownloadTemplateExcel()}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Unduh Template Excel 2-Sheet berpetunjuk lengkap"
           >
-            <FileSpreadsheet className="w-4 h-4 text-zinc-500" />
-            Template CSV
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+            Template Excel
           </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Impor file Excel (.xlsx) dengan pratinjau data dan validasi otomatis"
           >
             <Upload className="w-4 h-4 text-teal-600" />
-            Import CSV
+            Import Excel
           </button>
           <button
             type="button"
-            onClick={() => void handleExportCsv()}
+            onClick={() => void handleExportExcel()}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Ekspor seluruh katalog produk saat ini ke file Excel (.xlsx)"
           >
             <Download className="w-4 h-4 text-emerald-600" />
-            Export CSV
+            Export Excel
           </button>
           <button
             type="button"
@@ -913,6 +954,22 @@ export const ProductsPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Pratinjau Impor Excel */}
+      {importModalOpen && importSummary && (
+        <ProductImportPreviewModal
+          fileName={importFileName}
+          summary={importSummary}
+          isSaving={isSavingImport}
+          onConfirm={(validRows) => void handleConfirmImport(validRows)}
+          onCancel={() => {
+            if (!isSavingImport) {
+              setImportModalOpen(false);
+              setImportSummary(null);
+            }
+          }}
+        />
       )}
     </div>
   );
