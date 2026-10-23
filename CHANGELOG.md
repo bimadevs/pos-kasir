@@ -3,6 +3,36 @@
 Seluruh perubahan penting pada aplikasi **Kassio** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [0.3.0] - 2026-10-23
+
+### Added
+- **Subsistem Excel (.xlsx) Multi-Sheet Ramah Admin Awam**:
+  - Mengintegrasikan pustaka `exceljs` untuk menghasilkan dan mem-parsing berkas spreadsheet Excel (`.xlsx`) modern, berformat rapi, dan mudah dikelola oleh admin toko yang awam.
+  - **Template Impor 2-Sheet**:
+    - Sheet 1 (`Data Produk`): Judul kolom Bahasa Indonesia ramah awam, proteksi kolom barcode EAN-13 & SKU sebagai format teks (`@`) anti-notasi ilmiah (`8.99E+11`) tanpa memotong angka nol di awal, dropdown validasi data langsung di dalam sel (`Kategori`, `Satuan`, `Tipe Diskon`, `Status Aktif`), serta format mata uang Rupiah (`"Rp" #,##0`).
+    - Sheet 2 (`Petunjuk & Aturan`): Panduan pengisian langkah demi langkah, arti setiap kolom, batasan nilai, dan contoh data minimarket Indonesia.
+  - **Ekspor Katalog Produk**: Ekspor seluruh katalog ke dalam file Excel 2-sheet bertema profesional Navy Blue dengan auto-filter aktif.
+  - **Ekspor Laporan Penjualan 2-Sheet**:
+    - Sheet 1 (`Ringkasan Laporan`): Kartu KPI kinerja penjualan (omzet kotor, diskon, penjualan bersih, HPP, laba kotor, margin %, total transaksi sukses/void, rekap metode bayar, dan produk terlaris).
+    - Sheet 2 (`Rincian Penjualan`): Tabel transaksi per item lengkap dengan format Rupiah, tanggal, waktu, nomor struk, dan status void.
+  - **Modal Pratinjau Impor Interaktif (`ProductImportPreviewModal.tsx`)**:
+    - Menampilkan ringkasan visual sebelum data disimpan (jumlah total baris, produk baru vs update).
+    - Deteksi kesalahan otomatis secara visual dengan sorotan baris merah dan daftar error spesifik per kolom.
+    - Penguncian tombol simpan (Atomic Protection) hingga seluruh baris valid untuk melindungi integritas data inventaris kasir.
+    - Toleransi cerdas terhadap simbol `Rp`, pemisah ribuan titik/koma, alias nama kolom, dan variasi status `Aktif`/`1`/`Ya`.
+  - **Backend Rust Atomik & Dukungan LAN Dual-Mode**:
+    - Menambahkan `CoreService::import_products_rows` untuk upsert massal atomik (`BEGIN IMMEDIATE`) dan pencatatan otomatis ke riwayat `stock_adjustments` jika stok produk yang ada diubah.
+    - Menambahkan rute server LAN `POST /api/v1/products/import` dan fungsi klien HTTP Reqwest untuk sinkronisasi terminal klien.
+    - Menambahkan perintah Tauri IPC `import_products`.
+
+### Changed
+- **Penyelarasan Antarmuka & SDD**:
+  - Mengubah label menu bilah navigasi atas (`TopBar.tsx`) dari `"Produk & CSV"` menjadi `"Katalog Produk"`.
+  - Mengubah seluruh tombol aksi di `ProductsPage.tsx` menjadi `"Template Excel"`, `"Import Excel"`, dan `"Export Excel"`.
+  - Mengubah tombol aksi di `ReportsPage.tsx` menjadi `"Ekspor Excel Laporan"`.
+  - Memperbarui `AGENTS.md` untuk mewajibkan agent proaktif langsung menaikkan nomor versi saat menyelesaikan fitur baru besar atau perombakan modul.
+  - Memperbarui spesifikasi SDD `docs/REQUIREMENTS.md` (`FR-PROD-04`, `FR-REP-03`), `docs/SYSTEM-DESIGN.md`, dan tiket implementasi `.scratch/pos-kasir/issues/07-excel-import-export-redesign.md`.
+
 ## [0.2.0] - 2026-10-21
 
 ### Added
