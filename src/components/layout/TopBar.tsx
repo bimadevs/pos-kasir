@@ -143,30 +143,30 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
   const activeSecondaryTab = secondaryAdminTabs.find((item) => item.id === activeTab);
 
   return (
-    <header className="h-14 bg-slate-950 text-zinc-100 border-b border-slate-800/80 px-4 flex items-center justify-between shrink-0 select-none z-30 relative">
+    <header className="h-14 bg-emerald-700 text-white border-b border-emerald-800/80 px-4 flex items-center justify-between shrink-0 select-none z-30 relative shadow-sm">
       {/* Kiri: Identitas Mudita Mart, Logo Resmi, & Smart Terminal Chip */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
             src="/logo-emblem.png"
             alt="Logo Mudita Mart"
-            className="w-8 h-8 rounded-lg object-contain bg-slate-900 border border-slate-800 p-0.5 shadow-xs shrink-0"
+            className="w-8 h-8 rounded-lg object-contain bg-white/10 border border-white/20 p-0.5 shadow-xs shrink-0"
           />
           <div className="leading-tight min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-extrabold text-sm tracking-tight truncate max-w-[150px] sm:max-w-[200px]">
                 <span className="text-white">Mudita </span>
-                <span className="text-amber-400">Mart</span>
-                <span className="text-zinc-400 font-medium text-xs ml-1.5 hidden sm:inline">
+                <span className="text-amber-300">Mart</span>
+                <span className="text-emerald-100 font-medium text-xs ml-1.5 hidden sm:inline">
                   {terminalStatus?.store_name ? `• ${terminalStatus.store_name}` : ""}
                 </span>
               </span>
-              <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono font-medium text-teal-400 shrink-0">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-800/80 border border-emerald-600/60 text-[10px] font-mono font-medium text-emerald-100 shrink-0">
                 {APP_VERSION_LABEL}
               </span>
             </div>
-            <div className="text-[11px] text-zinc-400 flex items-center gap-1 font-medium truncate max-w-[190px]">
-              <Monitor className="w-3 h-3 text-zinc-500 shrink-0" />
+            <div className="text-[11px] text-emerald-100 flex items-center gap-1 font-medium truncate max-w-[190px]">
+              <Monitor className="w-3 h-3 text-emerald-200 shrink-0" />
               <span className="truncate">
                 {formatTerminalName(cfg?.terminal_name, isServer)}
               </span>
@@ -178,7 +178,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
       {/* Tengah: Navigasi Segmented Control (macOS / App Bar Style) */}
       <nav
         aria-label="Navigasi Utama"
-        className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800/80 shadow-inner"
+        className="flex items-center bg-emerald-800/90 p-1 rounded-xl border border-emerald-600/40 shadow-inner"
       >
         {/* Tab Kasir (POS) - Selalu Tampil & Prioritas Utama */}
         <button
@@ -186,8 +186,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
           onClick={() => onSelectTab("POS")}
           className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
             activeTab === "POS"
-              ? "bg-slate-800 text-white shadow-xs border border-slate-700/60"
-              : "text-zinc-400 hover:text-zinc-200 hover:bg-slate-800/40"
+              ? "bg-white text-emerald-900 shadow-xs border border-white/80 font-bold"
+              : "text-emerald-100 hover:text-white hover:bg-emerald-700/60"
           }`}
         >
           <ShoppingCart className="w-4 h-4 shrink-0" />
@@ -201,8 +201,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             onClick={() => onSelectTab("SETTINGS")}
             className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "SETTINGS"
-                ? "bg-slate-800 text-white shadow-xs border border-slate-700/60"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-slate-800/40"
+                ? "bg-white text-emerald-900 shadow-xs border border-white/80 font-bold"
+                : "text-emerald-100 hover:text-white hover:bg-emerald-700/60"
             }`}
           >
             <Settings className="w-4 h-4 shrink-0" />
@@ -222,8 +222,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                   onClick={() => onSelectTab(tab.id)}
                   className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     active
-                      ? "bg-slate-800 text-white shadow-xs border border-slate-700/60"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-slate-800/40"
+                      ? "bg-white text-emerald-900 shadow-xs border border-white/80 font-bold"
+                      : "text-emerald-100 hover:text-white hover:bg-emerald-700/60"
                   }`}
                 >
                   {tab.icon}
@@ -244,8 +244,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
               aria-expanded={dropdownOpen}
               className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeSecondaryTab
-                  ? "bg-slate-800 text-white shadow-xs border border-slate-700/60"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-slate-800/40"
+                  ? "bg-white text-emerald-900 shadow-xs border border-white/80 font-bold"
+                  : "text-emerald-100 hover:text-white hover:bg-emerald-700/60"
               }`}
             >
               {activeSecondaryTab ? (
@@ -260,16 +260,16 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                 </>
               )}
               <ChevronDown
-                className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${
-                  dropdownOpen ? "rotate-180 text-zinc-200" : ""
+                className={`w-3.5 h-3.5 text-emerald-200 transition-transform duration-200 ${
+                  dropdownOpen ? "rotate-180 text-white" : ""
                 }`}
               />
             </button>
 
             {/* Panel Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute top-full mt-2 left-0 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in duration-150">
-                <div className="px-2.5 py-1 text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+              <div className="absolute top-full mt-2 left-0 w-52 bg-emerald-900 border border-emerald-700 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in duration-150">
+                <div className="px-2.5 py-1 text-[10px] font-semibold tracking-wider text-emerald-200 uppercase">
                   Menu Manajemen
                 </div>
                 {secondaryAdminTabs.map((tab) => {
@@ -284,11 +284,11 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer ${
                         active
-                          ? "bg-slate-800 text-white font-semibold"
-                          : "text-zinc-300 hover:bg-slate-800/60 hover:text-white"
+                          ? "bg-white text-emerald-900 font-bold shadow-xs"
+                          : "text-emerald-100 hover:bg-emerald-800/80 hover:text-white"
                       }`}
                     >
-                      <span className={active ? "text-white" : "text-zinc-400"}>
+                      <span className={active ? "text-emerald-900" : "text-emerald-200"}>
                         {tab.icon}
                       </span>
                       <span>{tab.label}</span>
@@ -304,7 +304,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
       {/* Kanan: Kapsul Status Terpadu (LAN & Jam) & Pill Pengguna */}
       <div className="flex items-center gap-2.5">
         {/* Kapsul Status: Indikator LAN & Jam Monospace Tabular-Nums */}
-        <div className="flex items-center gap-2.5 bg-slate-900/90 border border-slate-800/80 rounded-xl px-3 py-1.5 shadow-inner">
+        <div className="flex items-center gap-2.5 bg-emerald-800/90 border border-emerald-600/40 rounded-xl px-3 py-1.5 shadow-inner">
           {lanConnected ? (
             <div
               title={
@@ -315,10 +315,10 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
               className="flex items-center gap-2 cursor-default group"
             >
               <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-300" />
               </span>
-              <span className="text-xs font-medium text-emerald-400 whitespace-nowrap hidden lg:inline">
+              <span className="text-xs font-medium text-emerald-100 whitespace-nowrap hidden lg:inline">
                 {isServer ? "LAN Server" : "LAN Terhubung"}
               </span>
             </div>
@@ -331,36 +331,36 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
               </span>
-              <span className="text-xs font-bold text-rose-400 whitespace-nowrap animate-pulse">
+              <span className="text-xs font-bold text-rose-300 whitespace-nowrap animate-pulse">
                 OFFLINE
               </span>
             </div>
           )}
 
-          <div className="w-px h-3.5 bg-slate-800 shrink-0" />
+          <div className="w-px h-3.5 bg-emerald-600/50 shrink-0" />
 
-          <div className="text-xs font-mono tabular-nums text-zinc-300 font-medium whitespace-nowrap">
+          <div className="text-xs font-mono tabular-nums text-white font-semibold whitespace-nowrap">
             {clock}
           </div>
         </div>
 
         {/* Pill Profil Pengguna & Logout Terintegrasi */}
-        <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800/80 rounded-xl p-1 shadow-inner">
+        <div className="flex items-center gap-1.5 bg-emerald-800/90 border border-emerald-600/40 rounded-xl p-1 shadow-inner">
           <div
             className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono shrink-0 select-none ${
               isAdmin
-                ? "bg-teal-600 text-white border border-teal-500"
-                : "bg-slate-800 text-zinc-200 border border-slate-700/60"
+                ? "bg-amber-400 text-emerald-950 border border-amber-300 shadow-2xs"
+                : "bg-emerald-900 text-emerald-100 border border-emerald-600/60"
             }`}
           >
             {userInitials}
           </div>
 
           <div className="text-left pl-1 pr-1.5 hidden md:block leading-tight">
-            <div className="text-xs font-semibold text-zinc-200 truncate max-w-[110px]">
+            <div className="text-xs font-semibold text-white truncate max-w-[110px]">
               {user?.full_name || user?.username}
             </div>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-400">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
               {user?.role}
             </div>
           </div>
@@ -370,7 +370,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             onClick={() => void logout()}
             title="Keluar Sesi Kasir"
             aria-label="Keluar Sesi Kasir"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-300 hover:bg-rose-950/60 border border-transparent hover:border-rose-900/40 transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-lg text-emerald-100 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>

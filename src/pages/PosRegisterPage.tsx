@@ -612,16 +612,16 @@ export const PosRegisterPage: React.FC = () => {
           />
         </div>
 
-        {/* RIGHT COLUMN (4 cols / ~33%): High-Contrast Modern Zinc Total Summary & Cashier Actions */}
-        <div className="col-span-4 bg-zinc-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl border border-zinc-800">
+        {/* RIGHT COLUMN (4 cols / ~33%): Clean Crisp Light Summary with Logo Green & Gold Accents */}
+        <div className="col-span-4 bg-white text-zinc-900 rounded-2xl p-5 flex flex-col justify-between shadow-xs border border-zinc-200/90">
           {/* Top Summary Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                   Ringkasan Pembayaran
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-zinc-500 mt-0.5">
                   {totals.totalItemsCount} baris produk ({totals.totalUnitsQty}{" "}
                   pcs)
                 </p>
@@ -633,7 +633,7 @@ export const PosRegisterPage: React.FC = () => {
                     setCart([]);
                     setSelectedIndex(0);
                   }}
-                  className="flex items-center gap-1 text-xs text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-xs text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
                   title="Kosongkan Keranjang"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -644,26 +644,29 @@ export const PosRegisterPage: React.FC = () => {
 
             {/* Subtotal & Discount Breakdown */}
             <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between text-zinc-300">
-                <span>Subtotal Harga Normal</span>
-                <span className="font-mono font-semibold tabular-nums">
+              <div className="flex items-center justify-between text-zinc-600">
+                <span className="font-medium">Subtotal Harga Normal</span>
+                <span className="font-mono font-bold text-zinc-900 tabular-nums">
                   {formatRupiah(totals.subtotalGross)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-amber-400">
-                <span>Total Potongan Diskon</span>
-                <span className="font-mono font-semibold tabular-nums">
+              <div className="flex items-center justify-between text-amber-600">
+                <span className="font-medium">Total Potongan Diskon</span>
+                <span className="font-mono font-bold text-amber-600 tabular-nums">
                   - {formatRupiah(totals.discountTotal)}
                 </span>
               </div>
             </div>
 
-            {/* Giant Grand Total Display */}
-            <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 shadow-inner">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
-                TOTAL TAGIHAN
+            {/* Giant Grand Total Display — Mudita Green & Warm Gold Accent */}
+            <div className="bg-emerald-50/80 border-2 border-emerald-500/80 rounded-xl p-4 shadow-xs relative overflow-hidden">
+              <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest text-emerald-800">
+                <span>TOTAL TAGIHAN</span>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-amber-950 font-sans tracking-normal shadow-2xs">
+                  MUDITA MART
+                </span>
               </div>
-              <div className="text-4xl font-extrabold font-mono text-zinc-50 tracking-tight mt-1 tabular-nums">
+              <div className="text-4xl font-extrabold font-mono text-emerald-950 tracking-tight mt-1 tabular-nums">
                 {formatRupiah(totals.totalAmount)}
               </div>
             </div>
@@ -674,66 +677,66 @@ export const PosRegisterPage: React.FC = () => {
                 type="button"
                 onClick={handleOpenHoldModal}
                 disabled={cart.length === 0}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] disabled:opacity-40 border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] disabled:opacity-40 border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <PauseCircle className="w-4 h-4 text-zinc-300 shrink-0" />
+                  <PauseCircle className="w-4 h-4 text-zinc-500 shrink-0" />
                   Tahan (Hold)
                 </span>
-                <kbd className="kbd-key-dark">F4</kbd>
+                <kbd className="kbd-key">F4</kbd>
               </button>
 
               <button
                 type="button"
                 onClick={() => void handleOpenRecallModal()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-zinc-300 shrink-0" />
+                  <Clock className="w-4 h-4 text-zinc-500 shrink-0" />
                   Recall ({heldBills.length})
                 </span>
-                <kbd className="kbd-key-dark">F5</kbd>
+                <kbd className="kbd-key">F5</kbd>
               </button>
 
               <button
                 type="button"
                 onClick={() => void handleOpenTodaySales()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-zinc-300 shrink-0" />
+                  <History className="w-4 h-4 text-zinc-500 shrink-0" />
                   Riwayat / Void
                 </span>
-                <kbd className="kbd-key-dark">F6</kbd>
+                <kbd className="kbd-key">F6</kbd>
               </button>
 
               <button
                 type="button"
                 onClick={() => void handleReprintLastReceipt()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-700 active:scale-[0.98] border border-zinc-700/60 text-left text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <Printer className="w-4 h-4 text-zinc-300 shrink-0" />
+                  <Printer className="w-4 h-4 text-zinc-500 shrink-0" />
                   Reprint Struk
                 </span>
-                <kbd className="kbd-key-dark">F10</kbd>
+                <kbd className="kbd-key">F10</kbd>
               </button>
             </div>
           </div>
 
           {/* Primary Checkout CTAs */}
-          <div className="space-y-2.5 pt-4 border-t border-zinc-800">
+          <div className="space-y-2.5 pt-4 border-t border-zinc-200">
             <button
               type="button"
               disabled={cart.length === 0 || submittingSale}
               onClick={() => void executeCheckout(totals.totalAmount, false)}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700 text-white font-bold text-xs flex items-center justify-between transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:active:scale-100"
+              className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 active:scale-[0.98] disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border-zinc-200 text-amber-950 font-bold text-xs flex items-center justify-between transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:active:scale-100"
             >
               <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-emerald-200" />
+                <Zap className="w-4 h-4 text-amber-900" />
                 Bayar Cepat Uang Pas ({formatRupiah(totals.totalAmount)})
               </span>
-              <kbd className="kbd-key-dark">F9</kbd>
+              <kbd className="kbd-key bg-amber-200/90 border-amber-300 text-amber-950 font-bold">F9</kbd>
             </button>
 
             <button
@@ -745,13 +748,13 @@ export const PosRegisterPage: React.FC = () => {
                 setPaymentError(null);
                 setPaymentModalOpen(true);
               }}
-              className="w-full py-3.5 px-5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-extrabold text-sm tracking-wide flex items-center justify-between shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30"
+              className="w-full py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:bg-zinc-100 disabled:text-zinc-400 text-white font-extrabold text-sm tracking-wide flex items-center justify-between shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
             >
               <span className="flex items-center gap-2.5">
-                <Banknote className="w-5 h-5 text-teal-200" />
+                <Banknote className="w-5 h-5 text-emerald-100" />
                 PROSES PEMBAYARAN TUNAI
               </span>
-              <kbd className="kbd-key-dark text-xs">F8</kbd>
+              <kbd className="kbd-key bg-emerald-700/90 border-emerald-500 text-white font-bold text-xs">F8</kbd>
             </button>
           </div>
         </div>
