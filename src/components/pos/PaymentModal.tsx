@@ -91,14 +91,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (completedReceipt) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4">
         <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md overflow-hidden">
-          <div className="bg-zinc-900 text-white px-6 py-5 text-center border-b border-zinc-800">
-            <CheckCircle2 className="w-11 h-11 mx-auto mb-2 text-emerald-400" />
-            <h3 className="text-xl font-extrabold tracking-tight">
+          <div className="bg-emerald-700 text-white px-6 py-5 text-center border-b border-emerald-800/80 shadow-xs">
+            <CheckCircle2 className="w-11 h-11 mx-auto mb-2 text-amber-300" />
+            <h3 className="text-xl font-extrabold tracking-tight text-white">
               TRANSAKSI BERHASIL
             </h3>
-            <p className="text-xs font-mono text-zinc-400 mt-1">
+            <p className="text-xs font-mono text-emerald-100 mt-1">
               No. Struk: {completedReceipt.sale.receipt_number}
             </p>
           </div>
@@ -144,7 +144,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={onStartNewTransaction}
                 autoFocus
-                className="flex-1 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
               >
                 Transaksi Baru (Enter)
               </button>
@@ -156,19 +156,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
           <div className="flex items-center gap-2.5">
-            <Banknote className="w-5 h-5 text-teal-400" />
-            <h3 className="font-extrabold text-base tracking-tight">Pembayaran Tunai (CASH)</h3>
+            <Banknote className="w-5 h-5 text-amber-300" />
+            <h3 className="font-extrabold text-base tracking-tight text-white">Pembayaran Tunai (CASH)</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="text-zinc-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-zinc-800"
+            className="text-emerald-100 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-emerald-800/80"
           >
             <X className="w-5 h-5" />
           </button>
@@ -182,16 +182,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           )}
 
           {/* Total Tagihan */}
-          <div className="bg-zinc-950 text-white rounded-xl p-4 flex items-center justify-between border border-zinc-800 shadow-inner">
+          <div className="bg-emerald-50/90 border-2 border-emerald-500/80 rounded-xl p-4 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
                 Total Tagihan
               </div>
-              <div className="text-xs text-zinc-400 mt-0.5">
+              <div className="text-xs text-emerald-700 mt-0.5">
                 Metode: Tunai (Cash)
               </div>
             </div>
-            <div className="text-3xl font-extrabold font-mono text-zinc-50 tabular-nums">
+            <div className="text-3xl font-extrabold font-mono text-emerald-950 tabular-nums">
               {formatRupiah(totalAmount)}
             </div>
           </div>

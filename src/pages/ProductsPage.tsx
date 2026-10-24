@@ -436,7 +436,7 @@ export const ProductsPage: React.FC = () => {
           onClick={() => setStockFilter("ALL")}
           className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "ALL"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              ? "bg-emerald-700 text-white border-emerald-700 shadow-sm"
               : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
@@ -456,7 +456,7 @@ export const ProductsPage: React.FC = () => {
           onClick={() => setStockFilter("LOW")}
           className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "LOW"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              ? "bg-amber-600 text-white border-amber-600 shadow-sm"
               : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
@@ -476,7 +476,7 @@ export const ProductsPage: React.FC = () => {
           onClick={() => setStockFilter("OUT")}
           className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "OUT"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              ? "bg-rose-700 text-white border-rose-700 shadow-sm"
               : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
@@ -496,7 +496,7 @@ export const ProductsPage: React.FC = () => {
           onClick={() => setStockFilter("PROMO")}
           className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             stockFilter === "PROMO"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+              ? "bg-emerald-700 text-white border-emerald-700 shadow-sm"
               : "bg-white text-zinc-800 border-zinc-200/90 hover:border-zinc-300 shadow-2xs"
           }`}
         >
@@ -678,7 +678,7 @@ export const ProductsPage: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/75 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
           onClick={(e) => {
             if (e.target === e.currentTarget && !saving) {
               setModalOpen(false);
@@ -690,8 +690,8 @@ export const ProductsPage: React.FC = () => {
             className="bg-white rounded-2xl shadow-2xl border border-zinc-200/80 w-full max-w-xl overflow-hidden my-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-zinc-950 text-white px-6 py-4 flex items-center justify-between border-b border-zinc-800">
-              <h3 className="font-bold text-base tracking-tight">
+            <div className="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
+              <h3 className="font-bold text-base tracking-tight text-white">
                 {editingProduct ? "Edit Data Produk" : "Tambah Produk Baru"}
               </h3>
               <button
@@ -704,7 +704,7 @@ export const ProductsPage: React.FC = () => {
                 }}
                 disabled={saving}
                 title="Tutup (Esc)"
-                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer transition-colors disabled:opacity-40"
+                className="text-emerald-100 hover:text-white p-1 rounded-lg cursor-pointer transition-colors disabled:opacity-40 hover:bg-emerald-800/80"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -908,22 +908,22 @@ export const ProductsPage: React.FC = () => {
               )}
 
               {/* Live Price & Margin Preview */}
-              <div className="bg-slate-900 text-white rounded-xl p-3.5 flex items-center justify-between border border-slate-800">
+              <div className="bg-emerald-50/90 text-emerald-950 rounded-xl p-3.5 flex items-center justify-between border-2 border-emerald-500/80 shadow-xs">
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
                     Harga Jual Efektif (Setelah Diskon)
                   </div>
-                  <div className="text-lg font-extrabold font-mono text-emerald-400 tabular-nums">
+                  <div className="text-lg font-extrabold font-mono text-emerald-950 tabular-nums">
                     {formatRupiah(previewEffective)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
                     Estimasi Margin Laba / {formUnit || "pcs"}
                   </div>
                   <div
                     className={`text-sm font-bold font-mono tabular-nums ${
-                      previewMargin >= 0 ? "text-emerald-300" : "text-rose-400"
+                      previewMargin >= 0 ? "text-emerald-700" : "text-rose-600"
                     }`}
                   >
                     {formatRupiah(previewMargin)}

@@ -64,23 +64,23 @@ export const ProductImportPreviewModal: React.FC<
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-xs animate-in fade-in duration-150"
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex flex-col w-full max-w-6xl max-h-[92vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="flex flex-col w-full max-w-6xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden">
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400">
-              <FileSpreadsheet className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-emerald-800/80 text-amber-300 border border-emerald-600/60">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h2 className="text-base font-extrabold text-white tracking-tight">
                 Pratinjau Impor Katalog Produk (.xlsx)
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                File: <span className="font-semibold text-slate-700 dark:text-slate-300">{fileName}</span> &bull; {summary.totalRows} baris terdeteksi
+              <p className="text-xs text-emerald-100 mt-0.5">
+                File: <span className="font-semibold text-amber-200">{fileName}</span> &bull; {summary.totalRows} baris terdeteksi
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export const ProductImportPreviewModal: React.FC<
             type="button"
             onClick={onCancel}
             disabled={isSaving}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-emerald-100 hover:text-white hover:bg-emerald-800/60 transition-colors cursor-pointer"
             title="Tutup (Esc)"
           >
             <X className="w-5 h-5" />
@@ -96,31 +96,31 @@ export const ProductImportPreviewModal: React.FC<
         </div>
 
         {/* Ringkasan Kartu Metrik & Status Validasi */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-slate-100/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-zinc-50 border-b border-zinc-200">
           {/* Total Baris */}
-          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Baris Terdeteksi</span>
+          <div className="p-3 bg-white rounded-xl border border-zinc-200/90 shadow-2xs">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Baris Terdeteksi</span>
             <div className="flex items-center gap-1.5 mt-1">
-              <FileSpreadsheet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-lg font-bold text-slate-900 dark:text-white">{summary.totalRows} Produk</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+              <span className="text-lg font-extrabold font-mono text-zinc-900">{summary.totalRows} Produk</span>
             </div>
           </div>
 
           {/* Produk Baru */}
-          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Produk Baru Ditambahkan</span>
-            <div className="flex items-center gap-1.5 mt-1 text-emerald-600 dark:text-emerald-400">
+          <div className="p-3 bg-white rounded-xl border border-zinc-200/90 shadow-2xs">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Produk Baru Ditambahkan</span>
+            <div className="flex items-center gap-1.5 mt-1 text-emerald-600">
               <PlusCircle className="w-4 h-4" />
-              <span className="text-lg font-bold">{summary.newCount} Produk</span>
+              <span className="text-lg font-extrabold font-mono">{summary.newCount} Produk</span>
             </div>
           </div>
 
           {/* Produk Diperbarui */}
-          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Produk Diperbarui (Update)</span>
-            <div className="flex items-center gap-1.5 mt-1 text-amber-600 dark:text-amber-400">
+          <div className="p-3 bg-white rounded-xl border border-zinc-200/90 shadow-2xs">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Produk Diperbarui (Update)</span>
+            <div className="flex items-center gap-1.5 mt-1 text-amber-600">
               <RefreshCw className="w-4 h-4" />
-              <span className="text-lg font-bold">{summary.updateCount} Produk</span>
+              <span className="text-lg font-extrabold font-mono">{summary.updateCount} Produk</span>
             </div>
           </div>
 
@@ -128,21 +128,21 @@ export const ProductImportPreviewModal: React.FC<
           <div
             className={`p-3 rounded-xl border shadow-2xs ${
               summary.isValid
-                ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60"
-                : "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60"
+                ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                : "bg-rose-50 border-rose-300 text-rose-800"
             }`}
           >
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Status Integritas Data</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600">Status Integritas Data</span>
             <div className="flex items-center gap-1.5 mt-1">
               {summary.isValid ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">100% Siap Impor</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-extrabold text-emerald-800">100% Siap Impor</span>
                 </>
               ) : (
                 <>
-                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  <span className="text-sm font-bold text-rose-700 dark:text-rose-300">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <span className="text-sm font-extrabold text-rose-800">
                     {summary.errorCount} Baris Bermasalah
                   </span>
                 </>
@@ -153,10 +153,10 @@ export const ProductImportPreviewModal: React.FC<
 
         {/* Peringatan Error Jika Ada Baris Tidak Valid */}
         {!summary.isValid && (
-          <div className="px-6 py-3.5 bg-rose-50 dark:bg-rose-950/50 border-b border-rose-200 dark:border-rose-900/60 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-rose-800 dark:text-rose-200 space-y-1">
-              <p className="font-semibold text-rose-900 dark:text-rose-100">
+          <div className="px-6 py-3.5 bg-rose-50 border-b border-rose-200 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-800 space-y-1">
+              <p className="font-bold text-rose-900">
                 Ditemukan kesalahan data pada {summary.errorCount} baris di dalam file Excel.
               </p>
               <p>
@@ -168,15 +168,15 @@ export const ProductImportPreviewModal: React.FC<
         )}
 
         {/* Bar Filter & Pencarian */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-zinc-200 bg-white">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setFilterTab("ALL")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                 filterTab === "ALL"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  ? "bg-emerald-700 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               }`}
             >
               Semua ({summary.totalRows})
@@ -184,10 +184,10 @@ export const ProductImportPreviewModal: React.FC<
             <button
               type="button"
               onClick={() => setFilterTab("NEW")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                 filterTab === "NEW"
                   ? "bg-emerald-600 text-white shadow-xs"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               }`}
             >
               Produk Baru ({summary.newCount})
@@ -195,10 +195,10 @@ export const ProductImportPreviewModal: React.FC<
             <button
               type="button"
               onClick={() => setFilterTab("UPDATE")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                 filterTab === "UPDATE"
                   ? "bg-amber-600 text-white shadow-xs"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               }`}
             >
               Pembaruan ({summary.updateCount})
@@ -207,10 +207,10 @@ export const ProductImportPreviewModal: React.FC<
               <button
                 type="button"
                 onClick={() => setFilterTab("ERROR")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   filterTab === "ERROR"
                     ? "bg-rose-600 text-white shadow-xs"
-                    : "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200"
+                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                 }`}
               >
                 Bermasalah ({summary.errorCount})
@@ -219,13 +219,13 @@ export const ProductImportPreviewModal: React.FC<
           </div>
 
           <div className="relative w-64">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               placeholder="Cari SKU / Barcode / Nama..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
             />
           </div>
         </div>
@@ -233,7 +233,7 @@ export const ProductImportPreviewModal: React.FC<
         {/* Tabel Data Pratinjau */}
         <div className="flex-1 overflow-auto max-h-[50vh]">
           <table className="w-full text-xs text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+            <thead className="sticky top-0 z-10 bg-zinc-100 text-zinc-700 font-bold border-b border-zinc-200">
               <tr>
                 <th className="px-3 py-2.5 text-center w-12">Baris</th>
                 <th className="px-3 py-2.5 text-center w-24">Aksi</th>
@@ -248,10 +248,10 @@ export const ProductImportPreviewModal: React.FC<
                 <th className="px-3 py-2.5 text-center">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-zinc-200">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-8 text-center text-slate-400">
+                  <td colSpan={11} className="py-8 text-center text-zinc-400">
                     Tidak ada baris data yang cocok dengan kriteria filter.
                   </td>
                 </tr>
@@ -261,85 +261,85 @@ export const ProductImportPreviewModal: React.FC<
                     key={row.rowNumber}
                     className={`transition-colors ${
                       !row.isValid
-                        ? "bg-rose-50/60 dark:bg-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                        ? "bg-rose-50/70 hover:bg-rose-100/70"
                         : row.isNew
-                          ? "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                          : "bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-50/40"
+                          ? "hover:bg-zinc-50/80"
+                          : "bg-amber-50/30 hover:bg-amber-100/40"
                     }`}
                   >
-                    <td className="px-3 py-2 text-center font-mono text-slate-400">
+                    <td className="px-3 py-2 text-center font-mono text-zinc-400">
                       #{row.rowNumber}
                     </td>
                     <td className="px-3 py-2 text-center">
                       {!row.isValid ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                           Error
                         </span>
                       ) : row.isNew ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                           + Baru
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                           ↺ Update
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    <td className="px-3 py-2 font-mono font-semibold text-zinc-900">
                       {row.data.sku || <span className="text-rose-500 italic">(Kosong)</span>}
                     </td>
-                    <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">
+                    <td className="px-3 py-2 font-mono text-zinc-600">
                       {row.data.barcode || "-"}
                     </td>
                     <td className="px-3 py-2">
-                      <div className="font-medium text-slate-900 dark:text-white">
+                      <div className="font-medium text-zinc-900">
                         {row.data.name || <span className="text-rose-500 italic">(Kosong)</span>}
                       </div>
                       {!row.isValid && (
-                        <div className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex flex-col gap-0.5">
+                        <div className="mt-1 text-[11px] font-semibold text-rose-600 flex flex-col gap-0.5">
                           {row.errors.map((err, i) => (
                             <span key={i}>&bull; {err}</span>
                           ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
-                      <span className="inline-block px-1.5 py-0.5 rounded-sm bg-slate-100 dark:bg-slate-800 text-[10px] mr-1">
+                    <td className="px-3 py-2 text-zinc-600">
+                      <span className="inline-block px-1.5 py-0.5 rounded-sm bg-zinc-100 border border-zinc-200 text-zinc-800 text-[10px] mr-1">
                         {row.data.category_name}
                       </span>
-                      <span className="text-slate-400 text-[11px] font-mono">
+                      <span className="text-zinc-500 text-[11px] font-mono">
                         /{row.data.unit}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-slate-300">
+                    <td className="px-3 py-2 text-right font-mono text-zinc-700">
                       Rp {row.data.cost_price.toLocaleString("id-ID")}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900 dark:text-white">
+                    <td className="px-3 py-2 text-right font-mono font-bold text-zinc-900">
                       Rp {row.data.selling_price.toLocaleString("id-ID")}
                     </td>
-                    <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-400">
+                    <td className="px-3 py-2 text-center text-zinc-600">
                       {row.data.discount_type === "NONE" ? (
                         "-"
                       ) : row.data.discount_type === "PERCENT" ? (
-                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        <span className="font-bold text-emerald-700">
                           {row.data.discount_value}%
                         </span>
                       ) : (
-                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        <span className="font-bold text-emerald-700">
                           -Rp {row.data.discount_value.toLocaleString("id-ID")}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    <td className="px-3 py-2 text-right font-mono font-bold text-zinc-900">
                       {row.data.stock.toLocaleString("id-ID")}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <span
                         className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
-                          row.data.is_active ? "bg-emerald-500" : "bg-slate-400"
+                          row.data.is_active ? "bg-emerald-600" : "bg-zinc-400"
                         }`}
                       />
-                      <span className="text-[11px]">
+                      <span className="text-[11px] font-semibold text-zinc-700">
                         {row.data.is_active ? "Aktif" : "Nonaktif"}
                       </span>
                     </td>
@@ -351,14 +351,14 @@ export const ProductImportPreviewModal: React.FC<
         </div>
 
         {/* Footer Modal */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between px-6 py-4 bg-zinc-50 border-t border-zinc-200">
+          <div className="text-xs">
             {summary.isValid ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              <span className="text-emerald-700 font-bold">
                 ✓ Seluruh data lolos validasi atomik dan siap disimpan.
               </span>
             ) : (
-              <span className="text-rose-600 dark:text-rose-400 font-semibold">
+              <span className="text-rose-700 font-bold">
                 ⚠ Harap perbaiki {summary.errorCount} baris bermasalah di file Excel sebelum menyimpan.
               </span>
             )}
@@ -369,7 +369,7 @@ export const ProductImportPreviewModal: React.FC<
               type="button"
               onClick={onCancel}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
             >
               Batal / Pilih File Lain
             </button>
@@ -380,7 +380,7 @@ export const ProductImportPreviewModal: React.FC<
               className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-md ${
                 summary.isValid && !isSaving && summary.totalRows > 0
                   ? "bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-600/20 active:scale-98 cursor-pointer"
-                  : "bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed shadow-none"
+                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed shadow-none"
               }`}
             >
               {isSaving ? (

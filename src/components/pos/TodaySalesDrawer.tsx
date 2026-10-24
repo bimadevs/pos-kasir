@@ -33,17 +33,17 @@ export const TodaySalesDrawer: React.FC<TodaySalesDrawerProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/70 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex justify-end bg-emerald-950/40 backdrop-blur-xs">
       <div className="bg-white w-full max-w-2xl h-full shadow-2xl border-l border-zinc-200 flex flex-col">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
           <div className="flex items-center gap-2.5">
-            <History className="w-5 h-5 text-teal-400" />
+            <History className="w-5 h-5 text-amber-300" />
             <div>
-              <h3 className="font-extrabold text-base tracking-tight">
+              <h3 className="font-extrabold text-base tracking-tight text-white">
                 Riwayat Transaksi Hari Ini (F6)
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-emerald-100">
                 Cetak ulang struk atau batalkan (Void) transaksi di hari yang sama.
               </p>
             </div>
@@ -51,7 +51,7 @@ export const TodaySalesDrawer: React.FC<TodaySalesDrawerProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1.5 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800"
+            className="text-emerald-100 hover:text-white p-1.5 rounded-lg cursor-pointer transition-colors hover:bg-emerald-800/80"
           >
             <X className="w-5 h-5" />
           </button>

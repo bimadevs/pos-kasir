@@ -265,12 +265,12 @@ export const StockAdjustmentPage: React.FC = () => {
             </div>
 
             {/* Live Stock Preview Box */}
-            <div className="bg-slate-900 text-white rounded-xl p-4 flex items-center justify-between border border-slate-800">
+            <div className="bg-emerald-50/90 text-emerald-950 rounded-xl p-4 flex items-center justify-between border-2 border-emerald-500/80 shadow-xs">
               <div>
-                <div className="text-[10px] uppercase text-zinc-400">
+                <div className="text-[10px] uppercase font-bold text-emerald-800">
                   Stok Awal
                 </div>
-                <div className="text-lg font-mono font-bold tabular-nums">
+                <div className="text-lg font-mono font-bold tabular-nums text-emerald-950">
                   {stockBefore}
                 </div>
               </div>
@@ -278,21 +278,21 @@ export const StockAdjustmentPage: React.FC = () => {
                 <span
                   className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
                     signedDelta >= 0
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-rose-500/20 text-rose-300"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : "bg-rose-100 text-rose-800 border border-rose-300"
                   }`}
                 >
                   {signedDelta >= 0 ? `+${signedDelta}` : signedDelta}
                 </span>
-                <ArrowRight className="w-4 h-4 text-zinc-400" />
+                <ArrowRight className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase text-zinc-400">
+                <div className="text-[10px] uppercase font-bold text-emerald-800">
                   Stok Akhir
                 </div>
                 <div
                   className={`text-xl font-mono font-extrabold tabular-nums ${
-                    stockAfter >= 0 ? "text-emerald-400" : "text-rose-400"
+                    stockAfter >= 0 ? "text-emerald-700" : "text-rose-600"
                   }`}
                 >
                   {stockAfter}

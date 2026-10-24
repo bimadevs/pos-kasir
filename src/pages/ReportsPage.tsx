@@ -268,14 +268,14 @@ export const ReportsPage: React.FC = () => {
       {/* Financial Summary KPI Cards */}
       {report && (
         <div className="grid grid-cols-5 gap-3">
-          <div className="bg-zinc-950 text-white rounded-2xl p-4 shadow-xs border border-zinc-800">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+          <div className="bg-emerald-700 text-white rounded-2xl p-4 shadow-xs border border-emerald-800">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">
               Omzet Bersih (Net Sales)
             </div>
-            <div className="text-2xl font-extrabold font-mono text-emerald-400 mt-1 tabular-nums">
+            <div className="text-2xl font-black font-mono text-amber-300 mt-1 tabular-nums">
               {formatRupiah(report.net_sales)}
             </div>
-            <div className="text-[11px] text-zinc-400 mt-1 font-mono">
+            <div className="text-[11px] text-emerald-100/90 mt-1 font-mono">
               Kotor: {formatRupiah(report.gross_sales)}
             </div>
           </div>
@@ -537,7 +537,7 @@ export const ReportsPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => void handleReprint(sale.id)}
-                                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 active:scale-[0.98] text-white transition-all cursor-pointer shadow-2xs"
+                                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98] text-white transition-all cursor-pointer shadow-2xs"
                                 title="Cetak Ulang Struk"
                               >
                                 <Printer className="w-3.5 h-3.5" />

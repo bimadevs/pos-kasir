@@ -28,9 +28,14 @@ const AppShell: React.FC = () => {
 
   if (loadingTerminal || loadingAuth) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-zinc-100 select-none">
-        <div className="w-9 h-9 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mb-3" />
-        <div className="text-sm font-semibold tracking-wide text-zinc-300">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#f4f6f5] text-zinc-800 select-none">
+        <img
+          src="/logo-emblem.png"
+          alt="Logo Mudita Mart"
+          className="w-16 h-16 object-contain mb-4 animate-pulse"
+        />
+        <div className="w-9 h-9 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="text-sm font-bold tracking-wide text-emerald-950">
           Memuat Sistem Mudita Mart...
         </div>
       </div>

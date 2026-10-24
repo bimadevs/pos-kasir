@@ -24,9 +24,9 @@ import { formatDateTimeId } from "../utils/posCalculator";
 
 function getAvatarColor(role: UserRole): string {
   if (role === "ADMIN") {
-    return "bg-teal-600 text-white border border-teal-500";
+    return "bg-emerald-700 text-white border border-emerald-600";
   }
-  return "bg-zinc-800 text-zinc-200 border border-zinc-700/60";
+  return "bg-amber-600 text-white border border-amber-500";
 }
 
 function getInitials(name: string): string {
@@ -694,7 +694,7 @@ export const UsersPage: React.FC = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="user-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/75 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-150"
           onClick={(e) => {
             if (e.target === e.currentTarget && !saving) {
               setModalOpen(false);
@@ -707,9 +707,9 @@ export const UsersPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+            <div className="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
+                <div className="p-2 rounded-xl bg-emerald-800/80 text-amber-300 border border-emerald-600/60">
                   {editingUser ? (
                     <Edit3 className="w-5 h-5" />
                   ) : (
@@ -723,7 +723,7 @@ export const UsersPage: React.FC = () => {
                   >
                     {editingUser ? "Edit Akun Pengguna" : "Tambah Pengguna Baru"}
                   </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs text-emerald-100 mt-0.5">
                     {editingUser
                       ? "Perbarui informasi akun, hak akses peran, atau reset kata sandi & PIN otorisasi."
                       : "Lengkapi formulir di bawah ini untuk membuat akun kasir atau administrator baru."}
@@ -740,7 +740,7 @@ export const UsersPage: React.FC = () => {
                 }}
                 disabled={saving}
                 title="Tutup (Esc)"
-                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer transition-colors disabled:opacity-40"
+                className="text-emerald-100 hover:text-white p-1 rounded-lg cursor-pointer transition-colors disabled:opacity-40 hover:bg-emerald-800/80"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -53,14 +53,14 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-md overflow-hidden">
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-rose-700 text-white px-6 py-4 flex items-center justify-between border-b border-rose-800/80 shadow-xs">
           <div className="flex items-center gap-2.5">
-            <ShieldAlert className="w-5 h-5 text-rose-400" />
+            <ShieldAlert className="w-5 h-5 text-rose-200" />
             <div>
-              <h3 className="font-bold text-sm">Otorisasi Void Transaksi</h3>
-              <p className="text-xs text-zinc-400 font-mono">
+              <h3 className="font-bold text-sm text-white">Otorisasi Void Transaksi</h3>
+              <p className="text-xs text-rose-100 font-mono">
                 {sale.receipt_number} • {formatRupiah(sale.total_amount)}
               </p>
             </div>
@@ -68,7 +68,7 @@ export const VoidPinModal: React.FC<VoidPinModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-rose-100 hover:text-white p-1 rounded-lg transition-colors cursor-pointer hover:bg-rose-800/80"
           >
             <X className="w-5 h-5" />
           </button>

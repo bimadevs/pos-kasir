@@ -55,23 +55,23 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-amber-600 text-white px-6 py-4 flex items-center justify-between border-b border-amber-700/80 shadow-xs">
           <div className="flex items-center gap-2.5">
             {mode === "HOLD" ? (
-              <PauseCircle className="w-5 h-5 text-teal-400" />
+              <PauseCircle className="w-5 h-5 text-amber-200" />
             ) : (
-              <Clock className="w-5 h-5 text-teal-400" />
+              <Clock className="w-5 h-5 text-amber-200" />
             )}
             <div>
-              <h3 className="font-extrabold text-base tracking-tight">
+              <h3 className="font-extrabold text-base tracking-tight text-white">
                 {mode === "HOLD"
                   ? "Tahan Transaksi (Hold Bill — F4)"
                   : `Daftar Transaksi Ditahan (${heldBills.length}) — F5`}
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-amber-100">
                 {mode === "HOLD"
                   ? "Keranjang disimpan sementara tanpa mengunci stok produk."
                   : "Transaksi yang ditahan dapat dipanggil kembali dari terminal kasir mana pun."}
@@ -81,7 +81,7 @@ export const HeldBillsModal: React.FC<HeldBillsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-zinc-800"
+            className="text-amber-100 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-amber-700/80"
           >
             <X className="w-5 h-5" />
           </button>

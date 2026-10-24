@@ -203,29 +203,29 @@ export const ReceiptPreviewModal: React.FC = () => {
   const receipt = previewReceipt;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/75 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Topbar */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between border-b border-emerald-800/80 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600/30 border border-teal-500/40 flex items-center justify-center text-teal-400">
+            <div className="w-8 h-8 rounded-lg bg-emerald-800/80 border border-emerald-600/60 flex items-center justify-center text-amber-300">
               <FileText className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm tracking-wide text-zinc-100">
+                <h3 className="font-bold text-sm tracking-wide text-white">
                   Pratinjau Struk Kasir
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-zinc-300 border border-slate-700">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-800 text-emerald-100 border border-emerald-600/60">
                   {paperWidth}mm • {cols} Kolom
                 </span>
                 {leftMarginChars > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-teal-950/80 text-teal-300 border border-teal-800">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-400 text-amber-950 border border-amber-300">
                     +{leftMarginChars} Spasi
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-zinc-400 truncate max-w-xs sm:max-w-sm">
+              <p className="text-[11px] text-emerald-100 truncate max-w-xs sm:max-w-sm">
                 {previewOutcome?.simulated
                   ? "Mode Virtual Thermal Printer (Simulasi)"
                   : `Target: ${
@@ -239,7 +239,7 @@ export const ReceiptPreviewModal: React.FC = () => {
           <button
             type="button"
             onClick={closeReceiptPreview}
-            className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="text-emerald-100 hover:text-white p-1.5 rounded-lg hover:bg-emerald-800/80 transition-colors cursor-pointer"
             title="Tutup (Esc)"
           >
             <X className="w-5 h-5" />

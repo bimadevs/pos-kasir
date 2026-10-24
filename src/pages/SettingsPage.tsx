@@ -277,7 +277,7 @@ export const SettingsPage: React.FC = () => {
             Konfigurasi printer thermal ESC/POS lokal, laci uang RJ11, jaringan LAN, serta Backup/Restore SQLite.
           </p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-slate-950 text-teal-400 font-mono text-xs font-bold border border-slate-800">
+        <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 font-mono text-xs font-bold border border-emerald-300 shadow-2xs">
           Mudita Mart {APP_VERSION_LABEL}
         </span>
       </div>
@@ -350,7 +350,7 @@ export const SettingsPage: React.FC = () => {
                   onClick={() => setPaperWidth(58)}
                   className={`py-2.5 px-3 rounded-xl border font-bold text-xs transition-colors cursor-pointer ${
                     paperWidth === 58
-                      ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                       : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                   }`}
                 >
@@ -361,7 +361,7 @@ export const SettingsPage: React.FC = () => {
                   onClick={() => setPaperWidth(80)}
                   className={`py-2.5 px-3 rounded-xl border font-bold text-xs transition-colors cursor-pointer ${
                     paperWidth === 80
-                      ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                       : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                   }`}
                 >
@@ -436,7 +436,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleTestPrint()}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 active:scale-[0.98] text-white font-semibold transition-all cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 active:scale-[0.98] text-amber-950 font-bold transition-all cursor-pointer shadow-xs"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Test Print Struk
@@ -456,9 +456,9 @@ export const SettingsPage: React.FC = () => {
         <div className="col-span-6 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 space-y-4">
           <div className="flex items-center gap-3 pb-3 border-b border-zinc-200">
             <img
-              src="/logo-dark.png"
+              src="/logo-emblem.png"
               alt="Logo Mudita Mart"
-              className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-800 p-0.5 shadow-xs"
+              className="w-10 h-10 rounded-lg object-contain bg-emerald-50 border border-emerald-200 p-0.5 shadow-2xs"
             />
             <div>
               <h2 className="font-bold text-sm text-zinc-900">
@@ -541,38 +541,38 @@ export const SettingsPage: React.FC = () => {
           </form>
 
           {/* LAN Info Box */}
-          <div className="bg-slate-900 text-white rounded-xl p-4 space-y-2.5 text-xs border border-slate-800">
+          <div className="bg-emerald-50/70 text-emerald-950 rounded-xl p-4 space-y-2.5 text-xs border border-emerald-200">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-bold text-zinc-200">
-                <Network className="w-4 h-4 text-emerald-400" />
+              <span className="flex items-center gap-1.5 font-bold text-emerald-900">
+                <Network className="w-4 h-4 text-emerald-600" />
                 Mode Terminal: {cfg?.terminal_mode} ({cfg?.terminal_name})
               </span>
-              <span className="font-mono text-zinc-400">
+              <span className="font-mono text-emerald-700 font-semibold">
                 Port LAN: {cfg?.server_bind_port || 9876}
               </span>
             </div>
 
-            <div className="text-zinc-300">
+            <div className="text-emerald-800">
               IP LAN Terdeteksi:{" "}
-              <span className="font-mono font-bold text-white">
+              <span className="font-mono font-bold text-emerald-950">
                 {lanIps.join(", ") || "127.0.0.1"}
               </span>
             </div>
 
             {isAdmin && pairingCode && (
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
                 <div>
-                  <span className="text-zinc-400 block text-[11px]">
+                  <span className="text-emerald-700 block text-[11px] font-semibold">
                     LAN Pairing Code (X-Setup-Pairing-Code):
                   </span>
-                  <span className="font-mono font-extrabold text-lg tracking-widest text-amber-400">
+                  <span className="font-mono font-extrabold text-lg tracking-widest text-amber-600">
                     {pairingCode}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={(e) => void handleSaveStore(e, true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-zinc-200 font-semibold transition-all cursor-pointer"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 active:scale-[0.98] text-emerald-900 font-bold transition-all cursor-pointer shadow-2xs"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Acak Ulang Kode

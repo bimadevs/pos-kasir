@@ -111,31 +111,31 @@ export const SetupWizardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-zinc-100 flex flex-col justify-between p-6">
+    <div className="min-h-screen bg-[#f4f6f5] text-zinc-800 flex flex-col justify-between p-6 select-none">
       {/* Header Identitas Setup */}
-      <header className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-slate-800/80 pb-4">
+      <header className="max-w-5xl w-full mx-auto flex items-center justify-between border-b border-zinc-200 pb-4">
         <div className="flex items-center gap-3">
           <img
-            src="/logo-dark.png"
+            src="/logo.png"
             alt="Logo Mudita Mart"
-            className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-800 shadow-xs p-0.5"
+            className="w-10 h-10 rounded-lg object-contain bg-white border border-zinc-200 shadow-2xs p-0.5"
           />
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight text-zinc-900 flex items-center gap-2">
               <span>
-                <span className="text-white">Mudita </span>
-                <span className="text-amber-400">Mart</span> — Konfigurasi Awal Terminal
+                <span className="text-zinc-900">Mudita </span>
+                <span className="text-amber-500 font-extrabold">Mart</span> — Konfigurasi Awal Terminal
               </span>
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-xs font-mono text-zinc-300">
+              <span className="px-2 py-0.5 rounded bg-white border border-zinc-200 text-xs font-mono text-zinc-600 shadow-2xs">
                 {APP_VERSION_LABEL}
               </span>
             </h1>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-500">
               Sistem Kasir Ritel SMK Mudita (1 Server Terminal + hingga 5 Client Terminal)
             </p>
           </div>
         </div>
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 text-amber-300 border border-slate-800">
+        <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
           STATUS: BELUM DIKONFIGURASI
         </span>
       </header>
@@ -143,11 +143,11 @@ export const SetupWizardPage: React.FC = () => {
       {/* Konten Utama */}
       <main className="max-w-5xl w-full mx-auto my-auto py-6">
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-100 flex items-start gap-3 shadow-xs">
-            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 shadow-2xs">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-rose-200">Konfigurasi Gagal</p>
-              <p className="text-rose-300 mt-0.5 leading-relaxed">{errorMsg}</p>
+              <p className="font-bold text-rose-900">Konfigurasi Gagal</p>
+              <p className="text-rose-700 mt-0.5 leading-relaxed">{errorMsg}</p>
             </div>
           </div>
         )}
@@ -155,10 +155,10 @@ export const SetupWizardPage: React.FC = () => {
         {selectedMode === null ? (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white tracking-tight">
+              <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">
                 Pilih Peran Komputer Kasir Ini
               </h2>
-              <p className="text-sm text-zinc-400 mt-1">
+              <p className="text-sm text-zinc-500 mt-1">
                 Aplikasi ini dapat berjalan sebagai pusat database toko
                 maupun sebagai meja kasir pendamping di jaringan LAN.
               </p>
@@ -172,33 +172,33 @@ export const SetupWizardPage: React.FC = () => {
                   setErrorMsg(null);
                   setSelectedMode("SERVER");
                 }}
-                className="text-left group rounded-2xl bg-slate-900 border-2 border-slate-800 hover:border-teal-500/80 p-7 transition-all cursor-pointer flex flex-col justify-between shadow-xl"
+                className="text-left group rounded-2xl bg-white border-2 border-zinc-200 hover:border-emerald-500 p-7 transition-all cursor-pointer flex flex-col justify-between shadow-xs hover:shadow-md"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                       <Server className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-slate-950 text-teal-300 border border-teal-700/50">
+                    <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300">
                       1 PC Utama per Toko
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-teal-400 transition-colors">
+                  <h3 className="text-xl font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors">
                     Jadikan Komputer Server Utama (Server Terminal)
                   </h3>
-                  <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+                  <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
                     Pilih ini untuk <strong>1 komputer utama toko</strong> yang
                     menyimpan database SQLite terpusat, membuka layanan LAN
                     otomatis, sekaligus dipakai melayani transaksi kasir.
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-zinc-400">
+                <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
                   <span className="flex items-center gap-1.5">
-                    <Database className="w-4 h-4 text-teal-400" /> Database
+                    <Database className="w-4 h-4 text-emerald-600" /> Database
                     SQLite WAL Lokal
                   </span>
-                  <span className="font-semibold text-teal-400">
+                  <span className="font-bold text-emerald-700">
                     Pilih Mode Server →
                   </span>
                 </div>
@@ -211,21 +211,21 @@ export const SetupWizardPage: React.FC = () => {
                   setErrorMsg(null);
                   setSelectedMode("CLIENT");
                 }}
-                className="text-left group rounded-2xl bg-slate-900 border-2 border-slate-800 hover:border-teal-500/80 p-7 transition-all cursor-pointer flex flex-col justify-between shadow-xl"
+                className="text-left group rounded-2xl bg-white border-2 border-zinc-200 hover:border-emerald-500 p-7 transition-all cursor-pointer flex flex-col justify-between shadow-xs hover:shadow-md"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-zinc-300">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600">
                       <Monitor className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-slate-950 text-zinc-300 border border-slate-700">
+                    <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
                       Hingga 5 PC Pendamping
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-teal-400 transition-colors">
+                  <h3 className="text-xl font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors">
                     Hubungkan sebagai Kasir Pendamping (Client Terminal)
                   </h3>
-                  <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+                  <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
                     Pilih ini untuk{" "}
                     <strong>komputer meja kasir ke-2 s.d. ke-5</strong> yang
                     terhubung ke Komputer Server melalui kabel LAN atau Wi-Fi
@@ -233,12 +233,12 @@ export const SetupWizardPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-zinc-400">
+                <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
                   <span className="flex items-center gap-1.5">
-                    <Network className="w-4 h-4 text-zinc-400" /> Sinkron Real-Time
+                    <Network className="w-4 h-4 text-zinc-500" /> Sinkron Real-Time
                     via LAN
                   </span>
-                  <span className="font-semibold text-zinc-300 group-hover:text-teal-400 transition-colors">
+                  <span className="font-bold text-zinc-700 group-hover:text-emerald-700 transition-colors">
                     Pilih Mode Client →
                   </span>
                 </div>
@@ -248,16 +248,16 @@ export const SetupWizardPage: React.FC = () => {
         ) : selectedMode === "SERVER" ? (
           <form
             onSubmit={handleServerSubmit}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-7 shadow-2xl"
+            className="bg-white border border-zinc-200 rounded-2xl p-7 shadow-xl shadow-emerald-950/5"
           >
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-4 mb-6 border-b border-zinc-100">
               <div className="flex items-center gap-3">
-                <Server className="w-6 h-6 text-teal-400" />
+                <Server className="w-6 h-6 text-emerald-600" />
                 <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">
+                  <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
                     Inisialisasi Server Terminal & Akun Admin Pertama
                   </h2>
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs text-zinc-500">
                     Membuat database toko, Pairing Code LAN, dan kredensial
                     Admin utama.
                   </p>
@@ -266,7 +266,7 @@ export const SetupWizardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedMode(null)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-white px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 active:scale-[0.98] border border-slate-700/60 cursor-pointer transition-all"
+                className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-[0.98] border border-zinc-300 cursor-pointer transition-all"
               >
                 <ArrowLeft className="w-4 h-4" /> Ganti Mode
               </button>
@@ -275,11 +275,11 @@ export const SetupWizardPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Kolom Kiri: Identitas Toko */}
               <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-teal-400">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700">
                   1. Identitas Toko & Terminal
                 </h3>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Nama Toko / Minimarket *
                   </label>
                   <input
@@ -287,37 +287,37 @@ export const SetupWizardPage: React.FC = () => {
                     required
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
-                    placeholder="Contoh: Toko Maju Jaya"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
+                    placeholder="Contoh: Mudita Mart"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Alamat Toko (Tercetak di Struk)
                   </label>
                   <input
                     type="text"
                     value={storeAddress}
                     onChange={(e) => setStoreAddress(e.target.value)}
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                     placeholder="Jl. Merdeka No. 10"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                       Nomor Telepon Toko
                     </label>
                     <input
                       type="text"
                       value={storePhone}
                       onChange={(e) => setStorePhone(e.target.value)}
-                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                       placeholder="0812..."
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                       Nama Meja Kasir Ini *
                     </label>
                     <input
@@ -325,23 +325,23 @@ export const SetupWizardPage: React.FC = () => {
                       required
                       value={serverTerminalName}
                       onChange={(e) => setServerTerminalName(e.target.value)}
-                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
                     />
                   </div>
                 </div>
 
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 cursor-pointer mt-2 hover:border-slate-700 transition-colors">
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 cursor-pointer mt-2 hover:border-emerald-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={seedSampleData}
                     onChange={(e) => setSeedSampleData(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-teal-500 rounded"
+                    className="mt-0.5 w-4 h-4 accent-emerald-600 rounded"
                   />
                   <div className="text-xs">
-                    <span className="font-bold text-teal-300 block">
+                    <span className="font-bold text-emerald-900 block">
                       Muat data contoh minimarket (Direkomendasikan untuk uji coba)
                     </span>
-                    <span className="text-zinc-400 mt-0.5 block leading-relaxed">
+                    <span className="text-zinc-600 mt-0.5 block leading-relaxed">
                       Menambahkan 15 produk populer (termasuk contoh diskon,
                       stok menipis, & stok 0) serta akun Kasir sampel (
                       <code>kasir1</code> / <code>kasir123</code>).
@@ -352,13 +352,13 @@ export const SetupWizardPage: React.FC = () => {
 
               {/* Kolom Kanan: Akun Admin Pertama */}
               <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4" /> 2. Akun Admin Pertama &
                   PIN Otorisasi Void
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                       Username Login *
                     </label>
                     <input
@@ -367,11 +367,11 @@ export const SetupWizardPage: React.FC = () => {
                       minLength={3}
                       value={adminUsername}
                       onChange={(e) => setAdminUsername(e.target.value)}
-                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                       Nama Lengkap Admin *
                     </label>
                     <input
@@ -379,12 +379,12 @@ export const SetupWizardPage: React.FC = () => {
                       required
                       value={adminFullName}
                       onChange={(e) => setAdminFullName(e.target.value)}
-                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                      className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Password Admin (Min. 6 Karakter) *
                   </label>
                   <input
@@ -394,11 +394,11 @@ export const SetupWizardPage: React.FC = () => {
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
                     placeholder="Minimal 6 karakter"
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     PIN Otorisasi Admin (4–6 Digit Angka untuk Void Struk) *
                   </label>
                   <input
@@ -411,9 +411,9 @@ export const SetupWizardPage: React.FC = () => {
                       setAdminPin(e.target.value.replace(/\D/g, ""))
                     }
                     placeholder="Contoh: 123456"
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono tracking-widest focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm font-mono tracking-widest focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
                   />
-                  <p className="text-[11px] text-zinc-400 mt-1">
+                  <p className="text-[11px] text-zinc-500 mt-1">
                     PIN ini digunakan saat mengotorisasi pembatalan transaksi
                     (Void) di meja kasir.
                   </p>
@@ -421,11 +421,11 @@ export const SetupWizardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-sm shadow-xs cursor-pointer transition-all disabled:cursor-not-allowed disabled:active:scale-100"
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:opacity-50 text-white font-extrabold text-sm shadow-sm cursor-pointer transition-all disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {submitting
                   ? "Menginisialisasi Database & Server LAN..."
@@ -436,16 +436,16 @@ export const SetupWizardPage: React.FC = () => {
         ) : (
           <form
             onSubmit={handleClientSubmit}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-7 shadow-2xl max-w-2xl mx-auto"
+            className="bg-white border border-zinc-200 rounded-2xl p-7 shadow-xl shadow-emerald-950/5 max-w-2xl mx-auto"
           >
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-4 mb-6 border-b border-zinc-100">
               <div className="flex items-center gap-3">
-                <Monitor className="w-6 h-6 text-teal-400" />
+                <Monitor className="w-6 h-6 text-emerald-600" />
                 <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">
+                  <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
                     Hubungkan Client Terminal ke Server LAN
                   </h2>
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs text-zinc-500">
                     Masukkan alamat IP dan Pairing Code yang tertera pada menu
                     Pengaturan di Server Terminal.
                   </p>
@@ -454,7 +454,7 @@ export const SetupWizardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedMode(null)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-white px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 active:scale-[0.98] border border-slate-700/60 cursor-pointer transition-all"
+                className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-[0.98] border border-zinc-300 cursor-pointer transition-all"
               >
                 <ArrowLeft className="w-4 h-4" /> Ganti Mode
               </button>
@@ -463,7 +463,7 @@ export const SetupWizardPage: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Alamat IPv4 Server Terminal *
                   </label>
                   <input
@@ -475,11 +475,11 @@ export const SetupWizardPage: React.FC = () => {
                       setConnResult(null);
                     }}
                     placeholder="Contoh: 192.168.1.10"
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm font-mono focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Port LAN *
                   </label>
                   <input
@@ -490,14 +490,14 @@ export const SetupWizardPage: React.FC = () => {
                       setServerPort(Number(e.target.value));
                       setConnResult(null);
                     }}
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm font-mono focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Pairing Code Toko (6 Karakter) *
                   </label>
                   <input
@@ -510,11 +510,11 @@ export const SetupWizardPage: React.FC = () => {
                       setConnResult(null);
                     }}
                     placeholder="Contoh: A9K2M7"
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono uppercase tracking-widest focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm font-mono uppercase tracking-widest focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
                     Nama Terminal Kasir Ini *
                   </label>
                   <input
@@ -523,19 +523,19 @@ export const SetupWizardPage: React.FC = () => {
                     value={clientTerminalName}
                     onChange={(e) => setClientTerminalName(e.target.value)}
                     placeholder="Contoh: Kasir 2"
-                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-zinc-500 shadow-2xs"
+                    className="w-full h-10 px-3.5 py-2 rounded-xl bg-zinc-50 border border-zinc-300 text-zinc-900 text-sm focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-zinc-400 shadow-2xs"
                   />
                 </div>
               </div>
 
               {connResult && (
-                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 flex items-center gap-3 text-xs shadow-xs">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center gap-3 text-xs shadow-2xs">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <div>
-                    <p className="font-bold text-white">
+                    <p className="font-bold text-emerald-950">
                       Terhubung ke "{connResult.store_name}"
                     </p>
-                    <p className="text-emerald-300 mt-0.5">
+                    <p className="text-emerald-700 mt-0.5">
                       Host Server: {connResult.server_terminal_name} — Pairing
                       Code Terverifikasi
                     </p>
@@ -544,21 +544,21 @@ export const SetupWizardPage: React.FC = () => {
               )}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between gap-3">
+            <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between gap-3">
               <button
                 type="button"
                 disabled={testingConn}
                 onClick={handleTestClientConnection}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 active:bg-slate-700 active:scale-[0.98] text-zinc-200 hover:text-white border border-slate-700/60 font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 active:scale-[0.98] text-zinc-700 hover:text-zinc-900 border border-zinc-300 font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
               >
-                <Wifi className="w-4 h-4 text-teal-400" />
+                <Wifi className="w-4 h-4 text-emerald-600" />
                 {testingConn ? "Menguji Koneksi..." : "Uji Koneksi LAN"}
               </button>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-sm shadow-xs cursor-pointer transition-all disabled:cursor-not-allowed disabled:active:scale-100"
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-[0.98] disabled:opacity-50 text-white font-extrabold text-sm shadow-sm cursor-pointer transition-all disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {submitting
                   ? "Menyimpan Konfigurasi..."
@@ -569,7 +569,7 @@ export const SetupWizardPage: React.FC = () => {
         )}
       </main>
 
-      <footer className="max-w-5xl w-full mx-auto text-center text-xs text-zinc-500 border-t border-slate-800/80 pt-4">
+      <footer className="max-w-5xl w-full mx-auto text-center text-xs text-zinc-400 border-t border-zinc-200 pt-4">
         Mudita Mart {APP_VERSION_LABEL} • Penyimpanan Lokal{" "}
         <code>%APPDATA%\com.bimadev.muditamart</code>
       </footer>
