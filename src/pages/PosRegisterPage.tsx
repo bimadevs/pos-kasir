@@ -793,7 +793,7 @@ export const PosRegisterPage: React.FC = () => {
           </span>
         </div>
         <div className="font-mono text-zinc-400">
-          Kassio {APP_VERSION_LABEL}
+          Mudita Mart {APP_VERSION_LABEL}
         </div>
       </footer>
 

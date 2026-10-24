@@ -1,4 +1,4 @@
--- Skema DDL Lengkap Kassio (SQLite WAL)
+-- Skema DDL Lengkap Mudita Mart (SQLite WAL)
 
 -- 1. Pengaturan Toko (Single-Row Table: id = 1)
 CREATE TABLE IF NOT EXISTS store_settings (

@@ -257,7 +257,7 @@ export const ProductsPage: React.FC = () => {
   const handleDownloadTemplateExcel = async () => {
     try {
       const wb = buildProductTemplateWorkbook();
-      await saveWorkbookAsFile(wb, "template-import-produk-kassio.xlsx");
+      await saveWorkbookAsFile(wb, "template-import-produk-mudita-mart.xlsx");
       setFeedback({
         type: "success",
         message: "Template impor Excel berhasil diunduh.",

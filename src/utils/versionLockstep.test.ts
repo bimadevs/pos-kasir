@@ -33,7 +33,7 @@ describe("Disiplin Manajemen Versi & Rilis (SemVer Lockstep)", () => {
     expect(changelogRaw).toContain(expectedHeading);
   });
 
-  it("mencegah penulisan versi hardcoded (Kassio vX.Y.Z) di dalam komponen React (.tsx)", () => {
+  it("mencegah penulisan versi hardcoded (Mudita Mart / Kassio vX.Y.Z) di dalam komponen React (.tsx)", () => {
     const entries = Object.entries(tsxFiles);
     expect(entries.length).toBeGreaterThan(0);
 
@@ -41,7 +41,7 @@ describe("Disiplin Manajemen Versi & Rilis (SemVer Lockstep)", () => {
       expect(
         source,
         `Ditemukan string versi hardcoded di ${filePath}. Gunakan APP_VERSION_LABEL dari src/version.ts.`,
-      ).not.toMatch(/(?:POS-Kasir|Kassio)(?:\s+Desktop)?\s+v\d+\.\d+\.\d+/i);
+      ).not.toMatch(/(?:POS-Kasir|Kassio|Mudita(?:\s+Mart)?)(?:\s+Desktop)?\s+v\d+\.\d+\.\d+/i);
     }
   });
 });

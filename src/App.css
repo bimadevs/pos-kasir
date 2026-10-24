@@ -1,56 +1,81 @@
 @import "tailwindcss";
 
 @theme {
-  --color-teal-50: #f0fdfa;
-  --color-teal-100: #ccfbf1;
-  --color-teal-200: #99f6e4;
-  --color-teal-300: #5eead4;
-  --color-teal-400: #2dd4bf;
-  --color-teal-500: #22b8b7;
-  --color-teal-600: #1da2a1;
-  --color-teal-700: #0e6e6d;
-  --color-teal-800: #115e59;
-  --color-teal-900: #134e4a;
-  --color-teal-950: #042f2e;
+  /* Mudita Mart Primary: Forest Green (selaras logo SMK Mudita) */
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-200: #bbf7d0;
+  --color-brand-300: #86efac;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-900: #14532d;
+  --color-brand-950: #052e16;
 
-  --color-slate-800: #283038;
-  --color-slate-850: #222930;
-  --color-slate-900: #1a2026;
-  --color-slate-950: #12161a;
-  --color-charcoal: #394048;
+  /* Kompatibilitas drop-in: map teal-* ke Mudita Forest Green */
+  --color-teal-50: #f0fdf4;
+  --color-teal-100: #dcfce7;
+  --color-teal-200: #bbf7d0;
+  --color-teal-300: #86efac;
+  --color-teal-400: #4ade80;
+  --color-teal-500: #22c55e;
+  --color-teal-600: #16a34a;
+  --color-teal-700: #15803d;
+  --color-teal-800: #166534;
+  --color-teal-900: #14532d;
+  --color-teal-950: #052e16;
+
+  /* Mudita Mart Accent 1: Kuning Emas / Warm Gold (lambang tengah logo) */
+  --color-gold-400: #facc15;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+
+  /* Mudita Mart Dark Cockpit: Deep Emerald Charcoal */
+  --color-slate-800: #1b2e24;
+  --color-slate-850: #15251d;
+  --color-slate-900: #101c16;
+  --color-slate-950: #0a130f;
+  --color-charcoal: #243c31;
 }
 
 @layer base {
   :root {
-    /* Kassio POS Design System - Teal & Charcoal Slate Brand Colors */
-    --surface-ground: #f4f5f6;
+    /* Mudita Mart POS Design System - Forest Green, Warm Gold & Deep Emerald Charcoal */
+    --surface-ground: #f4f6f5;
     --surface-card: #ffffff;
-    --surface-panel-dark: #12161a;
-    --surface-panel-darker: #0c0f12;
-    --surface-panel-cockpit: #1a2026;
-    --surface-panel-elevated: #283038;
-    --surface-muted: #fafbfc;
+    --surface-panel-dark: #0a130f;
+    --surface-panel-darker: #060c09;
+    --surface-panel-cockpit: #101c16;
+    --surface-panel-elevated: #1b2e24;
+    --surface-muted: #f9fbf9;
 
-    --ink-primary: #12161a;
-    --ink-secondary: #4a545e;
-    --ink-muted: #727f8d;
+    --ink-primary: #0a130f;
+    --ink-secondary: #3d5246;
+    --ink-muted: #647d70;
 
-    --border-strong: #d2d8df;
-    --border-subtle: #e5e9ee;
-    --border-dark: #283038;
-    --border-dark-subtle: #394048;
+    --border-strong: #cbd7d0;
+    --border-subtle: #e2ebe5;
+    --border-dark: #243c31;
+    --border-dark-subtle: #2f4d3f;
 
-    --accent-teal: #1da2a1;
-    --accent-teal-hover: #22b8b7;
-    --accent-teal-active: #0e6e6d;
-    --accent-teal-light: #f0fdfa;
+    --accent-teal: #16a34a;
+    --accent-teal-hover: #22c55e;
+    --accent-teal-active: #15803d;
+    --accent-teal-light: #f0fdf4;
 
-    --accent-emerald: #059669;
-    --accent-emerald-hover: #10b981;
+    --accent-brand: #16a34a;
+    --accent-brand-hover: #22c55e;
+    --accent-gold: #f59e0b;
+    --accent-gold-hover: #fbbf24;
+
+    --accent-emerald: #16a34a;
+    --accent-emerald-hover: #22c55e;
     --accent-amber: #d97706;
     --accent-amber-hover: #f59e0b;
-    --accent-rose: #e11d48;
-    --accent-rose-hover: #f43f5e;
+    --accent-rose: #dc2626;
+    --accent-rose-hover: #ef4444;
   }
 
   * {

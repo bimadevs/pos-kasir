@@ -454,7 +454,7 @@ mod tests {
     #[test]
     fn test_sqlite_backup_vacuum_into_and_restore() {
         let temp_dir = TempDir::new().unwrap();
-        let db_file = temp_dir.path().join("kassio.db");
+        let db_file = temp_dir.path().join("muditamart.db");
         let backup_file = temp_dir.path().join("backup_snapshot.db");
 
         let db = Arc::new(Database::open_file(&db_file).unwrap());

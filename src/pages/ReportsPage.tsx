@@ -105,7 +105,7 @@ export const ReportsPage: React.FC = () => {
   const handleExportExcel = async () => {
     if (!report) return;
     try {
-      const storeTitle = terminalStatus?.store_name || "Kassio POS";
+      const storeTitle = terminalStatus?.store_name || "Mudita Mart";
       const wb = buildSalesReportExportWorkbook(report, storeTitle);
       const filename = `laporan-penjualan-${startDate}-sd-${endDate}.xlsx`;
       await saveWorkbookAsFile(wb, filename);

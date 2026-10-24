@@ -298,7 +298,7 @@ pub fn test_printer_and_drawer(
     target_printer.auto_open_drawer = open_drawer;
 
     let sample_receipt = ReceiptData {
-        store_name: "UJI CETAK KASSIO".to_string(),
+        store_name: "UJI CETAK MUDITA MART".to_string(),
         store_address: "Terminal: ".to_string() + &cfg.terminal_name,
         store_phone: "Printer: ".to_string() + &target_printer.printer_name,
         receipt_footer: "Struk uji coba Raw ESC/POS berhasil dicetak.".to_string(),

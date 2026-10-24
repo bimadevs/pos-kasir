@@ -144,19 +144,19 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
 
   return (
     <header className="h-14 bg-slate-950 text-zinc-100 border-b border-slate-800/80 px-4 flex items-center justify-between shrink-0 select-none z-30 relative">
-      {/* Kiri: Identitas Kassio, Logo Resmi, & Smart Terminal Chip */}
+      {/* Kiri: Identitas Mudita Mart, Logo Resmi, & Smart Terminal Chip */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
             src="/logo-emblem.png"
-            alt="Logo Kassio"
+            alt="Logo Mudita Mart"
             className="w-8 h-8 rounded-lg object-contain bg-slate-900 border border-slate-800 p-0.5 shadow-xs shrink-0"
           />
           <div className="leading-tight min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-extrabold text-sm tracking-tight truncate max-w-[130px] sm:max-w-[180px]">
-                <span className="text-white">Kas</span>
-                <span className="text-teal-400">sio</span>
+              <span className="font-extrabold text-sm tracking-tight truncate max-w-[150px] sm:max-w-[200px]">
+                <span className="text-white">Mudita </span>
+                <span className="text-amber-400">Mart</span>
                 <span className="text-zinc-400 font-medium text-xs ml-1.5 hidden sm:inline">
                   {terminalStatus?.store_name ? `• ${terminalStatus.store_name}` : ""}
                 </span>

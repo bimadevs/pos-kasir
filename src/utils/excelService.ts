@@ -7,12 +7,12 @@ import type {
   SalesReport,
 } from "../types/domain";
 
-// Palet Warna & Styling Tema Profesional Kassio POS
-const THEME_PRIMARY_NAVY = "FF1E3A8A"; // #1E3A8A (Navy Kasir)
+// Palet Warna & Styling Tema Profesional Mudita Mart POS (Forest Green & Warm Gold)
+const THEME_PRIMARY_NAVY = "FF15803D"; // #15803D (Mudita Forest Green)
 const THEME_HEADER_TEXT = "FFFFFFFF"; // White
-const THEME_ZEBRA_ROW = "FFF8FAFC"; // #F8FAFC
+const THEME_ZEBRA_ROW = "FFF0FDF4"; // #F0FDF4
 const THEME_BORDER_COLOR = "FFE2E8F0"; // #E2E8F0
-const THEME_ACCENT_GREEN = "FF059669"; // #059669 (Emerald)
+const THEME_ACCENT_GREEN = "FFD97706"; // #D97706 (Mudita Warm Gold)
 
 const COMMON_UNITS = [
   "pcs",
@@ -58,8 +58,8 @@ const thinBorder: Partial<ExcelJS.Borders> = {
  */
 export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Kassio POS";
-  wb.lastModifiedBy = "Kassio POS";
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
   wb.created = new Date();
   wb.modified = new Date();
 
@@ -193,8 +193,8 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
  */
 export function buildProductsExportWorkbook(products: Product[]): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Kassio POS";
-  wb.lastModifiedBy = "Kassio POS";
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
   wb.created = new Date();
   wb.modified = new Date();
 
@@ -276,8 +276,8 @@ export function buildSalesReportExportWorkbook(
   storeName: string,
 ): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Kassio POS";
-  wb.lastModifiedBy = "Kassio POS";
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
   wb.created = new Date();
   wb.modified = new Date();
 
@@ -845,7 +845,7 @@ function buildGuideSheet(wb: ExcelJS.Workbook): void {
   // Header Judul
   guideSheet.mergeCells("B2:C2");
   const titleCell = guideSheet.getCell("B2");
-  titleCell.value = "PANDUAN PENGISIAN TEMPLATE IMPOR PRODUK — KASSIO POS";
+  titleCell.value = "PANDUAN PENGISIAN TEMPLATE IMPOR PRODUK — MUDITA MART";
   titleCell.font = { bold: true, size: 14, color: { argb: THEME_PRIMARY_NAVY } };
 
   guideSheet.mergeCells("B3:C3");

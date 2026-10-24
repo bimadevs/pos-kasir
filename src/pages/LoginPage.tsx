@@ -45,11 +45,11 @@ export const LoginPage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <img
             src="/logo-dark.png"
-            alt="Logo Kassio"
+            alt="Logo Mudita Mart"
             className="h-8 object-contain"
           />
           <span className="font-bold text-sm tracking-wide text-white">
-            {terminalStatus?.store_name || "KASSIO POINT OF SALE"}
+            {terminalStatus?.store_name || "MUDITA MART"}
           </span>
         </div>
 
@@ -81,12 +81,12 @@ export const LoginPage: React.FC = () => {
           <div className="mb-6 flex items-center gap-3.5">
             <img
               src="/logo-emblem-dark.png"
-              alt="Logo Kassio"
+              alt="Logo Mudita Mart"
               className="w-12 h-12 rounded-xl object-contain bg-slate-950 border border-slate-800 p-1.5 shadow-md"
             />
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-1.5">
-                <span>Masuk <span className="text-white">Kas</span><span className="text-teal-400">sio</span></span>
+                <span>Masuk <span className="text-white">Mudita</span> <span className="text-amber-400">Mart</span></span>
               </h1>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Gunakan akun <strong>Cashier</strong> atau <strong>Admin</strong>{" "}
@@ -160,7 +160,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <footer className="max-w-5xl w-full mx-auto flex items-center justify-between text-xs text-zinc-500 border-t border-zinc-800/80 pt-4">
-        <span>Kassio {APP_VERSION_LABEL} • Keyboard-First Retail System</span>
+        <span>Mudita Mart {APP_VERSION_LABEL} • Sistem Kasir Ritel SMK Mudita</span>
         <span>
           IP Lokal Mesin:{" "}
           {terminalStatus?.local_lan_ips?.join(", ") || "127.0.0.1"}

@@ -1,7 +1,24 @@
 # Changelog
 
-Seluruh perubahan penting pada aplikasi **Kassio** didokumentasikan di file ini.
+Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
+
+## [1.0.0] - 2026-10-24
+
+### Added
+- **Rebranding Resmi Menjadi "Mudita Mart"**:
+  - Transformasi identitas visual, logo, dan penamaan aplikasi menjadi **Mudita Mart** dengan tagline resmi *"Sistem Kasir Ritel SMK Mudita"*.
+  - Pemrosesan logo resmi SMK Mudita (`public/SMK_MUDITA.webp`) menjadi aset cutout transparan beresolusi tinggi di seluruh level aplikasi (`logo.png`, `logo-dark.png`, `logo-emblem.png`, `favicon.ico`, `favicon.png`).
+  - Generasi bundel ikon desktop multi-resolusi untuk Windows 10/11 (`icon.ico`, `icon.png`, `32x32.png` s/d `256x256.png`, dan seluruh ubin Windows `Square*.png`).
+- **Sistem Desain Visual Baru (Forest Green & Warm Gold)**:
+  - Mengintegrasikan palet primer **Mudita Forest Green (`#16a34a` / `#15803d`)** yang selaras dengan lambang daun/padi pada logo SMK Mudita dengan kontras tinggi standar WCAG AAA.
+  - Mengadopsi aksen **Kuning Keemasan / Warm Gold (`#f59e0b` / `#fbbf24`)** untuk teks brand, penanda status transaksi tertunda (Hold Bill), dan kartu ringkasan.
+  - Mengadopsi palet latar belakang gelap **Deep Emerald Charcoal (`#0a130f` s/d `#1b2e24`)** pada bilah atas (TopBar), kartu login, dan panel pembayaran kasir (Payment Cockpit) untuk kenyamanan mata shift 12 jam.
+  - Memperbarui palet tema ekspor spreadsheet Excel (`excelService.ts`) dengan header Forest Green dan aksen Gold yang elegan.
+- **Konfigurasi Produksi & Database Mandiri**:
+  - Migrasi basis data lokal ke `muditamart.db` di dalam `%APPDATA%\com.bimadev.muditamart`.
+  - Pembaruan konfigurasi biner Tauri v2: identifier `com.bimadev.muditamart` dan nama produk Windows installer `"Mudita Mart"`.
+  - Pembaruan teks identitas pada driver printer virtual ESC/POS dan header struk pengujian.
 
 ## [0.3.0] - 2026-10-23
 

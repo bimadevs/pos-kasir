@@ -1,7 +1,7 @@
 [package]
 name = "kassio"
-version = "0.3.0"
-description = "Kassio Point of Sale"
+version = "1.0.0"
+description = "Mudita Mart Point of Sale"
 authors = ["you"]
 edition = "2024"
 

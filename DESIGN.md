@@ -1,22 +1,26 @@
 ---
-name: kassio
-description: Sistem Desain & Ergonomi Antarmuka Desktop Retail Kassio POS (Tauri v2 + React 19 + Tailwind CSS)
+name: mudita-mart
+description: Sistem Desain & Ergonomi Antarmuka Desktop Retail Mudita Mart (Tauri v2 + React 19 + Tailwind CSS)
 colors:
-  primary: "#1da2a1"
-  primary-hover: "#22b8b7"
-  primary-active: "#0e6e6d"
-  primary-light: "#f0fdfa"
-  primary-border: "#99f6e4"
+  primary: "#16a34a"
+  primary-hover: "#22c55e"
+  primary-active: "#15803d"
+  primary-light: "#f0fdf4"
+  primary-border: "#bbf7d0"
   
-  neutral-canvas: "#f4f5f6"
+  accent-gold: "#f59e0b"
+  accent-gold-hover: "#fbbf24"
+  accent-maroon: "#991b1b"
+
+  neutral-canvas: "#f4f6f5"
   neutral-surface: "#ffffff"
-  neutral-panel-dark: "#12161a"
-  neutral-panel-cockpit: "#1a2026"
-  neutral-panel-elevated: "#283038"
-  neutral-border-light: "#e5e9ee"
-  neutral-border-strong: "#d2d8df"
-  neutral-border-dark: "#283038"
-  neutral-border-dark-subtle: "#394048"
+  neutral-panel-dark: "#0a130f"
+  neutral-panel-cockpit: "#101c16"
+  neutral-panel-elevated: "#1b2e24"
+  neutral-border-light: "#e2ebe5"
+  neutral-border-strong: "#cbd7d0"
+  neutral-border-dark: "#243c31"
+  neutral-border-dark-subtle: "#2f4d3f"
   
   ink-primary-light: "#12161a"
   ink-secondary-light: "#4a545e"
@@ -127,27 +131,27 @@ components:
     padding: "0 16px"
 ---
 
-# Panduan Sistem Desain & Ergonomi UI/UX (DESIGN.md) — Kassio POS
+# Panduan Sistem Desain & Ergonomi UI/UX (DESIGN.md) — Mudita Mart
 
-Dokumen ini adalah **Sumber Kebenaran Tunggal (*Single Source of Truth*)** untuk seluruh keputusan desain visual, hierarki antarmuka, standarisasi warna, tipografi, dan perilaku komponen di aplikasi kasir minimarket **Kassio** (Tauri v2 + React 19 + Tailwind CSS).
+Dokumen ini adalah **Sumber Kebenaran Tunggal (*Single Source of Truth*)** untuk seluruh keputusan desain visual, hierarki antarmuka, standarisasi warna, tipografi, dan perilaku komponen di aplikasi kasir minimarket **Mudita Mart** (Tauri v2 + React 19 + Tailwind CSS).
 
-Tujuan utama dokumen ini adalah **mengeliminasi seluruh ketidakkonsistenan warna, tombol, radius, dan gaya antarmuka** di seluruh halaman dan komponen, serta memastikan identitas brand yang selaras dengan logo Kassio: kombinasi presisi antara **Kassio Turquoise Teal (`#1da2a1`)** dan **Charcoal Slate (`#394048`)**, kontras tinggi (*high readability*), ramah kerja shift 12 jam, dan berorientasi *keyboard & barcode scanner-first*.
+Tujuan utama dokumen ini adalah **mengeliminasi seluruh ketidakkonsistenan warna, tombol, radius, dan gaya antarmuka** di seluruh halaman dan komponen, serta memastikan identitas brand yang selaras dengan logo resmi SMK Mudita: kombinasi presisi antara **Mudita Forest Green (`#16a34a` / `#15803d`)**, aksen **Kuning Keemasan / Warm Gold (`#f59e0b` / `#fbbf24`)**, dan **Deep Emerald Charcoal (`#0a130f` / `#101c16`)**, kontras tinggi (*high readability*), ramah kerja shift 12 jam, dan berorientasi *keyboard & barcode scanner-first*.
 
 ---
 
 ## 1. Overview & Filosofi Desain Antarmuka Kasir
 
-Aplikasi kasir minimarket **Kassio** memiliki karakteristik kerja yang berbeda dari aplikasi SaaS atau dashboard analitik web biasa:
+Aplikasi kasir minimarket **Mudita Mart** memiliki karakteristik kerja yang berbeda dari aplikasi SaaS atau dashboard analitik web biasa:
 1. **Kecepatan & Tanpa Mouse (*Keyboard & Scanner Driven*)**: Kasir bekerja melayani antrean panjang pembeli. Setiap aksi (fokus scan, ubah kuantitas, tahan transaksi, bayar uang pas, input tunai, reprint) wajib memiliki kontrol keyboard fisik yang jelas dan terbaca.
 2. **Keterbacaan Jarak 1 Meter (*1-Meter Checkout Legibility*)**: Nominal Total Tagihan, Uang Diterima, dan Kembalian harus dapat dibaca secara instan oleh kasir dan pembeli dari jarak meja kasir tanpa menyipitkan mata.
 3. **Pemberian Umpan Balik Pasti (*Deterministic Sensory Feedback*)**: Setiap status berhasil, peringatan stok menipis, atau kegagalan transaksi memiliki perpaduan warna semantik standar, efek visual, serta umpan balik suara (*Web Audio API beep*).
 4. **Filosofi Dual-Surface (*Dual-Surface Architectural Contrast*)**:
-   - **Hardware Frame & POS Checkout Cockpit (Dark Charcoal Slate `#12161a` / `#1a2026` / `#394048`)**: Bilah atas sistem (*TopBar*), layar standby kasir (*LoginPage*, *SetupWizardPage*), panel ringkasan pembayaran kasir kanan (*Payment Cockpit*), dan latar belakang modal cetak struk mengadopsi palet Charcoal Slate pekat. Ini mencegah kelelahan mata (*eye fatigue*) kasir selama bekerja seharian dan memberikan titik fokus kontras tinggi pada nominal rupiah.
-   - **Operational Workspace & Data Tables (Clean Light Surface `#f4f5f6` / `#ffffff`)**: Tabel keranjang belanja kasir, katalog produk, opname stok, laporan penjualan, dan formulir pengaturan menggunakan kanvas terang dengan batas halus (`#e5e9ee` / `#d2d8df`) untuk kerapian data tabular tingkat tinggi.
+   - **Hardware Frame & POS Checkout Cockpit (Deep Emerald Charcoal `#0a130f` / `#101c16` / `#1b2e24`)**: Bilah atas sistem (*TopBar*), layar standby kasir (*LoginPage*, *SetupWizardPage*), panel ringkasan pembayaran kasir kanan (*Payment Cockpit*), dan latar belakang modal cetak struk mengadopsi palet Deep Emerald Charcoal pekat. Ini mencegah kelelahan mata (*eye fatigue*) kasir selama bekerja seharian dan memberikan titik fokus kontras tinggi pada nominal rupiah.
+   - **Operational Workspace & Data Tables (Clean Light Surface `#f4f6f5` / `#ffffff`)**: Tabel keranjang belanja kasir, katalog produk, opname stok, laporan penjualan, dan formulir pengaturan menggunakan kanvas terang dengan batas halus (`#e2ebe5` / `#cbd7d0`) untuk kerapian data tabular tingkat tinggi.
 5. **Harmonisasi Logo & Adaptasi Kontras Cerdas**:
-   - Teks brand "Kassio" memiliki dua komponen: *"Kas"* (Charcoal Slate `#394048`) dan *"sio"* (Teal `#1da2a1`).
-   - Pada latar belakang gelap (TopBar, Login Hero), suku kata *"Kas"* otomatis diadaptasi menjadi putih bersih (`#ffffff`) dan *"sio"* tetap Teal (`#1da2a1`) untuk mempertahankan keterbacaan optimal.
-   - Pada latar belakang terang, teks brand menggunakan warna aslinya: *"Kas"* `#394048` dan *"sio"* `#1da2a1`.
+   - Teks brand "Mudita Mart" memiliki dua komponen: *"Mudita"* dan *"Mart"*.
+   - Pada latar belakang gelap (TopBar, Login Hero), suku kata *"Mudita"* ditampilkan dalam putih bersih (`#ffffff`) dan *"Mart"* dalam Kuning Keemasan (`#fbbf24`) untuk mempertahankan keterbacaan optimal dan kehangatan brand.
+   - Pada latar belakang terang, teks brand menggunakan *"Mudita"* `#101c16` (Deep Charcoal) dan *"Mart"* `#d97706` (Warm Gold).
 
 ---
 
@@ -155,33 +159,33 @@ Aplikasi kasir minimarket **Kassio** memiliki karakteristik kerja yang berbeda d
 
 Dilarang keras menggunakan warna ad-hoc acak. Seluruh elemen wajib mengacu pada sistem berikut:
 
-### 2.1. Netral Struktural (Charcoal Slate Architecture)
+### 2.1. Netral Struktural (Deep Emerald Charcoal Architecture)
 
 | Token Desain | Tailwind Class | Hex Code | Peran Fungsional & Penempatan |
 | :--- | :--- | :--- | :--- |
-| **`surface-canvas`** | `bg-zinc-100/70` / `bg-[#f4f5f6]` | `#f4f5f6` | Latar belakang seluruh area kerja utama (POS, Produk, Laporan, Pengaturan, User). |
+| **`surface-canvas`** | `bg-zinc-100/70` / `bg-[#f4f6f5]` | `#f4f6f5` | Latar belakang seluruh area kerja utama (POS, Produk, Laporan, Pengaturan, User). |
 | **`surface-card`** | `bg-white` | `#ffffff` | Kontainer kartu, baris tabel data, modal popup, input form. |
-| **`surface-cockpit`** | `bg-slate-900` / `bg-[#1a2026]` | `#1a2026` | Panel kanan ringkasan kasir, kartu login, header modal penting. |
-| **`surface-cockpit-dark`**| `bg-slate-950` / `bg-[#12161a]` | `#12161a` | Bilah atas (*TopBar*), kotak display raksasa Total Tagihan, latar belakang login. |
-| **`surface-muted`** | `bg-zinc-50` | `#fafbfc` | Header tabel data, latar belakang read-only input, footer modal. |
-| **`border-subtle`** | `border-zinc-200` | `#e5e9ee` | Garis batas kartu, pemisah baris tabel, batas kotak pencarian. |
-| **`border-strong`** | `border-zinc-300` | `#d2d8df` | Batas input field standar, tombol sekunder putih, batas keycap keyboard. |
-| **`border-dark`** | `border-slate-800` | `#283038` | Garis pemisah pada TopBar, panel ringkasan kasir gelap, modal dark header. |
-| **`border-dark-subtle`**| `border-charcoal/60` | `#394048` | Batas tombol sekunder pada mode gelap (Hold, Recall, Reprint). |
-| **`ink-primary`** | `text-zinc-900` | `#12161a` | Teks utama, judul halaman, nama barang di keranjang/tabel. |
-| **`ink-secondary`** | `text-zinc-600` | `#4a545e` | Deskripsi, label input, header tabel, metadata produk. |
-| **`ink-muted`** | `text-zinc-400` | `#727f8d` | Placeholder input, barcode/SKU sekunder, shortcut keycap legend. |
+| **`surface-cockpit`** | `bg-slate-900` / `bg-[#101c16]` | `#101c16` | Panel kanan ringkasan kasir, kartu login, header modal penting. |
+| **`surface-cockpit-dark`**| `bg-slate-950` / `bg-[#0a130f]` | `#0a130f` | Bilah atas (*TopBar*), kotak display raksasa Total Tagihan, latar belakang login. |
+| **`surface-muted`** | `bg-zinc-50` | `#f9fbf9` | Header tabel data, latar belakang read-only input, footer modal. |
+| **`border-subtle`** | `border-zinc-200` | `#e2ebe5` | Garis batas kartu, pemisah baris tabel, batas kotak pencarian. |
+| **`border-strong`** | `border-zinc-300` | `#cbd7d0` | Batas input field standar, tombol sekunder putih, batas keycap keyboard. |
+| **`border-dark`** | `border-slate-800` | `#1b2e24` | Garis pemisah pada TopBar, panel ringkasan kasir gelap, modal dark header. |
+| **`border-dark-subtle`**| `border-charcoal/60` | `#243c31` | Batas tombol sekunder pada mode gelap (Hold, Recall, Reprint). |
+| **`ink-primary`** | `text-zinc-900` | `#0a130f` | Teks utama, judul halaman, nama barang di keranjang/tabel. |
+| **`ink-secondary`** | `text-zinc-600` | `#3d5246` | Deskripsi, label input, header tabel, metadata produk. |
+| **`ink-muted`** | `text-zinc-400` | `#647d70` | Placeholder input, barcode/SKU sekunder, shortcut keycap legend. |
 | **`ink-dark-primary`** | `text-zinc-50` / `text-white` | `#fafafa` | Teks utama pada area gelap (TopBar, Total Tagihan Kasir, Kartu Login). |
 | **`ink-dark-muted`** | `text-zinc-400` | `#98a2ad` | Label dan deskripsi pada area gelap (TopBar, panel kanan kasir). |
 
-### 2.2. Warna Aksi Utama (Kassio Turquoise Teal)
+### 2.2. Warna Aksi Utama (Mudita Forest Green)
 
-Aplikasi kasir ini menggunakan **Satu Warna Aksi Utama Konsisten**: **Kassio Turquoise Teal (`#1da2a1`)**.
-- **Base Primary**: `#1da2a1` (`bg-teal-600`) — Tombol utama (Proses Pembayaran, Simpan, Tambah Produk, Login, Pilih, Lanjut Wizard).
-- **Hover Primary**: `#22b8b7` (`hover:bg-teal-500`) — Transisi lebih cerah dan hidup pada hover tombol.
-- **Active / Pressed**: `#0e6e6d` (`active:bg-teal-700` atau `active:scale-[0.98]`).
+Aplikasi kasir ini menggunakan **Satu Warna Aksi Utama Konsisten**: **Mudita Forest Green (`#16a34a` / `#15803d`)**.
+- **Base Primary**: `#16a34a` (`bg-teal-600` / `bg-brand-600`) — Tombol utama (Proses Pembayaran, Simpan, Tambah Produk, Login, Pilih, Lanjut Wizard).
+- **Hover Primary**: `#22c55e` (`hover:bg-teal-500` / `hover:bg-brand-500`) — Transisi lebih cerah dan hidup pada hover tombol.
+- **Active / Pressed**: `#15803d` (`active:bg-teal-700` atau `active:scale-[0.98]`).
 - **Focus Ring**: `focus:ring-2 focus:ring-teal-500/25 focus:border-teal-600`.
-- **Soft Highlight / Selected**: `bg-teal-50` (`#f0fdfa`) dengan teks `text-teal-800` dan batas `border-teal-600` — digunakan untuk baris terpilih pada tabel keranjang belanja atau item aktif di dropdown pencarian.
+- **Soft Highlight / Selected**: `bg-teal-50` (`#f0fdf4`) dengan teks `text-teal-800` dan batas `border-teal-600` — digunakan untuk baris terpilih pada tabel keranjang belanja atau item aktif di dropdown pencarian.
 - **Admin Identity**: Avatar inisial Admin dan badge manajer menggunakan `bg-teal-600 text-white`.
 
 ### 2.3. Warna Semantik Operasional (Semantic Signals)
@@ -460,18 +464,18 @@ Seluruh tabel (Keranjang POS, Produk, Pengguna, Laporan, Opname Stok) wajib sera
   - Grid 4 tombol aksi operasional gelap (`F4 Hold`, `F5 Recall`, `F6 Riwayat/Void`, `F10 Cetak Ulang Struk`).
   - Dua tombol bayar besar di bawah:
     1. **`[F9] BAYAR CEPAT UANG PAS`**: `btnSuccess` (Emerald).
-    2. **`[F8] PROSES PEMBAYARAN`**: `btnPrimary` (Kassio Teal).
+    2. **`[F8] PROSES PEMBAYARAN`**: `btnPrimary` (Mudita Forest Green).
 
 ### 7.4. Halaman Katalog Produk & Diskon (`ProductsPage.tsx`)
 - **Header**: Judul tebal `text-xl font-extrabold text-zinc-900`, deskripsi `text-xs text-zinc-500`.
-- **Action Group**: Tombol `Template CSV` (Secondary), `Import CSV` (Secondary), `Export CSV` (Secondary), dan `+ Tambah Produk` (`btnPrimary`).
+- **Action Group**: Tombol `Template Excel` (Secondary), `Import Excel` (Secondary), `Export Excel` (Secondary), dan `+ Tambah Produk` (`btnPrimary`).
 - **Kartu Filter**: 4 kartu metrik (Total Katalog, Stok Menipis, Stok Habis, Promo Aktif).
 - **Tabel Produk**: Tabel responsif dengan pagination bersih dan badge diskon konsisten.
 
 ### 7.5. Halaman Manajemen Pengguna (`UsersPage.tsx`)
 - **Avatar Pengguna**: Dilarang menggunakan kombinasi warna-warni acak (`blue-600`, `purple-600`, dll.). Seluruh avatar kasir menggunakan latar netral elegan:
   `bg-slate-800 text-zinc-200 border border-slate-700 font-bold font-mono` untuk Kasir biasa, dan `bg-teal-600 text-white border border-teal-500` untuk Admin.
-- **Badge Peran**: Admin (`Teal`), Cashier (`Slate / Zinc`).
+- **Badge Peran**: Admin (`Forest Green`), Cashier (`Slate / Zinc`).
 - **Tombol Tambah Pengguna**: `btnPrimary`.
 
 ### 7.6. Halaman Penyesuaian Stok / Opname (`StockAdjustmentPage.tsx`)
@@ -492,8 +496,8 @@ Seluruh tabel (Keranjang POS, Produk, Pengguna, Laporan, Opname Stok) wajib sera
 
 ### 8.1. Larangan Mutlak (*Strictly Banned Patterns*)
 
-- ❌ **DILARANG MENGGUNAKAN WARNA AD-HOC ACAK**: Dilarang memakai warna pelangi acak. Seluruh antarmuka hanya boleh menggunakan Charcoal Slate, Kassio Teal, Emerald, Amber, dan Rose.
-- ❌ **DILARANG MENGGUNAKAN HOVER YANG TIDAK KONSISTEN**: Seluruh tombol utama Teal wajib menggunakan `hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98]`.
+- ❌ **DILARANG MENGGUNAKAN WARNA AD-HOC ACAK**: Dilarang memakai warna pelangi acak. Seluruh antarmuka hanya boleh menggunakan Deep Emerald Charcoal, Mudita Forest Green, Warm Gold, Emerald, Amber, dan Rose.
+- ❌ **DILARANG MENGGUNAKAN HOVER YANG TIDAK KONSISTEN**: Seluruh tombol utama Forest Green wajib menggunakan `hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98]`.
 - ❌ **DILARANG MENGGUNAKAN SUDUT RADIUS ACAK**: Dilarang mencampur `rounded-md`, `rounded-lg`, dan `rounded-xl` pada elemen tombol yang setara. Seluruh tombol form dan modal wajib `rounded-xl`.
 - ❌ **DILARANG MENAMPILKAN ANGKA RUPIAH DENGAN FONT PROPORSIONAL**: Seluruh angka harga dan nominal rupiah wajib menggunakan font mono dengan `tabular-nums` agar tidak bergoyang.
 - ❌ **DILARANG MENGGUNAKAN EMOJI SEBAGAI IKON ANTARMUKA**: Seluruh ikon wajib menggunakan SVG resmi dari **`lucide-react`**.
@@ -502,7 +506,7 @@ Seluruh tabel (Keranjang POS, Produk, Pengguna, Laporan, Opname Stok) wajib sera
 ### 8.2. Checklist Pra-Implementasi & Verifikasi UI/UX
 
 Sebelum menganggap implementasi suatu halaman atau komponen selesai, verifikasi daftar periksa berikut:
-- [ ] Apakah warna primer konsisten mengacu pada Kassio Teal (`#1da2a1` / `bg-teal-600`)?
+- [ ] Apakah warna primer konsisten mengacu pada Mudita Forest Green (`#16a34a` / `bg-teal-600`)?
 - [ ] Apakah warna sukses/pembayaran konsisten mengacu pada Emerald (`#059669`)?
 - [ ] Apakah warna bahaya/void konsisten mengacu pada Rose (`#e11d48`)?
 - [ ] Apakah seluruh tombol memiliki padding, tinggi, dan radius yang seragam sesuai ukurannya?

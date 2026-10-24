@@ -24,7 +24,7 @@ export const SetupWizardPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // State Form Server Terminal
-  const [storeName, setStoreName] = useState("Minimarket Maju Jaya");
+  const [storeName, setStoreName] = useState("Mudita Mart");
   const [storeAddress, setStoreAddress] = useState(
     "Jl. Raya Niaga No. 18, Jakarta",
   );
@@ -117,22 +117,21 @@ export const SetupWizardPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <img
             src="/logo-dark.png"
-            alt="Logo Kassio"
+            alt="Logo Mudita Mart"
             className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-800 shadow-xs p-0.5"
           />
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
               <span>
-                <span className="text-white">Kas</span>
-                <span className="text-teal-400">sio</span> — Konfigurasi Awal Terminal
+                <span className="text-white">Mudita </span>
+                <span className="text-amber-400">Mart</span> — Konfigurasi Awal Terminal
               </span>
               <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-xs font-mono text-zinc-300">
                 {APP_VERSION_LABEL}
               </span>
             </h1>
             <p className="text-xs text-zinc-400">
-              Arsitektur Dual-Mode LAN Minimarket (1 Server Terminal + hingga 5
-              Client Terminal)
+              Sistem Kasir Ritel SMK Mudita (1 Server Terminal + hingga 5 Client Terminal)
             </p>
           </div>
         </div>
@@ -571,8 +570,8 @@ export const SetupWizardPage: React.FC = () => {
       </main>
 
       <footer className="max-w-5xl w-full mx-auto text-center text-xs text-zinc-500 border-t border-slate-800/80 pt-4">
-        Kassio Desktop {APP_VERSION_LABEL} • Penyimpanan Lokal{" "}
-        <code>%APPDATA%\com.bimadev.kassio</code>
+        Mudita Mart {APP_VERSION_LABEL} • Penyimpanan Lokal{" "}
+        <code>%APPDATA%\com.bimadev.muditamart</code>
       </footer>
     </div>
   );

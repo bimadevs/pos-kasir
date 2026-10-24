@@ -27,7 +27,7 @@ export const SettingsPage: React.FC = () => {
   // Printer state (Local Terminal)
   const [printers, setPrinters] = useState<string[]>([]);
   const [printerName, setPrinterName] = useState<string>(
-    cfg?.printer.printer_name || "Kassio Virtual Thermal Printer (Simulasi)"
+    cfg?.printer.printer_name || "Mudita Mart Virtual Thermal Printer (Simulasi)"
   );
   const [paperWidth, setPaperWidth] = useState<number>(
     cfg?.printer.paper_width || 58
@@ -51,7 +51,7 @@ export const SettingsPage: React.FC = () => {
 
   // Database Backup & Restore state (Admin on Server)
   const [backupPath, setBackupPath] = useState<string>(
-    `kassio-backup-${new Date().toISOString().slice(0, 10)}.db`
+    `muditamart-backup-${new Date().toISOString().slice(0, 10)}.db`
   );
   const [restorePath, setRestorePath] = useState<string>("");
 
@@ -85,7 +85,7 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     if (cfg?.printer) {
-      setPrinterName(cfg.printer.printer_name || "Kassio Virtual Thermal Printer (Simulasi)");
+      setPrinterName(cfg.printer.printer_name || "Mudita Mart Virtual Thermal Printer (Simulasi)");
       setPaperWidth(cfg.printer.paper_width || 58);
       setLeftMarginChars(cfg.printer.left_margin_chars ?? 0);
       setAutoOpenDrawer(cfg.printer.auto_open_drawer ?? true);
@@ -132,7 +132,7 @@ export const SettingsPage: React.FC = () => {
       );
       openReceiptPreview(
         {
-          store_name: storeName || "Minimarket Kassio",
+          store_name: storeName || "Mudita Mart",
           store_address: storeAddress || "Jl. Contoh No. 1",
           store_phone: storePhone || "0812-0000-0000",
           receipt_footer: receiptFooter || "Terima kasih!",
@@ -278,7 +278,7 @@ export const SettingsPage: React.FC = () => {
           </p>
         </div>
         <span className="px-3 py-1 rounded-full bg-slate-950 text-teal-400 font-mono text-xs font-bold border border-slate-800">
-          Kassio {APP_VERSION_LABEL}
+          Mudita Mart {APP_VERSION_LABEL}
         </span>
       </div>
 
@@ -457,7 +457,7 @@ export const SettingsPage: React.FC = () => {
           <div className="flex items-center gap-3 pb-3 border-b border-zinc-200">
             <img
               src="/logo-dark.png"
-              alt="Logo Kassio"
+              alt="Logo Mudita Mart"
               className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-800 p-0.5 shadow-xs"
             />
             <div>
@@ -618,7 +618,7 @@ export const SettingsPage: React.FC = () => {
                   1. Buat Cadangan Database (Backup SQLite)
                 </label>
                 <p className="text-zinc-500">
-                  Masukkan nama file atau path tujuan untuk menyimpan salinan utuh database <code>kassio.db</code>.
+                  Masukkan nama file atau path tujuan untuk menyimpan salinan utuh database <code>muditamart.db</code>.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -626,7 +626,7 @@ export const SettingsPage: React.FC = () => {
                     required
                     value={backupPath}
                     onChange={(e) => setBackupPath(e.target.value)}
-                    placeholder="kassio-backup.db"
+                    placeholder="muditamart-backup.db"
                     className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                   <button
@@ -655,7 +655,7 @@ export const SettingsPage: React.FC = () => {
                     required
                     value={restorePath}
                     onChange={(e) => setRestorePath(e.target.value)}
-                    placeholder="/path/ke/kassio-backup.db"
+                    placeholder="/path/ke/muditamart-backup.db"
                     className="flex-1 px-3.5 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
                   />
                   <button
