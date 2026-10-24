@@ -128,15 +128,6 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
     },
   ];
 
-  // Inisial avatar pengguna
-  const userInitials = (user?.full_name || user?.username || "U")
-    .trim()
-    .split(/\s+/)
-    .map((word) => word[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   // Tab yang diizinkan untuk peran saat ini
   const visibleTabs = navItems.filter((item) => !item.adminOnly || isAdmin);
   const secondaryAdminTabs = visibleTabs.filter((item) => item.id !== "POS");
@@ -345,19 +336,9 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
         </div>
 
         {/* Pill Profil Pengguna & Logout Terintegrasi */}
-        <div className="flex items-center gap-1.5 bg-emerald-800/90 border border-emerald-600/40 rounded-xl p-1 shadow-inner">
-          <div
-            className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono shrink-0 select-none ${
-              isAdmin
-                ? "bg-amber-400 text-emerald-950 border border-amber-300 shadow-2xs"
-                : "bg-emerald-900 text-emerald-100 border border-emerald-600/60"
-            }`}
-          >
-            {userInitials}
-          </div>
-
-          <div className="text-left pl-1 pr-1.5 hidden md:block leading-tight">
-            <div className="text-xs font-semibold text-white truncate max-w-[110px]">
+        <div className="flex items-center gap-2 bg-emerald-800/90 border border-emerald-600/40 rounded-xl px-2.5 py-1.5 shadow-inner">
+          <div className="text-left leading-tight">
+            <div className="text-xs font-bold text-white truncate max-w-[120px]">
               {user?.full_name || user?.username}
             </div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
@@ -365,12 +346,14 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             </div>
           </div>
 
+          <div className="w-px h-4 bg-emerald-600/50 shrink-0" />
+
           <button
             type="button"
             onClick={() => void logout()}
             title="Keluar Sesi Kasir"
             aria-label="Keluar Sesi Kasir"
-            className="p-1.5 rounded-lg text-emerald-100 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer shrink-0"
+            className="p-1 rounded-lg text-emerald-100 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>

@@ -22,20 +22,6 @@ import { ipc } from "../services/ipc";
 import type { UpsertUserRequest, User, UserRole } from "../types/domain";
 import { formatDateTimeId } from "../utils/posCalculator";
 
-function getAvatarColor(role: UserRole): string {
-  if (role === "ADMIN") {
-    return "bg-emerald-700 text-white border border-emerald-600";
-  }
-  return "bg-amber-600 text-white border border-amber-500";
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 function formatUserErrorMessage(err: unknown, username: string): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
@@ -574,8 +560,6 @@ export const UsersPage: React.FC = () => {
               ) : (
                 filteredUsers.map((u) => {
                   const isCurrent = currentUser?.id === u.id;
-                  const avatarColor = getAvatarColor(u.role);
-                  const initials = getInitials(u.full_name || u.username);
 
                   return (
                     <tr
@@ -585,24 +569,17 @@ export const UsersPage: React.FC = () => {
                       }`}
                     >
                       <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold font-mono text-xs shrink-0 shadow-2xs ${avatarColor}`}
-                          >
-                            {initials}
+                        <div>
+                          <div className="font-bold text-zinc-900 text-sm flex items-center gap-1.5">
+                            {u.full_name}
+                            {isCurrent && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold">
+                                Anda
+                              </span>
+                            )}
                           </div>
-                          <div>
-                            <div className="font-bold text-zinc-900 text-sm flex items-center gap-1.5">
-                              {u.full_name}
-                              {isCurrent && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-700 font-bold">
-                                  Anda
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-zinc-400 md:hidden font-mono mt-0.5">
-                              @{u.username}
-                            </div>
+                          <div className="text-[11px] text-zinc-400 md:hidden font-mono mt-0.5">
+                            @{u.username}
                           </div>
                         </div>
                       </td>
