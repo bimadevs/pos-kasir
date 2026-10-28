@@ -7,3 +7,5 @@ import pkg from "../package.json";
  */
 export const APP_VERSION: string = pkg.version;
 export const APP_VERSION_LABEL = `v${APP_VERSION}`;
+export const APP_AUTHOR = "BimaDev";
+export const APP_CREDITS_LABEL = `Dibuat oleh ${APP_AUTHOR}`;

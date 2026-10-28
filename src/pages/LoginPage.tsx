@@ -160,7 +160,11 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <footer className="max-w-5xl w-full mx-auto flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-200 pt-4">
-        <span>Mudita Mart {APP_VERSION_LABEL} • Sistem Kasir Ritel SMK Mudita</span>
+        <span>
+          Mudita Mart {APP_VERSION_LABEL} • Dikembangkan oleh{" "}
+          <strong className="font-semibold text-zinc-600">BimaDev</strong> untuk
+          SMK Mudita
+        </span>
         <span>
           IP Lokal Mesin:{" "}
           {terminalStatus?.local_lan_ips?.join(", ") || "127.0.0.1"}

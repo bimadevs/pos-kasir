@@ -152,7 +152,10 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
                   {terminalStatus?.store_name ? `• ${terminalStatus.store_name}` : ""}
                 </span>
               </span>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-800/80 border border-emerald-600/60 text-[10px] font-mono font-medium text-emerald-100 shrink-0">
+              <span
+                className="px-1.5 py-0.5 rounded bg-emerald-800/80 border border-emerald-600/60 text-[10px] font-mono font-medium text-emerald-100 shrink-0 cursor-help"
+                title="Mudita Mart — Dikembangkan oleh BimaDev"
+              >
                 {APP_VERSION_LABEL}
               </span>
             </div>

@@ -278,9 +278,14 @@ export const SettingsPage: React.FC = () => {
             Konfigurasi printer thermal ESC/POS lokal, laci uang RJ11, jaringan LAN, serta Backup/Restore SQLite.
           </p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 font-mono text-xs font-bold border border-emerald-300 shadow-2xs">
-          Mudita Mart {APP_VERSION_LABEL}
-        </span>
+        <div className="text-right">
+          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 font-mono text-xs font-bold border border-emerald-300 shadow-2xs">
+            Mudita Mart {APP_VERSION_LABEL}
+          </span>
+          <div className="text-[11px] text-zinc-500 mt-1 font-medium">
+            Dikembangkan oleh <strong className="font-semibold text-zinc-700">BimaDev</strong>
+          </div>
+        </div>
       </div>
 
       {feedback && (

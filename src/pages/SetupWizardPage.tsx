@@ -569,9 +569,14 @@ export const SetupWizardPage: React.FC = () => {
         )}
       </main>
 
-      <footer className="max-w-5xl w-full mx-auto text-center text-xs text-zinc-400 border-t border-zinc-200 pt-4">
-        Mudita Mart {APP_VERSION_LABEL} • Penyimpanan Lokal{" "}
-        <code>%APPDATA%\com.bimadev.muditamart</code>
+      <footer className="max-w-5xl w-full mx-auto flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-200 pt-4">
+        <span>
+          Mudita Mart {APP_VERSION_LABEL} • Dikembangkan oleh{" "}
+          <strong className="font-semibold text-zinc-600">BimaDev</strong>
+        </span>
+        <span>
+          Penyimpanan Lokal <code>%APPDATA%\com.bimadev.muditamart</code>
+        </span>
       </footer>
     </div>
   );

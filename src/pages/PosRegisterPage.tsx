@@ -928,8 +928,9 @@ export const PosRegisterPage: React.FC = () => {
             <kbd className="kbd-key">F10</kbd> Cetak Ulang
           </span>
         </div>
-        <div className="font-mono text-zinc-400">
-          Mudita Mart {APP_VERSION_LABEL}
+        <div className="font-mono text-zinc-400 text-[11px]">
+          Mudita Mart {APP_VERSION_LABEL} • by{" "}
+          <span className="font-semibold text-zinc-600">BimaDev</span>
         </div>
       </footer>
 
