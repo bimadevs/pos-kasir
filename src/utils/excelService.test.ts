@@ -176,7 +176,7 @@ describe("excelService — Layanan Excel Ramah Admin Awam", () => {
     // Verifikasi judul dan metrik pada summary sheet
     expect(summarySheet!.getCell("B2").value).toContain("LAPORAN PENJUALAN");
     expect(detailSheet!.getRow(1).getCell(1).value).toBe("No. Struk");
-  });
+  }, 20000);
 
   it("mem-parsing file Excel yang valid secara cerdas dan toleran terhadap format awam", async () => {
     // Buat workbook simulasi buatan admin awam

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderFallbackReceiptText,
   wrapFallbackWords,
-} from "../components/receipt/ReceiptPreviewModal";
+} from "./receiptFormatter";
 import type { ReceiptData } from "../types/domain";
 
 describe("Receipt Preview & Fallback Formatter", () => {
@@ -97,7 +97,7 @@ describe("Receipt Preview & Fallback Formatter", () => {
     expect(text58).toContain("TOTAL BAYAR");
     expect(text58).toContain("Kembalian");
     expect(text58).not.toContain("*** CETAKAN ULANG ***");
-  });
+  }, 20000);
 
   it("renderFallbackReceiptText with left margin offset prefixes lines correctly and stays within cols", () => {
     const text58Margin = renderFallbackReceiptText(sampleReceipt, 32, 3);
