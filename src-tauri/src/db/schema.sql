@@ -212,5 +212,3 @@ CREATE TABLE IF NOT EXISTS product_price_tiers (
 
 CREATE INDEX IF NOT EXISTS idx_product_price_tiers_product_id ON product_price_tiers(product_id);
 
--- 13. Indeks Shift pada Transaksi Penjualan
-CREATE INDEX IF NOT EXISTS idx_sales_shift_id ON sales(shift_id);
