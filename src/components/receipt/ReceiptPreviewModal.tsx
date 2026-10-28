@@ -27,12 +27,36 @@ export const ReceiptPreviewModal: React.FC = () => {
   const [printing, setPrinting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  const handlePrintAgain = async () => {
+    if (!previewReceipt) return;
+    setPrinting(true);
+    setStatusMessage(null);
+    try {
+      const reprintData: ReceiptData = {
+        ...previewReceipt,
+        is_reprint: true,
+      };
+      const outcome = await ipc.printReceipt(reprintData);
+      openReceiptPreview(reprintData, outcome);
+      setStatusMessage("Struk berhasil dikirim ke printer (Cetakan Ulang).");
+    } catch (err) {
+      setStatusMessage(
+        `Gagal mencetak: ${err instanceof Error ? err.message : String(err)}`
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   useEffect(() => {
     if (!previewReceipt && !previewOutcome) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
         closeReceiptPreview();
+      } else if (e.key === "F10") {
+        e.preventDefault();
+        void handlePrintAgain();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -56,27 +80,6 @@ export const ReceiptPreviewModal: React.FC = () => {
   const renderedText =
     previewOutcome?.rendered_text ||
     (previewReceipt ? renderFallbackReceiptText(previewReceipt, cols, leftMarginChars) : "");
-
-  const handlePrintAgain = async () => {
-    if (!previewReceipt) return;
-    setPrinting(true);
-    setStatusMessage(null);
-    try {
-      const reprintData: ReceiptData = {
-        ...previewReceipt,
-        is_reprint: true,
-      };
-      const outcome = await ipc.printReceipt(reprintData);
-      openReceiptPreview(reprintData, outcome);
-      setStatusMessage("Struk berhasil dikirim ke printer (Cetakan Ulang).");
-    } catch (err) {
-      setStatusMessage(
-        `Gagal mencetak: ${err instanceof Error ? err.message : String(err)}`
-      );
-    } finally {
-      setPrinting(false);
-    }
-  };
 
   const receipt = previewReceipt;
 
@@ -124,18 +127,31 @@ export const ReceiptPreviewModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Sub-bar: Status Struk */}
+        {/* Sub-bar: Status Struk & Kembalian */}
         <div className="bg-zinc-100/90 border-b border-zinc-200 px-5 py-2.5 flex items-center justify-between text-xs text-zinc-600">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-zinc-700">Tampilan Asli Struk (ESC/POS)</span>
             <span className="text-zinc-400">•</span>
-            <span className="text-zinc-500 font-mono text-[11px]">{cols} Karakter / Baris</span>
+            <span className="text-zinc-500 font-mono text-[11px]">{cols} Kolom</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {receipt?.sale.change_amount !== undefined && (
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border font-mono ${
+                  receipt.sale.change_amount > 0
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                    : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                }`}
+              >
+                {receipt.sale.change_amount > 0
+                  ? `Kembalian: Rp ${receipt.sale.change_amount.toLocaleString("id-ID")}`
+                  : "Uang Pas (Kembalian: Rp 0)"}
+              </span>
+            )}
             <span className="flex items-center gap-1.5 font-medium text-zinc-700">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              {receipt?.is_reprint ? "Cetakan Ulang" : "Struk Transaksi"}
+              {receipt?.is_reprint ? "Cetakan Ulang" : "Transaksi Berhasil"}
             </span>
           </div>
         </div>
@@ -163,7 +179,7 @@ export const ReceiptPreviewModal: React.FC = () => {
         {/* Modal Footer Actions */}
         <div className="bg-zinc-50 border-t border-zinc-200 px-6 py-4 flex items-center justify-between">
           <span className="text-xs text-zinc-500">
-            Tekan <kbd className="kbd-key">Esc</kbd> untuk menutup
+            Tekan <kbd className="kbd-key">Enter</kbd> atau <kbd className="kbd-key">Esc</kbd> untuk menutup
           </span>
           <div className="flex items-center gap-2.5">
             {previewReceipt && (
@@ -174,15 +190,16 @@ export const ReceiptPreviewModal: React.FC = () => {
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
               >
                 <Printer className="w-4 h-4" />
-                {printing ? "Mencetak..." : "Cetak Ulang"}
+                {printing ? "Mencetak..." : "Cetak Ulang (F10)"}
               </button>
             )}
             <button
               type="button"
               onClick={closeReceiptPreview}
+              autoFocus
               className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 active:bg-teal-700 active:scale-[0.98] text-white transition-all cursor-pointer shadow-xs"
             >
-              Selesai (Esc)
+              Selesai / Transaksi Baru (Enter)
             </button>
           </div>
         </div>

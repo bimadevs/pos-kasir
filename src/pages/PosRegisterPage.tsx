@@ -211,6 +211,17 @@ export const PosRegisterPage: React.FC = () => {
     }
   }, [user, activeShift]);
 
+  // Kembalikan fokus kursor ke input pencarian saat modal pratinjau struk ditutup
+  const prevPreviewReceiptRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (prevPreviewReceiptRef.current && !previewReceipt) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+    prevPreviewReceiptRef.current = Boolean(previewReceipt);
+  }, [previewReceipt]);
+
   const handlePrintXReport = useCallback(async () => {
     if (!activeShift) {
       showBanner("warning", "Belum ada shift kasir aktif.");
@@ -301,21 +312,27 @@ export const PosRegisterPage: React.FC = () => {
         setLastCompletedSaleId(receipt.sale.id);
         setCompletedReceipt(receipt);
 
+        // Tutup PaymentModal & reset keranjang belanja seketika agar tidak ada modal ganda di latar belakang
+        setPaymentModalOpen(false);
+        setCart([]);
+        setSelectedIndex(0);
+        setEditingProductId(null);
+
         // Trigger local thermal print + cash drawer pulse (if enabled)
+        let outcome: PrintOutcome | null = null;
         try {
-          const outcome = await ipc.printReceipt(receipt);
+          outcome = await ipc.printReceipt(receipt);
           setLastPrintOutcome(outcome);
-          // CATATAN: Jangan memanggil openReceiptPreview() di sini agar tidak memunculkan
-          // modal ganda yang saling bertumpuk (ReceiptPreviewModal di atas PaymentModal).
-          // Layar sukses transaksi ditampilkan bersih di dalam PaymentModal (UI-UX-SPEC 4.3).
-          // Kasir dapat mengklik "Lihat / Cetak Struk" di PaymentModal kapan saja jika diperlukan.
         } catch (printErr) {
           setPrintWarning(
             printErr instanceof Error ? printErr.message : String(printErr)
           );
         }
 
-        setPaymentModalOpen(true);
+        // Tampilkan TEPAT SATU pop-up struk (ReceiptPreviewModal)
+        // Kasir langsung melihat rincian struk lengkap, nomor invoice, kembalian,
+        // dan tombol Selesai / Transaksi Baru (Enter).
+        openReceiptPreview(receipt, outcome);
       } catch (err) {
         playErrorBeep();
         const msg = err instanceof Error ? err.message : String(err);
@@ -326,7 +343,7 @@ export const PosRegisterPage: React.FC = () => {
         isSubmittingCheckoutRef.current = false;
       }
     },
-    [cart, submittingSale, totals.totalAmount, showBanner]
+    [cart, submittingSale, totals.totalAmount, openReceiptPreview, showBanner]
   );
 
   const handleStartNewTransaction = useCallback(() => {
