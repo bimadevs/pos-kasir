@@ -195,7 +195,28 @@ impl CoreService {
                         ],
                     )?;
                 }
+                let target_prod_id = existing_id.clone();
                 updated_count += 1;
+
+                if let (Some(min_qty), Some(tier_price)) = (row.tier_min_qty, row.tier_price) {
+                    if min_qty >= 2 && tier_price >= row.cost_price && tier_price < row.selling_price {
+                        tx.execute(
+                            "DELETE FROM product_price_tiers WHERE product_id = ?1",
+                            params![target_prod_id],
+                        )?;
+                        tx.execute(
+                            "INSERT INTO product_price_tiers (id, product_id, min_quantity, tier_price, created_at, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+                            params![
+                                Uuid::new_v4().to_string(),
+                                target_prod_id,
+                                min_qty,
+                                tier_price,
+                                now
+                            ],
+                        )?;
+                    }
+                }
             } else {
                 let new_id = Uuid::new_v4().to_string();
                 tx.execute(
@@ -236,6 +257,22 @@ impl CoreService {
                             now
                         ],
                     )?;
+                }
+
+                if let (Some(min_qty), Some(tier_price)) = (row.tier_min_qty, row.tier_price) {
+                    if min_qty >= 2 && tier_price >= row.cost_price && tier_price < row.selling_price {
+                        tx.execute(
+                            "INSERT INTO product_price_tiers (id, product_id, min_quantity, tier_price, created_at, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+                            params![
+                                Uuid::new_v4().to_string(),
+                                new_id,
+                                min_qty,
+                                tier_price,
+                                now
+                            ],
+                        )?;
+                    }
                 }
                 inserted_count += 1;
             }
@@ -290,6 +327,8 @@ impl CoreService {
                 discount_value: row.discount_value,
                 stock: row.stock,
                 is_active: row.is_active != 0,
+                tier_min_qty: None,
+                tier_price: None,
             });
         }
 
@@ -585,6 +624,8 @@ mod tests {
                 discount_value: 0,
                 stock: 25,
                 is_active: true,
+                tier_min_qty: Some(5),
+                tier_price: Some(31000),
             },
             ProductImportRow {
                 sku: "XLS-002".to_string(),
@@ -598,6 +639,8 @@ mod tests {
                 discount_value: 500,
                 stock: 40,
                 is_active: true,
+                tier_min_qty: None,
+                tier_price: None,
             },
         ];
 
@@ -621,6 +664,8 @@ mod tests {
                 discount_value: 0,
                 stock: 30, // Stok berubah dari 25 menjadi 30 (+5 penyesuaian)
                 is_active: true,
+                tier_min_qty: Some(5),
+                tier_price: Some(30500),
             },
             ProductImportRow {
                 sku: "XLS-002".to_string(),
@@ -634,6 +679,8 @@ mod tests {
                 discount_value: 0,
                 stock: 40, // stok tetap sama
                 is_active: true,
+                tier_min_qty: None,
+                tier_price: None,
             },
         ];
 
@@ -662,6 +709,8 @@ mod tests {
                 discount_value: 0,
                 stock: 10,
                 is_active: true,
+                tier_min_qty: None,
+                tier_price: None,
             },
             ProductImportRow {
                 sku: "XLS-004".to_string(),
@@ -675,6 +724,8 @@ mod tests {
                 discount_value: 0,
                 stock: 10,
                 is_active: true,
+                tier_min_qty: None,
+                tier_price: None,
             },
         ];
 

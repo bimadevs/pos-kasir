@@ -243,34 +243,66 @@ fn append_line_item_text(
     for wrapped in wrap_text(&item.product_name_snapshot, cols) {
         lines.push(format!("{}{}", margin, wrapped));
     }
-    let gross_line = item.selling_price_snapshot * item.quantity;
-    let qty_price_left = format!(
-        "{} {} x {}",
-        item.quantity,
-        item.unit_snapshot,
-        format_rupiah_plain(item.selling_price_snapshot)
-    );
-    lines.push(format!(
-        "{}{}",
-        margin,
-        format_two_column_line(
-            &qty_price_left,
-            &format_rupiah_plain(gross_line),
-            cols,
-        )
-    ));
 
-    if item.unit_discount_amount > 0 {
-        let total_item_disc = item.unit_discount_amount * item.quantity;
+    if let Some(tier_price) = item.applied_tier_price {
+        let gross_line = item.selling_price_snapshot * item.quantity;
+        let line_total = item.subtotal;
+        let savings = gross_line.saturating_sub(line_total);
+
+        let qty_price_left = format!(
+            "{} {} x {}",
+            item.quantity,
+            item.unit_snapshot,
+            format_rupiah_plain(tier_price)
+        );
         lines.push(format!(
             "{}{}",
             margin,
             format_two_column_line(
-                "  Diskon Produk",
-                &format!("({})", format_rupiah_plain(total_item_disc)),
+                &qty_price_left,
+                &format_rupiah_plain(line_total),
                 cols,
             )
         ));
+        lines.push(format!(
+            "{}{}",
+            margin,
+            format_two_column_line(
+                "  ↳ Harga Grosir",
+                &format!("(Hemat {})", format_rupiah_plain(savings)),
+                cols,
+            )
+        ));
+    } else {
+        let gross_line = item.selling_price_snapshot * item.quantity;
+        let qty_price_left = format!(
+            "{} {} x {}",
+            item.quantity,
+            item.unit_snapshot,
+            format_rupiah_plain(item.selling_price_snapshot)
+        );
+        lines.push(format!(
+            "{}{}",
+            margin,
+            format_two_column_line(
+                &qty_price_left,
+                &format_rupiah_plain(gross_line),
+                cols,
+            )
+        ));
+
+        if item.unit_discount_amount > 0 {
+            let total_item_disc = item.unit_discount_amount * item.quantity;
+            lines.push(format!(
+                "{}{}",
+                margin,
+                format_two_column_line(
+                    "  Diskon Produk",
+                    &format!("({})", format_rupiah_plain(total_item_disc)),
+                    cols,
+                )
+            ));
+        }
     }
 }
 

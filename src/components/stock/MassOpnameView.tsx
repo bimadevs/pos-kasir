@@ -4,6 +4,7 @@ import {
   Barcode,
   CheckCircle2,
   FileCheck,
+  FileSpreadsheet,
   Lock,
   PlusCircle,
   RefreshCw,
@@ -15,6 +16,10 @@ import {
 } from "lucide-react";
 import { ipc } from "../../services/ipc";
 import type { OpnameSessionDetail } from "../../types/domain";
+import {
+  buildOpnameReportWorkbook,
+  saveWorkbookAsFile,
+} from "../../utils/excelService";
 import { formatDateTimeId, formatRupiah } from "../../utils/posCalculator";
 import { playErrorBeep, playScanSuccessBeep } from "../../utils/sound";
 
@@ -245,6 +250,21 @@ export const MassOpnameView: React.FC<MassOpnameViewProps> = ({
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!detail) return;
+    try {
+      const wb = buildOpnameReportWorkbook(detail.session, detail.items);
+      const cleanName = detail.session.session_name.replace(/[^a-zA-Z0-9_-]/g, "_");
+      await saveWorkbookAsFile(
+        wb,
+        `Laporan_Opname_${cleanName}_${detail.session.id.slice(0, 8)}.xlsx`,
+      );
+    } catch (err) {
+      console.error("Gagal mengekspor laporan opname:", err);
+      setError("Gagal membuat berkas Excel laporan opname.");
+    }
+  };
+
   // Discrepancy calculations
   const items = detail?.items || [];
   const surplusItems = items.filter((i) => i.discrepancy > 0);
@@ -463,6 +483,15 @@ export const MassOpnameView: React.FC<MassOpnameViewProps> = ({
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs text-xs"
+            title="Unduh laporan rekonsiliasi opname 2-sheet format spreadsheet Excel"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+            Unduh Excel
           </button>
           <button
             type="button"

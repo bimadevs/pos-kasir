@@ -951,7 +951,9 @@ impl BackendDispatcher {
         let sess = self.require_local_session()?;
         let cfg = self.get_config();
         match cfg.terminal_mode {
-            TerminalMode::SERVER => self.core.cancel_opname_session(&sess.user, session_id),
+            TerminalMode::SERVER => {
+                self.core.cancel_opname_session(&sess.user, session_id, reason)
+            }
             TerminalMode::CLIENT => {
                 Self::remote_client_for_config(&cfg)
                     .cancel_opname_session(&sess.session_token, session_id, reason)
@@ -1115,6 +1117,7 @@ mod tests {
         let open_shift_res = client_dispatcher
             .open_shift(&OpenShiftRequest {
                 opening_float: 100_000,
+                terminal_name: None,
                 notes: Some("Shift Pagi Client".to_string()),
             })
             .await

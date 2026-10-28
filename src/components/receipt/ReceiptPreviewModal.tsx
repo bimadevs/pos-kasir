@@ -100,20 +100,38 @@ export function renderFallbackReceiptText(receipt: ReceiptData, cols: number, ma
       lines.push(margin + nameLine);
     }
     const grossLine = item.selling_price_snapshot * item.quantity;
-    lines.push(
-      leftRight(
-        `  ${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.selling_price_snapshot, false)}`,
-        formatRupiah(grossLine, false)
-      )
-    );
-    if (item.unit_discount_amount > 0) {
-      const totalDisc = item.unit_discount_amount * item.quantity;
+
+    if (item.applied_tier_price != null && item.applied_tier_price > 0) {
+      const lineTotal = item.subtotal;
+      const savings = Math.max(0, grossLine - lineTotal);
       lines.push(
         leftRight(
-          `  ↳ Diskon`,
-          `-${formatRupiah(totalDisc, false)}`
+          `  ${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.applied_tier_price, false)}`,
+          formatRupiah(lineTotal, false)
         )
       );
+      lines.push(
+        leftRight(
+          `  ↳ [Harga Grosir]`,
+          `(Hemat ${formatRupiah(savings, false)})`
+        )
+      );
+    } else {
+      lines.push(
+        leftRight(
+          `  ${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.selling_price_snapshot, false)}`,
+          formatRupiah(grossLine, false)
+        )
+      );
+      if (item.unit_discount_amount > 0) {
+        const totalDisc = item.unit_discount_amount * item.quantity;
+        lines.push(
+          leftRight(
+            `  ↳ Diskon`,
+            `-${formatRupiah(totalDisc, false)}`
+          )
+        );
+      }
     }
   }
 

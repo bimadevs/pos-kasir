@@ -209,6 +209,17 @@ export const ProductsPage: React.FC = () => {
         setActiveModalTab("TIERS");
         return;
       }
+      if (tier.tier_price < costPrice) {
+        setModalError(
+          `Harga grosir (${formatRupiah(
+            tier.tier_price,
+          )}) tidak boleh lebih rendah dari harga modal/HPP (${formatRupiah(
+            costPrice,
+          )}).`,
+        );
+        setActiveModalTab("TIERS");
+        return;
+      }
       if (tier.tier_price >= sellingPrice) {
         setModalError(
           `Harga grosir (${formatRupiah(

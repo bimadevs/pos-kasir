@@ -264,6 +264,86 @@ CREATE TABLE IF NOT EXISTS held_bill_items (
     product_id TEXT NOT NULL REFERENCES products(id),
     quantity INTEGER NOT NULL CHECK (quantity >= 1)
 );
+
+-- 8. Sesi Shift Kasir (Cashier Shift)
+CREATE TABLE IF NOT EXISTS cashier_shifts (
+    id TEXT PRIMARY KEY,
+    terminal_name TEXT NOT NULL,
+    cashier_id TEXT NOT NULL REFERENCES users(id),
+    cashier_name_snapshot TEXT NOT NULL,
+    opened_at TEXT NOT NULL,
+    closed_at TEXT,
+    opening_float INTEGER NOT NULL CHECK (opening_float >= 0),
+    cash_sales_total INTEGER NOT NULL DEFAULT 0,
+    cash_in_total INTEGER NOT NULL DEFAULT 0,
+    cash_out_total INTEGER NOT NULL DEFAULT 0,
+    expected_closing_cash INTEGER,
+    actual_closing_cash INTEGER,
+    cash_discrepancy INTEGER,
+    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED')),
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- 9. Mutasi Kas Operasional Laci (Cash Movement)
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id TEXT PRIMARY KEY,
+    shift_id TEXT NOT NULL REFERENCES cashier_shifts(id) ON DELETE CASCADE,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('CASH_IN', 'CASH_OUT')),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+-- 10. Sesi Audit Stok Opname Fisik Massal (Stock Opname Session)
+CREATE TABLE IF NOT EXISTS stock_opname_sessions (
+    id TEXT PRIMARY KEY,
+    session_name TEXT NOT NULL,
+    creator_user_id TEXT NOT NULL REFERENCES users(id),
+    creator_name_snapshot TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'COUNTING' CHECK (status IN ('COUNTING', 'REVIEW', 'COMMITTED', 'CANCELLED')),
+    total_items_counted INTEGER NOT NULL DEFAULT 0,
+    total_discrepancy_qty INTEGER NOT NULL DEFAULT 0,
+    total_discrepancy_value INTEGER NOT NULL DEFAULT 0,
+    committed_by_user_id TEXT REFERENCES users(id),
+    committed_at TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- 11. Item Hitungan Fisik Sesi Opname (Stock Opname Item)
+CREATE TABLE IF NOT EXISTS stock_opname_items (
+    id TEXT PRIMARY KEY,
+    opname_session_id TEXT NOT NULL REFERENCES stock_opname_sessions(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES products(id),
+    physical_count INTEGER NOT NULL DEFAULT 0 CHECK (physical_count >= 0),
+    system_stock_snapshot INTEGER NOT NULL,
+    cost_price_snapshot INTEGER NOT NULL,
+    updated_at TEXT NOT NULL,
+    CONSTRAINT uq_opname_item UNIQUE (opname_session_id, product_id)
+);
+
+-- 12. Skema Harga Grosir Bertingkat (Product Price Tiers)
+CREATE TABLE IF NOT EXISTS product_price_tiers (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    min_quantity INTEGER NOT NULL CHECK (min_quantity >= 2),
+    tier_price INTEGER NOT NULL CHECK (tier_price >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CONSTRAINT uq_product_tier UNIQUE (product_id, min_quantity)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shifts_terminal_status ON cashier_shifts(terminal_name, status);
+CREATE INDEX IF NOT EXISTS idx_shifts_cashier ON cashier_shifts(cashier_id, opened_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cash_movements_shift ON cash_movements(shift_id);
+CREATE INDEX IF NOT EXISTS idx_opname_sessions_status ON stock_opname_sessions(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_opname_items_session ON stock_opname_items(opname_session_id);
+CREATE INDEX IF NOT EXISTS idx_opname_items_product ON stock_opname_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_price_tiers_product_id ON product_price_tiers(product_id);
+CREATE INDEX IF NOT EXISTS idx_sales_shift_id ON sales(shift_id);
 ```
 
 ---
@@ -331,6 +411,22 @@ Ketika berjalan dalam mode `CLIENT`, Tauri Command meneruskan operasi domain ke 
 | **Perangkat Lokal** | `print_receipt` | *(Selalu Lokal)* | Cashier, Admin | Mengirim byte ESC/POS **Receipt** (dan opsional sinyal buka **Cash Drawer**) ke printer lokal. |
 | **Perangkat Lokal** | `test_printer_and_drawer` | *(Selalu Lokal)* | Cashier, Admin | Mencetak struk uji coba dan/atau memantik **Cash Drawer** lokal. |
 | **Backup Server** | `backup_database` / `restore_database` | *(Hanya di Server Terminal)* | **Admin** | Mencadangkan (`VACUUM INTO`) atau memulihkan file `pos_kasir.db`. |
+| **Shift Kasir** | `open_shift` | `POST /api/v1/shifts/open` | Cashier, Admin | Membuka shift kasir baru dengan modal awal (`starting_cash`) dan nama terminal; mencegah pembukaan ganda pada terminal yang sama. |
+| **Shift Kasir** | `get_active_shift` | `GET /api/v1/shifts/active` | Cashier, Admin | Mengambil shift kasir aktif berdasarkan kasir atau terminal pemanggil. |
+| **Shift Kasir** | `record_cash_movement` | `POST /api/v1/shifts/cash-movement` | Cashier, Admin | Mencatat mutasi kas masuk/keluar (`CASH_IN` / `CASH_OUT`) selama shift berlangsung. |
+| **Shift Kasir** | `get_shift_x_report` | `GET /api/v1/shifts/x-report` | Cashier, Admin | Menghitung akumulasi kas berjalan (X-Report) secara real-time tanpa menutup shift. |
+| **Shift Kasir** | `close_shift` | `POST /api/v1/shifts/close` | Cashier, Admin | Menutup shift kasir, menghitung selisih kas fisik vs sistem (Z-Report), dan bersifat idempoten terhadap retry jaringan LAN. |
+| **Shift Kasir** | `list_shifts` | `GET /api/v1/shifts/history` | **Admin** | Menampilkan riwayat seluruh shift kasir beserta modal, penjualan tunai, mutasi, dan selisih kas. |
+| **Shift Kasir** | `print_shift_report` | *(Selalu Lokal)* | Cashier, Admin | Mencetak struk laporan Shift kasir (X-Report atau Z-Report) ke printer lokal kasir. |
+| **Stok Opname** | `create_opname_session` | `POST /api/v1/opnames` | **Admin** | Membuka sesi baru stok opname massal. |
+| **Stok Opname** | `list_opname_sessions` | `GET /api/v1/opnames` | **Admin** | Menampilkan daftar seluruh sesi opname beserta status dan total selisihnya. |
+| **Stok Opname** | `get_opname_session_detail` | `GET /api/v1/opnames/:id` | **Admin** | Mengambil rincian sesi opname beserta seluruh baris produk yang telah dihitung fisik. |
+| **Stok Opname** | `record_opname_scan` | `POST /api/v1/opnames/:id/scan` | **Admin** | Menambah hitungan fisik per scan barcode/SKU secara real-time dengan barcode scanner. |
+| **Stok Opname** | `update_opname_item_qty` | `PUT /api/v1/opnames/:id/items` | **Admin** | Mengoreksi atau memasukkan angka hitungan fisik item secara manual. |
+| **Stok Opname** | `commit_opname_session` | `POST /api/v1/opnames/:id/commit` | **Admin** | Mengunci hasil opname dan memperbarui stok master produk secara atomik. |
+| **Stok Opname** | `cancel_opname_session` | `POST /api/v1/opnames/:id/cancel` | **Admin** | Membatalkan sesi opname yang belum dikomit dengan catatan alasan pembatalan. |
+| **Harga Grosir** | `get_product_price_tiers` | `GET /api/v1/products/:id/tiers` | Cashier, Admin | Mengambil daftar aturan harga grosir bertingkat berdasarkan kuantitas beli. |
+| **Harga Grosir** | `set_product_price_tiers` | `PUT /api/v1/products/:id/tiers` | **Admin** | Mengatur tier harga grosir produk (memvalidasi `min_quantity >= 2` dan `tier_price >= cost_price`). |
 
 ---
 

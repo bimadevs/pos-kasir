@@ -132,6 +132,7 @@ pub struct ProductPriceTier {
     pub min_quantity: i64,
     pub tier_price: i64,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -546,6 +547,10 @@ pub struct ProductImportRow {
     pub stock: i64,
     #[serde(default = "default_active_bool")]
     pub is_active: bool,
+    #[serde(default)]
+    pub tier_min_qty: Option<i64>,
+    #[serde(default)]
+    pub tier_price: Option<i64>,
 }
 
 fn default_category_name() -> String {
@@ -607,6 +612,8 @@ pub struct CashMovement {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpenShiftRequest {
     pub opening_float: i64,
+    #[serde(default)]
+    pub terminal_name: Option<String>,
     pub notes: Option<String>,
 }
 
@@ -940,6 +947,7 @@ mod tests {
                 min_quantity: 6,
                 tier_price: 3_500,
                 created_at: "2026-10-28T00:00:00Z".to_string(),
+                updated_at: "2026-10-28T00:00:00Z".to_string(),
             },
             ProductPriceTier {
                 id: "t2".to_string(),
@@ -947,6 +955,7 @@ mod tests {
                 min_quantity: 12,
                 tier_price: 3_200,
                 created_at: "2026-10-28T00:00:00Z".to_string(),
+                updated_at: "2026-10-28T00:00:00Z".to_string(),
             },
         ];
 

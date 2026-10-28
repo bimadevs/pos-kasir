@@ -360,6 +360,8 @@ export interface ProductImportRow {
   discount_value: number;
   stock: number;
   is_active: boolean;
+  tier_min_qty?: number | null;
+  tier_price?: number | null;
 }
 
 export interface ParsedImportRow {

@@ -1097,7 +1097,7 @@ impl CoreService {
 
         let loaded_tiers = {
             let mut tiers_stmt = tx.prepare(
-                "SELECT id, product_id, min_quantity, tier_price, created_at
+                "SELECT id, product_id, min_quantity, tier_price, created_at, updated_at
                  FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
             )?;
             tiers_stmt
@@ -1108,6 +1108,7 @@ impl CoreService {
                         min_quantity: r.get(2)?,
                         tier_price: r.get(3)?,
                         created_at: r.get(4)?,
+                        updated_at: r.get(5)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?
@@ -1122,7 +1123,7 @@ impl CoreService {
     pub fn get_product_price_tiers(&self, product_id: &str) -> AppResult<Vec<ProductPriceTier>> {
         let conn = self.db.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT id, product_id, min_quantity, tier_price, created_at
+            "SELECT id, product_id, min_quantity, tier_price, created_at, updated_at
              FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
         )?;
         let rows = stmt
@@ -1133,6 +1134,7 @@ impl CoreService {
                     min_quantity: r.get(2)?,
                     tier_price: r.get(3)?,
                     created_at: r.get(4)?,
+                    updated_at: r.get(5)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -1149,12 +1151,12 @@ impl CoreService {
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
-        // Pastikan produk ada dan ambil harga jualnya
-        let selling_price: i64 = tx
+        // Pastikan produk ada dan ambil harga jual serta harga modalnya (HPP)
+        let (selling_price, cost_price): (i64, i64) = tx
             .query_row(
-                "SELECT selling_price FROM products WHERE id = ?1",
+                "SELECT selling_price, cost_price FROM products WHERE id = ?1",
                 params![req.product_id],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .map_err(|_| AppError::NotFound("Produk tidak ditemukan.".to_string()))?;
 
@@ -1173,6 +1175,12 @@ impl CoreService {
                 return Err(AppError::Validation(
                     "Harga grosir tier tidak boleh bernilai negatif.".to_string(),
                 ));
+            }
+            if tier.tier_price < cost_price {
+                return Err(AppError::Validation(format!(
+                    "Harga grosir tier (Rp {}) tidak boleh lebih rendah dari harga modal/HPP (Rp {}).",
+                    tier.tier_price, cost_price
+                )));
             }
             if tier.tier_price >= selling_price {
                 return Err(AppError::Validation(
@@ -1195,7 +1203,7 @@ impl CoreService {
 
         let rows = {
             let mut stmt = tx.prepare(
-                "SELECT id, product_id, min_quantity, tier_price, created_at
+                "SELECT id, product_id, min_quantity, tier_price, created_at, updated_at
                  FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
             )?;
             stmt.query_map(params![req.product_id], |r| {
@@ -1205,6 +1213,7 @@ impl CoreService {
                     min_quantity: r.get(2)?,
                     tier_price: r.get(3)?,
                     created_at: r.get(4)?,
+                    updated_at: r.get(5)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?
@@ -1510,7 +1519,7 @@ impl CoreService {
 
             // Load tiered pricing for this product
             let mut tiers_stmt = tx.prepare(
-                "SELECT id, product_id, min_quantity, tier_price, created_at
+                "SELECT id, product_id, min_quantity, tier_price, created_at, updated_at
                  FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
             )?;
             let product_tiers = tiers_stmt
@@ -1521,6 +1530,7 @@ impl CoreService {
                         min_quantity: r.get(2)?,
                         tier_price: r.get(3)?,
                         created_at: r.get(4)?,
+                        updated_at: r.get(5)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
@@ -2441,10 +2451,18 @@ impl CoreService {
             ));
         }
 
+        let effective_terminal = req
+            .terminal_name
+            .as_deref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(terminal_name);
+
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
-        let active_shift: Option<String> = tx
+        // 1. Validasi: Kasir dilarang memiliki shift OPEN ganda
+        let active_cashier_shift: Option<String> = tx
             .query_row(
                 "SELECT id FROM cashier_shifts WHERE cashier_id = ?1 AND status = 'OPEN' LIMIT 1",
                 params![actor.id],
@@ -2452,11 +2470,26 @@ impl CoreService {
             )
             .optional()?;
 
-        if active_shift.is_some() {
+        if active_cashier_shift.is_some() {
             return Err(AppError::Conflict(
                 "Kasir ini masih memiliki shift yang sedang aktif (OPEN). Tutup shift sebelumnya terlebih dahulu."
                     .to_string(),
             ));
+        }
+
+        // 2. Validasi: Terminal dilarang memiliki lebih dari 1 shift OPEN sekaligus
+        let active_terminal_shift: Option<(String, String)> = tx
+            .query_row(
+                "SELECT id, cashier_name_snapshot FROM cashier_shifts WHERE terminal_name = ?1 AND status = 'OPEN' LIMIT 1",
+                params![effective_terminal],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+
+        if let Some((_, active_cashier)) = active_terminal_shift {
+            return Err(AppError::Conflict(format!(
+                "Terminal '{effective_terminal}' masih memiliki shift aktif oleh {active_cashier}. Tutup shift sebelumnya terlebih dahulu."
+            )));
         }
 
         let id = Uuid::new_v4().to_string();
@@ -2470,7 +2503,7 @@ impl CoreService {
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, 0, 'OPEN', ?7, ?8, ?8)",
             params![
                 id,
-                terminal_name,
+                effective_terminal,
                 actor.id,
                 actor.full_name,
                 now,
@@ -2510,6 +2543,34 @@ impl CoreService {
             )
             .optional()?;
         Ok(shift_opt)
+    }
+
+    pub fn get_active_shift_by_terminal_or_cashier(
+        &self,
+        terminal_name: Option<&str>,
+        cashier_id: &str,
+    ) -> AppResult<Option<CashierShift>> {
+        let conn = self.db.lock_conn()?;
+        if let Some(t_name) = terminal_name.filter(|s| !s.trim().is_empty()) {
+            let shift_by_term = conn
+                .query_row(
+                    "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                            opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                            expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                            status, notes, created_at, updated_at
+                     FROM cashier_shifts
+                     WHERE terminal_name = ?1 AND status = 'OPEN'
+                     ORDER BY opened_at DESC LIMIT 1",
+                    params![t_name],
+                    Self::map_shift_row,
+                )
+                .optional()?;
+            if shift_by_term.is_some() {
+                return Ok(shift_by_term);
+            }
+        }
+
+        self.get_active_shift(cashier_id)
     }
 
     pub fn get_shift_by_id(&self, shift_id: &str) -> AppResult<CashierShift> {
@@ -2710,6 +2771,10 @@ impl CoreService {
     pub fn close_shift(&self, _actor: &User, req: &CloseShiftRequest) -> AppResult<CashierShift> {
         let shift = self.get_shift_by_id(&req.shift_id)?;
         if shift.status != "OPEN" {
+            if shift.status == "CLOSED" {
+                // Idempotent (Risk 1 Mitigasi): kembalikan snapshot shift yang sudah dibekukan jika terjadi retry LAN
+                return Ok(shift);
+            }
             return Err(AppError::Validation(
                 "Shift ini sudah ditutup sebelumnya.".to_string(),
             ));
@@ -3275,6 +3340,7 @@ impl CoreService {
         &self,
         actor: &User,
         session_id: &str,
+        reason: &str,
     ) -> AppResult<StockOpnameSession> {
         Self::require_admin(actor)?;
         let session = self.get_opname_session_by_id(session_id)?;
@@ -3285,11 +3351,20 @@ impl CoreService {
             )));
         }
 
+        let reason_clean = reason.trim();
+        let final_notes = if reason_clean.is_empty() {
+            session.notes
+        } else if let Some(existing) = session.notes.filter(|s| !s.trim().is_empty()) {
+            Some(format!("{}\n[Batal: {}]", existing.trim(), reason_clean))
+        } else {
+            Some(format!("[Batal: {}]", reason_clean))
+        };
+
         let now = Self::now_iso();
         let conn = self.db.lock_conn()?;
         conn.execute(
-            "UPDATE stock_opname_sessions SET status = 'CANCELLED', updated_at = ?1 WHERE id = ?2",
-            params![now, session_id],
+            "UPDATE stock_opname_sessions SET status = 'CANCELLED', notes = ?1, updated_at = ?2 WHERE id = ?3",
+            params![final_notes, now, session_id],
         )?;
 
         drop(conn);
@@ -3791,6 +3866,7 @@ mod tests {
                 "Kasir 1",
                 &OpenShiftRequest {
                     opening_float: 50_000,
+                    terminal_name: None,
                     notes: Some("Buka shift pagi".to_string()),
                 },
             )
@@ -3804,10 +3880,23 @@ mod tests {
             "Kasir 1",
             &OpenShiftRequest {
                 opening_float: 10_000,
+                terminal_name: None,
                 notes: None,
             },
         );
         assert!(dup.is_err());
+
+        // 2b. Membuka shift kedua pada terminal yang sama oleh kasir lain (Admin) juga ditolak
+        let term_dup = service.open_shift(
+            &admin,
+            "Kasir 1",
+            &OpenShiftRequest {
+                opening_float: 10_000,
+                terminal_name: None,
+                notes: None,
+            },
+        );
+        assert!(term_dup.is_err());
 
         // 3. Kas Masuk (CASH_IN) Rp 20.000
         let mov_in = service
@@ -3910,6 +3999,20 @@ mod tests {
         assert_eq!(closed.expected_closing_cash, Some(75_000));
         assert_eq!(closed.actual_closing_cash, Some(70_000));
         assert_eq!(closed.cash_discrepancy, Some(-5_000));
+
+        // 9. Pemanggilan close_shift ulang bersifat idempotent (mengembalikan snapshot tanpa error)
+        let closed_again = service
+            .close_shift(
+                &cashier,
+                &CloseShiftRequest {
+                    shift_id: shift.id.clone(),
+                    actual_closing_cash: 70_000,
+                    notes: Some("Retry tutup shift".to_string()),
+                },
+            )
+            .unwrap();
+        assert_eq!(closed_again.status, "CLOSED");
+        assert_eq!(closed_again.actual_closing_cash, Some(70_000));
     }
 
     #[test]
@@ -4016,6 +4119,22 @@ mod tests {
         // 7. Cek stok produk sekarang terupdate otomatis menjadi 18
         let current_prod = service.find_product_by_code(&admin, &prod.sku).unwrap();
         assert_eq!(current_prod.stock, 18);
+
+        // 8. Buat sesi opname kedua lalu batalkan dengan alasan tersimpan di notes
+        let sess2 = service
+            .create_opname_session(
+                &admin,
+                &CreateOpnameSessionRequest {
+                    session_name: Some("Opname Uji Batal".to_string()),
+                    notes: Some("Catatan awal".to_string()),
+                },
+            )
+            .unwrap();
+        let cancelled = service
+            .cancel_opname_session(&admin, &sess2.id, "Toko mendadak ramai kasir")
+            .unwrap();
+        assert_eq!(cancelled.status, "CANCELLED");
+        assert!(cancelled.notes.as_deref().unwrap().contains("Toko mendadak ramai kasir"));
     }
 
     #[test]
@@ -4075,6 +4194,19 @@ mod tests {
         );
         assert!(invalid_tier.is_err());
 
+        // 3b. Validasi tier: tier_price < cost_price (HPP) ditolak guna melindungi margin
+        let below_cost_tier = service.set_product_price_tiers(
+            &admin,
+            &SetPriceTiersRequest {
+                product_id: prod.id.clone(),
+                tiers: vec![PriceTierInput {
+                    min_quantity: 5,
+                    tier_price: 2_500, // < cost_price 3.000
+                }],
+            },
+        );
+        assert!(below_cost_tier.is_err());
+
         // 4. Admin buat shift dulu untuk transaksi
         let shift = service
             .open_shift(
@@ -4082,6 +4214,7 @@ mod tests {
                 "Kasir Server",
                 &OpenShiftRequest {
                     opening_float: 100_000,
+                    terminal_name: None,
                     notes: None,
                 },
             )

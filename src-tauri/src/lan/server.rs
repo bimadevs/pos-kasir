@@ -118,6 +118,7 @@ pub fn build_lan_router(state: LanServerState) -> Router {
         .route("/api/v1/shifts/{id}/x-report", get(handle_get_shift_x_report))
         .route("/api/v1/shifts/close", post(handle_close_shift))
         .route("/api/v1/shifts", get(handle_list_shifts))
+        .route("/api/v1/shifts/history", get(handle_list_shifts))
         .route(
             "/api/v1/opname/sessions",
             get(handle_list_opname_sessions).post(handle_create_opname_session),
@@ -447,12 +448,20 @@ async fn handle_open_shift(
     Ok(Json(shift))
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ActiveShiftQuery {
+    pub terminal_name: Option<String>,
+}
+
 async fn handle_get_active_shift(
     State(state): State<LanServerState>,
     headers: HeaderMap,
+    Query(query): Query<ActiveShiftQuery>,
 ) -> AppResult<Json<Option<CashierShift>>> {
     let (user, _) = authenticate_request(&state.core, &headers)?;
-    let shift = state.core.get_active_shift(&user.id)?;
+    let shift = state
+        .core
+        .get_active_shift_by_terminal_or_cashier(query.terminal_name.as_deref(), &user.id)?;
     Ok(Json(shift))
 }
 
@@ -563,7 +572,9 @@ async fn handle_cancel_opname_session(
     Json(req): Json<CancelOpnameSessionRequest>,
 ) -> AppResult<Json<StockOpnameSession>> {
     let (user, _) = authenticate_request(&state.core, &headers)?;
-    let session = state.core.cancel_opname_session(&user, &req.session_id)?;
+    let session = state
+        .core
+        .cancel_opname_session(&user, &req.session_id, &req.reason)?;
     Ok(Json(session))
 }
 

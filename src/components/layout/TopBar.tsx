@@ -30,7 +30,7 @@ interface NavItem {
 
 export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
   const { user, isAdmin, logout } = useAuth();
-  const { terminalStatus } = useTerminal();
+  const { terminalStatus, activeShift } = useTerminal();
   const [clock, setClock] = useState<string>("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -295,8 +295,27 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
         )}
       </nav>
 
-      {/* Kanan: Kapsul Status Terpadu (LAN & Jam) & Pill Pengguna */}
+      {/* Kanan: Kapsul Status Terpadu (Shift, LAN & Jam) & Pill Pengguna */}
       <div className="flex items-center gap-2.5">
+        {/* Chip Status Shift Kasir Aktif */}
+        {activeShift ? (
+          <div
+            title={`Shift Aktif: Dibuka ${new Date(activeShift.opened_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} oleh ${activeShift.cashier_name_snapshot}`}
+            className="hidden sm:flex items-center gap-1.5 bg-amber-400/20 border border-amber-300/40 rounded-xl px-2.5 py-1 text-xs font-semibold text-amber-200 shadow-inner"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span className="whitespace-nowrap">Shift Aktif</span>
+          </div>
+        ) : (
+          <div
+            title="Belum ada sesi shift kasir aktif di terminal ini"
+            className="hidden sm:flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-600/30 rounded-xl px-2.5 py-1 text-xs font-medium text-emerald-300/70 shadow-inner"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 shrink-0" />
+            <span className="whitespace-nowrap">Shift Tutup</span>
+          </div>
+        )}
+
         {/* Kapsul Status: Indikator LAN & Jam Monospace Tabular-Nums */}
         <div className="flex items-center gap-2.5 bg-emerald-800/90 border border-emerald-600/40 rounded-xl px-3 py-1.5 shadow-inner">
           {lanConnected ? (

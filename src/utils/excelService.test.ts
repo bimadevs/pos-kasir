@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
 import {
+  buildOpnameReportWorkbook,
   buildProductTemplateWorkbook,
   buildProductsExportWorkbook,
   buildSalesReportExportWorkbook,
   parseProductImportExcel,
 } from "./excelService";
-import type { Product, SalesReport } from "../types/domain";
+import type {
+  Product,
+  SalesReport,
+  StockOpnameItem,
+  StockOpnameSession,
+} from "../types/domain";
 
 const sampleProducts: Product[] = [
   {
@@ -312,5 +318,74 @@ describe("excelService — Layanan Excel Ramah Admin Awam", () => {
     expect(result.rows[1].errors.some((e) => e.includes("Harga Modal"))).toBe(true);
     expect(result.rows[1].errors.some((e) => e.includes("Stok"))).toBe(true);
     expect(result.rows[1].errors.some((e) => e.includes("Diskon"))).toBe(true);
+  });
+
+  it("menghasilkan file ekspor rekonsiliasi stok opname 2-sheet (Ringkasan & Rincian Item)", async () => {
+    const mockSession: StockOpnameSession = {
+      id: "opname-123",
+      session_name: "Audit Bulanan ATK",
+      creator_user_id: "u1",
+      creator_name_snapshot: "Admin Bima",
+      status: "COMMITTED",
+      total_items_counted: 2,
+      total_discrepancy_qty: -3,
+      total_discrepancy_value: -15000,
+      committed_by_user_id: "u1",
+      committed_at: "2026-10-28T10:00:00Z",
+      notes: "Audit selesai",
+      created_at: "2026-10-28T08:00:00Z",
+      updated_at: "2026-10-28T10:00:00Z",
+    };
+
+    const mockItems: StockOpnameItem[] = [
+      {
+        id: "item-1",
+        opname_session_id: "opname-123",
+        product_id: "p1",
+        sku: "ATK-001",
+        barcode: "899111",
+        product_name: "Buku Tulis Sidu 38",
+        unit: "pcs",
+        physical_count: 45,
+        system_stock_snapshot: 50,
+        cost_price_snapshot: 3000,
+        discrepancy: -5,
+        discrepancy_cost: -15000,
+        updated_at: "2026-10-28T09:00:00Z",
+      },
+      {
+        id: "item-2",
+        opname_session_id: "opname-123",
+        product_id: "p2",
+        sku: "ATK-002",
+        barcode: "899222",
+        product_name: "Pulpen Faster Hitam",
+        unit: "pcs",
+        physical_count: 22,
+        system_stock_snapshot: 20,
+        cost_price_snapshot: 2500,
+        discrepancy: 2,
+        discrepancy_cost: 5000,
+        updated_at: "2026-10-28T09:05:00Z",
+      },
+    ];
+
+    const wb = buildOpnameReportWorkbook(mockSession, mockItems);
+    expect(wb.worksheets.length).toBe(2);
+
+    const sheet1 = wb.getWorksheet("Ringkasan Sesi");
+    const sheet2 = wb.getWorksheet("Rincian Fisik Item");
+    expect(sheet1).toBeDefined();
+    expect(sheet2).toBeDefined();
+
+    // Verifikasi isi Sheet 1
+    expect(sheet1!.getCell("B2").value).toContain("STOK OPNAME");
+    expect(sheet1!.rowCount).toBeGreaterThanOrEqual(10);
+
+    // Verifikasi isi Sheet 2
+    expect(sheet2!.getRow(1).getCell(1).value).toBe("No");
+    expect(sheet2!.getRow(1).getCell(2).value).toBe("Kode SKU");
+    expect(sheet2!.getRow(2).getCell(2).value).toBe("ATK-001");
+    expect(sheet2!.getRow(2).getCell(8).value).toBe(-5);
   });
 });

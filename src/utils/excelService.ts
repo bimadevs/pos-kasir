@@ -5,6 +5,8 @@ import type {
   ParsedImportSummary,
   Product,
   SalesReport,
+  StockOpnameItem,
+  StockOpnameSession,
 } from "../types/domain";
 
 // Palet Warna & Styling Tema Profesional Mudita Mart POS (Forest Green & Warm Gold)
@@ -82,6 +84,8 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
     { header: "Nilai Diskon", key: "discount_value", width: 16 },
     { header: "Stok Awal", key: "stock", width: 14 },
     { header: "Status Aktif", key: "is_active", width: 16 },
+    { header: "Min. Beli Grosir", key: "tier_min_qty", width: 16 },
+    { header: "Harga Grosir / Satuan", key: "tier_price", width: 22 },
   ];
 
   // Styling Baris Header (Baris 1)
@@ -112,6 +116,8 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
       discount_value: 0,
       stock: 20,
       is_active: "Aktif",
+      tier_min_qty: 10,
+      tier_price: 68000,
     },
     {
       sku: "MYK-001",
@@ -125,6 +131,8 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
       discount_value: 500,
       stock: 35,
       is_active: "Aktif",
+      tier_min_qty: 6,
+      tier_price: 32500,
     },
     {
       sku: "KCP-001",
@@ -138,6 +146,8 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
       discount_value: 5,
       stock: 15,
       is_active: "Aktif",
+      tier_min_qty: "",
+      tier_price: "",
     },
   ];
 
@@ -148,7 +158,7 @@ export function buildProductTemplateWorkbook(): ExcelJS.Workbook {
   }
 
   // Terapkan AutoFilter
-  sheet.autoFilter = "A1:K1";
+  sheet.autoFilter = "A1:M1";
 
   // Data Validation Dropdown pada Kolom Sheet
   // Berlaku untuk 500 baris pertama
@@ -214,6 +224,8 @@ export function buildProductsExportWorkbook(products: Product[]): ExcelJS.Workbo
     { header: "Nilai Diskon", key: "discount_value", width: 16 },
     { header: "Stok", key: "stock", width: 14 },
     { header: "Status Aktif", key: "is_active", width: 16 },
+    { header: "Min. Beli Grosir", key: "tier_min_qty", width: 16 },
+    { header: "Harga Grosir / Satuan", key: "tier_price", width: 22 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -230,6 +242,7 @@ export function buildProductsExportWorkbook(products: Product[]): ExcelJS.Workbo
   });
 
   products.forEach((p, index) => {
+    const activeTier = p.price_tiers && p.price_tiers.length > 0 ? p.price_tiers[0] : null;
     const row = sheet.addRow({
       sku: p.sku,
       barcode: p.barcode ?? "",
@@ -242,6 +255,8 @@ export function buildProductsExportWorkbook(products: Product[]): ExcelJS.Workbo
       discount_value: p.discount_value,
       stock: p.stock,
       is_active: p.is_active ? "Aktif" : "Nonaktif",
+      tier_min_qty: activeTier ? activeTier.min_quantity : "",
+      tier_price: activeTier ? activeTier.tier_price : "",
     });
 
     row.height = 22;
@@ -258,7 +273,7 @@ export function buildProductsExportWorkbook(products: Product[]): ExcelJS.Workbo
     }
   });
 
-  sheet.autoFilter = "A1:K1";
+  sheet.autoFilter = "A1:M1";
 
   // Tambahkan Sheet Petunjuk & Aturan
   buildGuideSheet(wb);
@@ -584,6 +599,14 @@ export async function parseProductImportExcel(
       ["statusaktif", "status", "isactive", "aktif"].includes(cleanKey)
     ) {
       headerMap["is_active"] = colNumber;
+    } else if (
+      ["minbeligrosir", "mingrosir", "qtygrosir", "minimumgrosir", "tierminqty"].includes(cleanKey)
+    ) {
+      headerMap["tier_min_qty"] = colNumber;
+    } else if (
+      ["hargagrosir", "hargatier", "tierprice", "grosir"].includes(cleanKey)
+    ) {
+      headerMap["tier_price"] = colNumber;
     }
   });
 
@@ -747,6 +770,30 @@ export async function parseProductImportExcel(
       }
     }
 
+    // 12. Harga Grosir Bertingkat (Opsional)
+    let tierMinQty: number | null = null;
+    let tierPrice: number | null = null;
+    if (headerMap["tier_min_qty"] && headerMap["tier_price"]) {
+      const parsedMin = parseNumericCurrency(row.getCell(headerMap["tier_min_qty"]));
+      const parsedPrice = parseNumericCurrency(row.getCell(headerMap["tier_price"]));
+      if (parsedMin !== null && parsedPrice !== null && (parsedMin > 0 || parsedPrice > 0)) {
+        if (parsedMin < 2) {
+          rowErrors.push("Kuantitas minimal grosir harus minimal 2 unit.");
+        } else if (parsedPrice < costPrice) {
+          rowErrors.push(
+            `Harga grosir (Rp ${parsedPrice.toLocaleString("id-ID")}) tidak boleh di bawah HPP (Rp ${costPrice.toLocaleString("id-ID")}).`,
+          );
+        } else if (parsedPrice >= sellingPrice) {
+          rowErrors.push(
+            `Harga grosir (Rp ${parsedPrice.toLocaleString("id-ID")}) harus lebih murah dari harga jual (Rp ${sellingPrice.toLocaleString("id-ID")}).`,
+          );
+        } else {
+          tierMinQty = parsedMin;
+          tierPrice = parsedPrice;
+        }
+      }
+    }
+
     const isNew = !existingSkuMap.has(sku.toLowerCase());
     const isValid = rowErrors.length === 0;
 
@@ -775,6 +822,8 @@ export async function parseProductImportExcel(
         discount_value: discountValue,
         stock,
         is_active: isActive,
+        tier_min_qty: tierMinQty,
+        tier_price: tierPrice,
       },
     });
   }
@@ -787,6 +836,195 @@ export async function parseProductImportExcel(
     errorCount,
     isValid: errorCount === 0 && parsedRows.length > 0,
   };
+}
+
+/**
+ * Membangun lembar kerja laporan audit rekonsiliasi stok opname 2-sheet:
+ * - Sheet 1: 'Ringkasan Sesi' (Metadata sesi opname, status, hitungan agregat, nilai nominal selisih HPP)
+ * - Sheet 2: 'Rincian Fisik Item' (Daftar seluruh item, stok sistem vs fisik, selisih qty, dan nilai rupiah)
+ */
+export function buildOpnameReportWorkbook(
+  session: StockOpnameSession,
+  items: StockOpnameItem[],
+): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
+  wb.created = new Date();
+  wb.modified = new Date();
+
+  // --------------------------------------------------------------------------
+  // SHEET 1: RINGKASAN SESI
+  // --------------------------------------------------------------------------
+  const sheetSummary = wb.addWorksheet("Ringkasan Sesi");
+  sheetSummary.views = [{ showGridLines: true }];
+  sheetSummary.columns = [
+    { width: 4 },
+    { header: "", width: 28 },
+    { header: "", width: 44 },
+    { header: "", width: 20 },
+  ];
+
+  sheetSummary.mergeCells("B2:D2");
+  const titleCell = sheetSummary.getCell("B2");
+  titleCell.value = "MUDITA MART — LAPORAN REKONSILIASI STOK OPNAME FISIK";
+  titleCell.font = { bold: true, size: 13, color: { argb: THEME_PRIMARY_NAVY } };
+  titleCell.alignment = { vertical: "middle" };
+
+  sheetSummary.mergeCells("B3:D3");
+  const subCell = sheetSummary.getCell("B3");
+  subCell.value = `Sesi: ${session.session_name} • Dibuat: ${new Date(session.created_at).toLocaleDateString("id-ID", { dateStyle: "long" })}`;
+  subCell.font = { italic: true, size: 10, color: { argb: "FF64748B" } };
+
+  const metaRows: [string, string][] = [
+    ["ID Sesi Opname", session.id],
+    ["Nama Sesi", session.session_name],
+    ["Petugas Pembuat", session.creator_name_snapshot],
+    ["Waktu Pembuatan", new Date(session.created_at).toLocaleString("id-ID")],
+    ["Status Sesi", session.status],
+    ["Waktu Commit / Selesai", session.committed_at ? new Date(session.committed_at).toLocaleString("id-ID") : "-"],
+    ["Catatan Sesi", session.notes || "-"],
+  ];
+
+  sheetSummary.getCell("B5").value = "INFORMASI SESI OPNAME";
+  sheetSummary.mergeCells("B5:C5");
+  sheetSummary.getCell("B5").font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 10 };
+  sheetSummary.getCell("B5").fill = { type: "pattern", pattern: "solid", fgColor: { argb: THEME_PRIMARY_NAVY } };
+  sheetSummary.getCell("B5").alignment = { vertical: "middle" };
+
+  metaRows.forEach(([label, val], idx) => {
+    const r = 6 + idx;
+    const cLabel = sheetSummary.getCell(`B${r}`);
+    const cVal = sheetSummary.getCell(`C${r}`);
+    cLabel.value = label;
+    cLabel.font = { bold: true, size: 9 };
+    cLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+    cLabel.border = thinBorder;
+    cVal.value = val;
+    cVal.font = { size: 9 };
+    cVal.border = thinBorder;
+  });
+
+  const startKpiRow = 6 + metaRows.length + 1;
+  sheetSummary.getCell(`B${startKpiRow}`).value = "RINGKASAN AUDIT INVENTARIS";
+  sheetSummary.mergeCells(`B${startKpiRow}:C${startKpiRow}`);
+  sheetSummary.getCell(`B${startKpiRow}`).font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 10 };
+  sheetSummary.getCell(`B${startKpiRow}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: THEME_ACCENT_GREEN } };
+
+  const surplusCount = items.filter((i) => i.discrepancy > 0).length;
+  const deficitCount = items.filter((i) => i.discrepancy < 0).length;
+  const matchedCount = items.filter((i) => i.discrepancy === 0).length;
+
+  const kpis: [string, string | number, string][] = [
+    ["Total SKU Terhitung", items.length, "#,##0"],
+    ["SKU Sesuai Fisik & Sistem", matchedCount, "#,##0"],
+    ["SKU Selisih Kurang (Loss/Defisit)", deficitCount, "#,##0"],
+    ["SKU Selisih Lebih (Surplus)", surplusCount, "#,##0"],
+    ["Total Selisih Kuantitas Fisik", session.total_discrepancy_qty, "+#,##0;-#,##0;0"],
+    ["Estimasi Nominal Selisih HPP", session.total_discrepancy_value, '"Rp" #,##0'],
+  ];
+
+  kpis.forEach(([label, val, fmt], idx) => {
+    const r = startKpiRow + 1 + idx;
+    const cLabel = sheetSummary.getCell(`B${r}`);
+    const cVal = sheetSummary.getCell(`C${r}`);
+    cLabel.value = label;
+    cLabel.font = { bold: true, size: 10 };
+    cLabel.border = thinBorder;
+    cVal.value = val;
+    cVal.numFmt = fmt;
+    cVal.font = { bold: true, size: 10, color: { argb: idx === 5 ? (Number(val) < 0 ? "FFE11D48" : "FF15803D") : "FF0F172A" } };
+    cVal.alignment = { horizontal: "right" };
+    cVal.border = thinBorder;
+  });
+
+  // --------------------------------------------------------------------------
+  // SHEET 2: RINCIAN FISIK ITEM
+  // --------------------------------------------------------------------------
+  const sheetItems = wb.addWorksheet("Rincian Fisik Item", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  sheetItems.columns = [
+    { header: "No", key: "no", width: 6 },
+    { header: "Kode SKU", key: "sku", width: 18 },
+    { header: "Barcode", key: "barcode", width: 22 },
+    { header: "Nama Produk", key: "name", width: 36 },
+    { header: "Satuan", key: "unit", width: 12 },
+    { header: "Stok Sistem", key: "system_stock", width: 16 },
+    { header: "Hitungan Fisik", key: "physical_count", width: 16 },
+    { header: "Selisih Qty", key: "discrepancy", width: 16 },
+    { header: "HPP Snapshot", key: "cost_price", width: 18 },
+    { header: "Nilai Selisih HPP", key: "discrepancy_cost", width: 22 },
+    { header: "Status Selisih", key: "status_label", width: 20 },
+  ];
+
+  const headerRow = sheetItems.getRow(1);
+  headerRow.height = 28;
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 11 };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: THEME_PRIMARY_NAVY } };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = thinBorder;
+  });
+
+  items.forEach((item, index) => {
+    const statusLabel =
+      item.discrepancy === 0
+        ? "SESUAI"
+        : item.discrepancy < 0
+        ? "KURANG (DEFISIT)"
+        : "LEBIH (SURPLUS)";
+
+    const row = sheetItems.addRow({
+      no: index + 1,
+      sku: item.sku,
+      barcode: item.barcode || "",
+      name: item.product_name,
+      unit: item.unit,
+      system_stock: item.system_stock_snapshot,
+      physical_count: item.physical_count,
+      discrepancy: item.discrepancy,
+      cost_price: item.cost_price_snapshot,
+      discrepancy_cost: item.discrepancy_cost,
+      status_label: statusLabel,
+    });
+
+    row.height = 22;
+    row.getCell("no").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("sku").numFmt = "@";
+    row.getCell("barcode").numFmt = "@";
+    row.getCell("unit").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("system_stock").numFmt = "#,##0";
+    row.getCell("physical_count").numFmt = "#,##0";
+    row.getCell("discrepancy").numFmt = "+#,##0;-#,##0;0";
+    row.getCell("cost_price").numFmt = '"Rp" #,##0';
+    row.getCell("discrepancy_cost").numFmt = '"Rp" #,##0';
+    row.getCell("status_label").alignment = { horizontal: "center", vertical: "middle" };
+
+    row.eachCell((cell) => {
+      cell.border = thinBorder;
+    });
+
+    if (item.discrepancy < 0) {
+      row.getCell("discrepancy").font = { bold: true, color: { argb: "FFE11D48" } };
+      row.getCell("discrepancy_cost").font = { bold: true, color: { argb: "FFE11D48" } };
+    } else if (item.discrepancy > 0) {
+      row.getCell("discrepancy").font = { bold: true, color: { argb: "FF15803D" } };
+      row.getCell("discrepancy_cost").font = { bold: true, color: { argb: "FF15803D" } };
+    }
+
+    if (index % 2 === 1) {
+      row.eachCell((cell) => {
+        if (!cell.fill) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: THEME_ZEBRA_ROW } };
+        }
+      });
+    }
+  });
+
+  sheetItems.autoFilter = "A1:K1";
+  return wb;
 }
 
 /**
@@ -821,12 +1059,14 @@ function applyProductRowFormatting(row: ExcelJS.Row): void {
   row.getCell("selling_price").numFmt = '"Rp" #,##0';
   row.getCell("discount_value").numFmt = "#,##0";
   row.getCell("stock").numFmt = "#,##0";
+  row.getCell("tier_min_qty").numFmt = "#,##0";
+  row.getCell("tier_price").numFmt = '"Rp" #,##0';
 
   row.eachCell((cell, colNum) => {
     cell.border = thinBorder;
-    if ([1, 2, 4, 5, 8, 11].includes(colNum)) {
+    if ([1, 2, 4, 5, 8, 11, 12].includes(colNum)) {
       cell.alignment = { horizontal: "center", vertical: "middle" };
-    } else if ([6, 7, 9, 10].includes(colNum)) {
+    } else if ([6, 7, 9, 10, 13].includes(colNum)) {
       cell.alignment = { horizontal: "right", vertical: "middle" };
     } else {
       cell.alignment = { horizontal: "left", vertical: "middle" };
@@ -898,6 +1138,14 @@ function buildGuideSheet(wb: ExcelJS.Workbook): void {
     [
       "Status Aktif",
       "Pilih 'Aktif' agar dapat dijual di kasir, atau 'Nonaktif' untuk mengarsipkan barang.",
+    ],
+    [
+      "Min. Beli Grosir",
+      "OPSIONAL. Kuantitas minimal pembelian untuk memicu harga grosir bertingkat (minimal 2 unit). Kosongkan jika produk tidak memiliki harga grosir.",
+    ],
+    [
+      "Harga Grosir / Satuan",
+      "OPSIONAL. Harga satuan khusus grosir saat jumlah beli mencapai minimal grosir. Wajib >= HPP dan < Harga Jual reguler.",
     ],
   ];
 

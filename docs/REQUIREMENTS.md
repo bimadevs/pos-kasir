@@ -42,6 +42,14 @@ Untuk satu transaksi **Sale**:
 - Penyimpanan **Held Bill** tidak mengubah nilai `product.stock`.
 - Eksekusi **Void** pada **Sale** berstatus `COMPLETED` menambahkan kembali $\text{qty}$ masing-masing **Line Item** ke `product.stock`.
 
+### `BR-04` — Prioritas Harga Bertingkat / Grosir (Tiered Pricing)
+- Skema harga grosir bertingkat disimpan per produk dengan ketentuan $\text{min\_quantity} \ge 2$ dan $\text{cost\_price} \le \text{tier\_price} < \text{selling\_price}$.
+- Saat kuantitas item dalam keranjang belanja kasir mencapai ambang batas tier grosir tertinggi yang memenuhi syarat ($\text{qty} \ge \text{tier.min\_quantity}$):
+  - Harga satuan efektif dihitung berdasarkan harga tier: $\text{effective\_unit\_price} = \text{tier.tier\_price}$.
+  - Diskon promo reguler dinonaktifkan secara otomatis ($\text{unit\_discount\_amount} = 0$) guna memproteksi margin laba minimarket dari diskon ganda di bawah HPP.
+  - $\text{line\_subtotal} = \text{tier.tier\_price} \times \text{qty}$.
+  - Total penghematan pembeli dicatat secara transparan: $\text{savings\_total} = (\text{selling\_price} \times \text{qty}) - \text{line\_subtotal}$.
+
 ---
 
 ## 2. Kebutuhan Fungsional (`FR`)
@@ -120,6 +128,29 @@ Untuk satu transaksi **Sale**:
 | `FR-HW-01` | Cetak Struk Raw ESC/POS & **Cash Drawer** | Setiap terminal dapat memilih printer dari daftar printer Windows yang terinstal, memilih lebar kertas (`58mm` / `80mm`), mengaktifkan/menonaktifkan buka laci uang otomatis saat **Sale** selesai, dan menjalankan **Test Print** serta **Test Buka Laci**. |
 | `FR-HW-02` | Mode Pratinjau Struk di Layar | Jika printer belum dipilih atau opsi *Tampilkan Pratinjau Struk di Layar* diaktifkan, sistem menampilkan visualisasi struk thermal di layar setelah transaksi selesai. |
 | `FR-SYS-01` | Backup & Restore Database SQLite | Pada **Server Terminal**, **Admin** dapat mencadangkan (*backup*) database SQLite menggunakan mekanisme `VACUUM INTO` / Online Backup API ke lokasi file pilihan pengguna (agar aman walau server sedang aktif), serta melakukan *restore* dari file backup valid. |
+
+### 2.10. Manajemen Shift Kasir & Rekap Kas Laci (`FR-SHIFT`)
+
+| ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
+| :--- | :--- | :--- |
+| `FR-SHIFT-01` | Modal Awal (Opening Float) & Pembatas Shift | Kasir wajib menginput modal awal kas laci (`opening_float >= 0`) sebelum dapat memproses transaksi pertama. Sistem menolak pembukaan shift ganda pada kasir yang sama atau terminal yang sama. |
+| `FR-SHIFT-02` | Mutasi Kas Operasional Laci (`F7`) | Kasir dapat mencatat mutasi kas masuk (`CASH_IN`) atau pengeluaran kas (`CASH_OUT`) dengan validasi batas saldo kas laci berjalan (`opening_float + net_cash_sales + cash_in - cash_out`). Pengeluaran melebihi kas laci ditolak. |
+| `FR-SHIFT-03` | Laporan X & Rekonsiliasi Tutup Shift (*Blind Close*) | Kasir dapat mencetak Laporan X sewaktu-waktu untuk audit perantara. Saat tutup shift, kasir memasukkan uang fisik laci tanpa diperlihatkan saldo kas sistem (*Blind Close*). Sistem menghitung selisih kas fisik (`cash_discrepancy = actual - expected`), mencetak struk Z-Report permanen, dan membuka laci kasir RJ11 secara otomatis. |
+
+### 2.11. Audit Stok Opname Fisik Massal (`FR-OPNAME`)
+
+| ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
+| :--- | :--- | :--- |
+| `FR-OPNAME-01` | Sesi Opname & *Shift Freeze* Transaksi | Admin dapat membuat sesi opname fisik baru dengan status `COUNTING`. Selama sesi aktif, transaksi penjualan pada produk yang diaudit dibekukan sementara (*Shift Freeze*) guna menjamin kepastian mutasi stok. |
+| `FR-OPNAME-02` | Pemindaian Barcode Berulang & Tabel Selisih | Petugas toko dapat memindai barcode produk berulang kali untuk mengakumulasikan hitungan fisik. Sistem menampilkan tabel perbandingan real-time: Stok Sistem, Hitungan Fisik, Selisih Kuantitas, dan Nilai Nominal Kerugian/Keuntungan HPP. |
+| `FR-OPNAME-03` | Commit Atomik Berizin PIN Admin & Ekspor Excel | Sinkronisasi perubahan stok ke katalog produk dieksekusi secara atomik (`BEGIN IMMEDIATE`) setelah Admin memasukkan PIN otorisasi valid. Sistem mencatat riwayat mutasi ke `stock_adjustments` dan menyediakan tombol unduh laporan rekonsiliasi Excel 2-sheet. |
+
+### 2.12. Diskon Grosir Bertingkat (`FR-TIER`)
+
+| ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
+| :--- | :--- | :--- |
+| `FR-TIER-01` | Konfigurasi Tier Harga per Produk | Admin dapat menentukan batas minimal kuantitas (`min_quantity >= 2`) dan harga grosir khusus (`cost_price <= tier_price < selling_price`) langsung dari katalog produk dan impor template Excel. |
+| `FR-TIER-02` | Penerapan Otomatis di Kasir & Struk ESC/POS | Kasir yang menginput kuantitas grosir otomatis mendapatkan harga tier sesuai aturan `BR-04`. Layar kasir dan struk cetak ESC/POS menampilkan harga grosir satuan dan rincian penghematan secara transparan. |
 
 ---
 

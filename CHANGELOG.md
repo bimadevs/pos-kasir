@@ -3,6 +3,35 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.1] - 2026-10-28
+
+### Added
+- **Ekspor Excel Laporan Opname 2-Sheet (`buildOpnameReportWorkbook`)**:
+  - Format laporan rekonsiliasi audit fisik berbasis `ExcelJS` dengan 2 lembar kerja profesional: Sheet 1 (*Ringkasan Sesi* dengan kartu KPI finansial & metadata) dan Sheet 2 (*Rincian Fisik Item* dengan formatting moneter, HPP, hitungan fisik vs sistem, serta selisih kuantitas/nilai).
+  - Tombol aksi "Unduh Excel (2-Sheet)" pada header tampilan audit opname massal (`MassOpnameView.tsx`).
+- **Dukungan Harga Grosir Bertingkat pada Impor & Ekspor Excel**:
+  - Kolom `Min. Beli Grosir` dan `Harga Grosir / Satuan` pada template impor, ekspor produk, dan parser Excel di `excelService.ts`.
+  - Integrasi penyimpanan aturan tier harga grosir otomatis saat proses impor produk massal (`import_products_rows`).
+- **Detail Harga Grosir pada Struk Kasir & Pratinjau**:
+  - Struk thermal ESC/POS (`append_line_item_text`) dan pratinjau struk (`ReceiptPreviewModal.tsx`) kini menampilkan harga satuan grosir, total harga grosir, dan baris penghematan `↳ [Harga Grosir] (Hemat Rp ...)`.
+- **Indikator Status Shift Kasir Aktif**:
+  - Chip status shift kasir (`Shift Aktif` / `Shift Tutup`) pada `TopBar.tsx` yang bersumber langsung dari `useTerminal().activeShift`.
+
+### Fixed
+- **Validasi Batas Bawah HPP Harga Grosir**:
+  - Validasi ketat `tier_price >= cost_price` pada backend (`core_service.rs`) dan antarmuka client (`ProductsPage.tsx`) untuk melindungi margin toko dari penjualan di bawah harga pokok penjualan.
+- **Idempotensi Penutupan Shift Kasir (`close_shift`)**:
+  - Penutupan shift berulang pada shift yang sudah berstatus `CLOSED` kini mengembalikan data shift yang telah dibekukan secara aman (`Ok(shift)`), menjamin ketahanan terhadap retry jaringan LAN saat terjadi partisi koneksi.
+- **Pemeriksaan Konkurensi Terminal pada Pembukaan Shift (`open_shift`)**:
+  - Menolak pembukaan shift baru pada terminal yang sudah memiliki shift aktif berstatus `OPEN`, mencegah benturan kasir pada terminal fisik yang sama.
+- **Pencatatan Alasan Pembatalan Opname (`cancel_opname_session`)**:
+  - Meneruskan dan mencatat alasan pembatalan sesi opname ke kolom `notes` tabel `stock_opname_sessions` (`[Batal: <reason>]`).
+- **Sinkronisasi Rute LAN & Query Parameter**:
+  - Mendaftarkan rute alias `GET /api/v1/shifts/history` dan mendukung parameter `?terminal_name=...` pada `GET /api/v1/shifts/active`.
+- **Sinkronisasi Dokumen Spesifikasi Inti SDD**:
+  - Memperbarui skema DDL SQLite (tabel 8–12), indeks, dan tabel kontrak IPC/HTTP Section 4.1 pada `docs/SYSTEM-DESIGN.md`.
+  - Menambahkan rumus bisnis `BR-04` serta kriteria fungsional `FR-SHIFT-01..03`, `FR-OPNAME-01..03`, dan `FR-TIER-01..02` pada `docs/REQUIREMENTS.md`.
+
 ## [1.1.0] - 2026-10-28
 
 ### Added
