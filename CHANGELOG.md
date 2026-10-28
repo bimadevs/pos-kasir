@@ -3,6 +3,29 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.0] - 2026-10-28
+
+### Added
+- **Retail Operations Suite (Modul Operasional Ritel Lanjutan)**:
+  - **Manajemen Shift Kasir & Rekap Kas Laci (Cashier Shifts & Drawer Reconciliation)**:
+    - Siklus shift kasir mandiri (`cashier_shifts`): pembukaan shift modal awal (`opening_float`), pencatatan mutasi kas masuk/keluar (`cash_movements` / `F7`) dengan validasi solvabilitas kas laci, dan penutupan shift metode *Blind Close* tanpa bocoran angka sistem.
+    - Laporan X (Ringkasan penjualan shift berjalan) dan Laporan Z (Rekap audit resmi tutup shift) dengan kalkulasi selisih kas fisik (*cash discrepancy*).
+    - Otomatisasi kick drawer pulsa RJ11 ESC/POS pada penutupan shift dan pencetakan struk audit thermal 58mm/80mm.
+    - Tab "Rekap Shift & Kas Laci" pada halaman Laporan (`ReportsPage.tsx`).
+  - **Alur Stok Opname Fisik Massal (Mass Physical Stock Opname)**:
+    - Sesi audit fisik toko (`stock_opname_sessions` & `stock_opname_items`) dengan snapshot stok sistem beku.
+    - Mode pemindaian USB barcode scanner: Mode ADD (`+1` count per scan) dan Mode REPLACE (input kuantitas fisik pasti).
+    - Tabel rekonsiliasi selisih stok (Surplus vs Defisit) dan valuasi nominal HPP finansial real-time.
+    - Otorisasi komit atomik (`commit_opname_session`) terlindungi PIN Admin dengan pencatatan otomatis ke mutasi inventaris SQLite.
+    - Tab "Audit Opname Fisik Massal" pada halaman Penyesuaian Stok (`StockAdjustmentPage.tsx`).
+  - **Diskon Grosir / Harga Bertingkat (Tiered Pricing & BR-04 Integration)**:
+    - Konfigurasi tier harga grosir (`product_price_tiers`) berbasis kuantitas minimum (`min_quantity >= 2`, `tier_price < selling_price`).
+    - Evaluasi otomatis kuantitas keranjang kasir (`posCalculator.ts` & `core_service.rs`): saat syarat kuantitas grosir terpenuhi, harga grosir menggantikan diskon reguler demi menjaga profit margin toko.
+    - Tab "Harga Grosir / Bertingkat" pada formulir produk (`ProductsPage.tsx`).
+    - Lencana "Grosir" dan petunjuk hemat upselling pada tabel keranjang kasir (`CartTable.tsx`).
+  - **Dukungan Dual-Mode LAN**:
+    - Seluruh endpoint shift, opname massal, dan harga bertingkat didukung penuh pada topologi Dual-Mode LAN (Axum REST API Server & Reqwest HTTP Client) dengan delegasi transparan via `BackendDispatcher`.
+
 ## [1.0.0] - 2026-10-24
 
 ### Added

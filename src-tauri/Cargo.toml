@@ -1,6 +1,6 @@
 [package]
 name = "kassio"
-version = "1.0.0"
+version = "1.1.0"
 description = "Mudita Mart Point of Sale"
 authors = ["you"]
 edition = "2024"

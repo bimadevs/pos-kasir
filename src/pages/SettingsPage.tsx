@@ -139,6 +139,7 @@ export const SettingsPage: React.FC = () => {
           is_reprint: false,
           sale: {
             id: "test",
+            shift_id: null,
             receipt_number: "TEST-PRINT-0001",
             cashier_id: "test",
             cashier_name_snapshot: "Test Printer",

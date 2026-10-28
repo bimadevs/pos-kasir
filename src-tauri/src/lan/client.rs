@@ -2,10 +2,14 @@ use crate::error::{AppError, AppResult};
 use crate::lan::middleware::{HEADER_PAIRING_CODE, HEADER_SESSION_TOKEN, HEADER_TERMINAL_NAME};
 use crate::lan::server::{CsvPayload, ImportProductsPayload};
 use crate::models::{
-    AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
-    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
-    SalesReportFilter, StockAdjustment, StoreSettings, UpdateStoreSettingsRequest,
+    AuthSession, CancelOpnameSessionRequest, CashMovement, CashMovementRequest, CashierShift,
+    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
+    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
+    HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, OpenShiftRequest,
+    OpnameSessionDetail, Product, ProductFilter, ProductImportRow, ProductPriceTier,
+    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, SaleWithItems, SalesReport,
+    SalesReportFilter, SetPriceTiersRequest, ShiftReportData, StockAdjustment, StockOpnameItem,
+    StockOpnameSession, StoreSettings, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest,
     UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use reqwest::{Client, Method, RequestBuilder, Response};
@@ -375,6 +379,198 @@ impl RemoteHttpClient {
     ) -> AppResult<StoreSettings> {
         let resp = self
             .request(Method::PUT, "/api/v1/store-settings", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    // --- Shift Kasir & Rekap Kas Laci ---
+    pub async fn open_shift(&self, token: &str, req: &OpenShiftRequest) -> AppResult<CashierShift> {
+        let resp = self
+            .request(Method::POST, "/api/v1/shifts/open", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn get_active_shift(&self, token: &str) -> AppResult<Option<CashierShift>> {
+        let resp = self
+            .request(Method::GET, "/api/v1/shifts/active", Some(token))
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn record_cash_movement(
+        &self,
+        token: &str,
+        req: &CashMovementRequest,
+    ) -> AppResult<CashMovement> {
+        let resp = self
+            .request(Method::POST, "/api/v1/shifts/movement", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn get_shift_x_report(
+        &self,
+        token: &str,
+        shift_id: &str,
+    ) -> AppResult<ShiftReportData> {
+        let path = format!("/api/v1/shifts/{shift_id}/x-report");
+        let resp = self.request(Method::GET, &path, Some(token)).send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn close_shift(&self, token: &str, req: &CloseShiftRequest) -> AppResult<CashierShift> {
+        let resp = self
+            .request(Method::POST, "/api/v1/shifts/close", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_shifts(
+        &self,
+        token: &str,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> AppResult<Vec<CashierShift>> {
+        let mut req = self.request(Method::GET, "/api/v1/shifts", Some(token));
+        if let Some(s) = start_date {
+            req = req.query(&[("start_date", s)]);
+        }
+        if let Some(e) = end_date {
+            req = req.query(&[("end_date", e)]);
+        }
+        let resp = req.send().await?;
+        Self::parse_response(resp).await
+    }
+
+    // --- Alur Stok Opname Fisik Massal ---
+    pub async fn create_opname_session(
+        &self,
+        token: &str,
+        req: &CreateOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let resp = self
+            .request(Method::POST, "/api/v1/opname/sessions", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_opname_sessions(
+        &self,
+        token: &str,
+        status: Option<&str>,
+    ) -> AppResult<Vec<StockOpnameSession>> {
+        let mut req = self.request(Method::GET, "/api/v1/opname/sessions", Some(token));
+        if let Some(st) = status {
+            req = req.query(&[("status", st)]);
+        }
+        let resp = req.send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn get_opname_session_detail(
+        &self,
+        token: &str,
+        session_id: &str,
+    ) -> AppResult<OpnameSessionDetail> {
+        let path = format!("/api/v1/opname/sessions/{session_id}");
+        let resp = self.request(Method::GET, &path, Some(token)).send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn record_opname_scan(
+        &self,
+        token: &str,
+        req: &RecordOpnameScanRequest,
+    ) -> AppResult<StockOpnameItem> {
+        let resp = self
+            .request(Method::POST, "/api/v1/opname/scan", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn update_opname_item_qty(
+        &self,
+        token: &str,
+        item_id: &str,
+        physical_count: i64,
+    ) -> AppResult<StockOpnameItem> {
+        let path = format!("/api/v1/opname/items/{item_id}");
+        let req = UpdateOpnameItemQtyRequest {
+            item_id: item_id.to_string(),
+            physical_count,
+        };
+        let resp = self
+            .request(Method::PUT, &path, Some(token))
+            .json(&req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn commit_opname_session(
+        &self,
+        token: &str,
+        req: &CommitOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let resp = self
+            .request(Method::POST, "/api/v1/opname/commit", Some(token))
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn cancel_opname_session(
+        &self,
+        token: &str,
+        session_id: &str,
+        reason: &str,
+    ) -> AppResult<StockOpnameSession> {
+        let req = CancelOpnameSessionRequest {
+            session_id: session_id.to_string(),
+            reason: reason.to_string(),
+        };
+        let resp = self
+            .request(Method::POST, "/api/v1/opname/cancel", Some(token))
+            .json(&req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    // --- Harga Bertingkat / Tiered Pricing ---
+    pub async fn get_product_price_tiers(
+        &self,
+        token: &str,
+        product_id: &str,
+    ) -> AppResult<Vec<ProductPriceTier>> {
+        let path = format!("/api/v1/products/{product_id}/tiers");
+        let resp = self.request(Method::GET, &path, Some(token)).send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn set_product_price_tiers(
+        &self,
+        token: &str,
+        req: &SetPriceTiersRequest,
+    ) -> AppResult<Vec<ProductPriceTier>> {
+        let path = format!("/api/v1/products/{}/tiers", req.product_id);
+        let resp = self
+            .request(Method::PUT, &path, Some(token))
             .json(req)
             .send()
             .await?;

@@ -498,6 +498,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(50),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -524,6 +525,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(10),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();

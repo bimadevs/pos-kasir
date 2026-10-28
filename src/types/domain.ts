@@ -104,6 +104,7 @@ export interface Product {
   effective_unit_price: number;
   stock: number;
   is_active: boolean;
+  price_tiers?: ProductPriceTier[];
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +128,7 @@ export interface UpsertProductRequest {
   discount_value: number;
   initial_stock?: number | null;
   is_active?: boolean | null;
+  price_tiers?: PriceTierInput[] | null;
 }
 
 export interface StockAdjustment {
@@ -163,6 +165,7 @@ export interface Sale {
   total_amount: number;
   cash_received: number;
   change_amount: number;
+  shift_id: string | null;
   status: SaleStatus;
   voided_by_user_id: string | null;
   voided_by_name_snapshot: string | null;
@@ -186,6 +189,8 @@ export interface SaleLineItem {
   discount_type_snapshot: DiscountType;
   discount_value_snapshot: number;
   unit_discount_amount: number;
+  applied_tier_min_qty: number | null;
+  applied_tier_price: number | null;
   subtotal: number;
 }
 
@@ -386,3 +391,158 @@ export type AppNavTab =
   | "REPORTS"
   | "USERS"
   | "SETTINGS";
+
+// ============================================================================
+// 9. Manajemen Shift Kasir & Rekap Kas Laci (Shift Float & Cash Movements)
+// ============================================================================
+
+export interface CashierShift {
+  id: string;
+  terminal_name: string;
+  cashier_id: string;
+  cashier_name_snapshot: string;
+  opened_at: string;
+  closed_at: string | null;
+  opening_float: number;
+  cash_sales_total: number;
+  cash_in_total: number;
+  cash_out_total: number;
+  expected_closing_cash: number | null;
+  actual_closing_cash: number | null;
+  cash_discrepancy: number | null;
+  status: "OPEN" | "CLOSED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashMovement {
+  id: string;
+  shift_id: string;
+  movement_type: "CASH_IN" | "CASH_OUT";
+  amount: number;
+  reason: string;
+  created_at: string;
+}
+
+export interface OpenShiftRequest {
+  opening_float: number;
+  notes?: string | null;
+}
+
+export interface CloseShiftRequest {
+  shift_id: string;
+  actual_closing_cash: number;
+  notes?: string | null;
+}
+
+export interface CashMovementRequest {
+  shift_id: string;
+  movement_type: "CASH_IN" | "CASH_OUT";
+  amount: number;
+  reason: string;
+}
+
+export interface ShiftReportData {
+  shift: CashierShift;
+  movements: CashMovement[];
+  gross_sales: number;
+  total_discounts: number;
+  net_sales: number;
+  total_transactions: number;
+  void_count: number;
+  void_total: number;
+  total_cash_sales: number;
+  total_cash_in: number;
+  total_cash_out: number;
+  expected_cash: number;
+  store_name: string;
+  store_address: string;
+  store_phone: string;
+}
+
+// ============================================================================
+// 10. Alur Stok Opname Fisik Massal (Stock Opname Session & Items)
+// ============================================================================
+
+export interface StockOpnameSession {
+  id: string;
+  session_name: string;
+  creator_user_id: string;
+  creator_name_snapshot: string;
+  status: "COUNTING" | "REVIEW" | "COMMITTED" | "CANCELLED";
+  total_items_counted: number;
+  total_discrepancy_qty: number;
+  total_discrepancy_value: number;
+  committed_by_user_id: string | null;
+  committed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockOpnameItem {
+  id: string;
+  opname_session_id: string;
+  product_id: string;
+  sku: string;
+  barcode: string | null;
+  product_name: string;
+  unit: string;
+  physical_count: number;
+  system_stock_snapshot: number;
+  cost_price_snapshot: number;
+  discrepancy: number;
+  discrepancy_cost: number;
+  updated_at: string;
+}
+
+export interface CreateOpnameSessionRequest {
+  session_name?: string | null;
+  notes?: string | null;
+}
+
+export interface RecordOpnameScanRequest {
+  session_id: string;
+  product_identifier: string;
+  count_mode: "ADD" | "REPLACE";
+  quantity: number;
+}
+
+export interface UpdateOpnameItemQtyRequest {
+  item_id: string;
+  physical_count: number;
+}
+
+export interface CommitOpnameSessionRequest {
+  session_id: string;
+  admin_pin: string;
+}
+
+export interface OpnameSessionDetail {
+  session: StockOpnameSession;
+  items: StockOpnameItem[];
+}
+
+// ============================================================================
+// 11. Harga Bertingkat / Tiered Pricing
+// ============================================================================
+
+export interface ProductPriceTier {
+  id: string;
+  product_id: string;
+  min_quantity: number;
+  tier_price: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PriceTierInput {
+  min_quantity: number;
+  tier_price: number;
+}
+
+export interface SetPriceTiersRequest {
+  product_id: string;
+  tiers: PriceTierInput[];
+}

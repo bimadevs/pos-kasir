@@ -7,8 +7,10 @@ import React, {
 } from "react";
 import { ipc } from "../services/ipc";
 import type {
+  CashierShift,
   PrintOutcome,
   ReceiptData,
+  ShiftReportData,
   TerminalStatus,
 } from "../types/domain";
 
@@ -16,6 +18,8 @@ interface TerminalContextValue {
   terminalStatus: TerminalStatus | null;
   loadingTerminal: boolean;
   refreshTerminalStatus: () => Promise<TerminalStatus | null>;
+  activeShift: CashierShift | null;
+  refreshActiveShift: () => Promise<CashierShift | null>;
   previewReceipt: ReceiptData | null;
   previewOutcome: PrintOutcome | null;
   openReceiptPreview: (
@@ -23,6 +27,12 @@ interface TerminalContextValue {
     outcome?: PrintOutcome | null,
   ) => void;
   closeReceiptPreview: () => void;
+  previewShiftReport: ShiftReportData | null;
+  openShiftReportPreview: (
+    report: ShiftReportData,
+    outcome?: PrintOutcome | null,
+  ) => void;
+  closeShiftReportPreview: () => void;
 }
 
 const TerminalContext = createContext<TerminalContextValue | undefined>(
@@ -36,12 +46,15 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
     null,
   );
   const [loadingTerminal, setLoadingTerminal] = useState<boolean>(true);
+  const [activeShift, setActiveShift] = useState<CashierShift | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<ReceiptData | null>(
     null,
   );
   const [previewOutcome, setPreviewOutcome] = useState<PrintOutcome | null>(
     null,
   );
+  const [previewShiftReport, setPreviewShiftReport] =
+    useState<ShiftReportData | null>(null);
 
   const refreshTerminalStatus =
     useCallback(async (): Promise<TerminalStatus | null> => {
@@ -57,14 +70,28 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }, []);
 
+  const refreshActiveShift =
+    useCallback(async (): Promise<CashierShift | null> => {
+      try {
+        const shift = await ipc.getActiveShift();
+        setActiveShift(shift);
+        return shift;
+      } catch {
+        setActiveShift(null);
+        return null;
+      }
+    }, []);
+
   useEffect(() => {
     void refreshTerminalStatus();
+    void refreshActiveShift();
     // Polling kesehatan koneksi LAN berkala setiap 5 detik (NFR-REL-01)
     const timer = window.setInterval(() => {
       void refreshTerminalStatus();
+      void refreshActiveShift();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [refreshTerminalStatus]);
+  }, [refreshTerminalStatus, refreshActiveShift]);
 
   const openReceiptPreview = useCallback(
     (receipt: ReceiptData, outcome?: PrintOutcome | null) => {
@@ -79,16 +106,34 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
     setPreviewOutcome(null);
   }, []);
 
+  const openShiftReportPreview = useCallback(
+    (report: ShiftReportData, outcome?: PrintOutcome | null) => {
+      setPreviewShiftReport(report);
+      setPreviewOutcome(outcome ?? null);
+    },
+    [],
+  );
+
+  const closeShiftReportPreview = useCallback(() => {
+    setPreviewShiftReport(null);
+    setPreviewOutcome(null);
+  }, []);
+
   return (
     <TerminalContext.Provider
       value={{
         terminalStatus,
         loadingTerminal,
         refreshTerminalStatus,
+        activeShift,
+        refreshActiveShift,
         previewReceipt,
         previewOutcome,
         openReceiptPreview,
         closeReceiptPreview,
+        previewShiftReport,
+        openShiftReportPreview,
+        closeShiftReportPreview,
       }}
     >
       {children}

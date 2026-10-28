@@ -5,10 +5,13 @@ import {
   Download,
   Edit3,
   FileSpreadsheet,
+  Layers,
   PackagePlus,
+  Plus,
   PowerOff,
   Search,
   Tag,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -17,6 +20,7 @@ import { ProductImportPreviewModal } from "../components/products/ProductImportP
 import type {
   DiscountType,
   ParsedImportSummary,
+  PriceTierInput,
   Product,
   ProductImportRow,
   UpsertProductRequest,
@@ -50,6 +54,9 @@ export const ProductsPage: React.FC = () => {
   // Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [activeModalTab, setActiveModalTab] = useState<"BASIC" | "TIERS">(
+    "BASIC"
+  );
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formSku, setFormSku] = useState<string>("");
   const [formBarcode, setFormBarcode] = useState<string>("");
@@ -63,6 +70,7 @@ export const ProductsPage: React.FC = () => {
   const [formDiscountValue, setFormDiscountValue] = useState<string>("0");
   const [formInitialStock, setFormInitialStock] = useState<string>("0");
   const [formIsActive, setFormIsActive] = useState<boolean>(true);
+  const [formPriceTiers, setFormPriceTiers] = useState<PriceTierInput[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,6 +122,8 @@ export const ProductsPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingProduct(null);
+    setActiveModalTab("BASIC");
+    setFormPriceTiers([]);
     setFormSku(`PRD-${Date.now().toString().slice(-5)}`);
     setFormBarcode("");
     setFormName("");
@@ -129,8 +139,9 @@ export const ProductsPage: React.FC = () => {
     setModalOpen(true);
   };
 
-  const openEditModal = (product: Product) => {
+  const openEditModal = async (product: Product) => {
     setEditingProduct(product);
+    setActiveModalTab("BASIC");
     setFormSku(product.sku);
     setFormBarcode(product.barcode || "");
     setFormName(product.name);
@@ -144,6 +155,18 @@ export const ProductsPage: React.FC = () => {
     setFormIsActive(product.is_active);
     setModalError(null);
     setModalOpen(true);
+
+    try {
+      const tiers = await ipc.getProductPriceTiers(product.id);
+      setFormPriceTiers(
+        tiers.map((t) => ({
+          min_quantity: t.min_quantity,
+          tier_price: t.tier_price,
+        }))
+      );
+    } catch {
+      setFormPriceTiers([]);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -172,6 +195,43 @@ export const ProductsPage: React.FC = () => {
       return;
     }
 
+    // Validate price tiers (BR-04)
+    for (const tier of formPriceTiers) {
+      if (tier.min_quantity < 2) {
+        setModalError(
+          `Minimal kuantitas grosir harus minimal 2 (ditemukan: ${tier.min_quantity}).`
+        );
+        setActiveModalTab("TIERS");
+        return;
+      }
+      if (tier.tier_price <= 0) {
+        setModalError("Harga grosir harus lebih besar dari Rp 0.");
+        setActiveModalTab("TIERS");
+        return;
+      }
+      if (tier.tier_price >= sellingPrice) {
+        setModalError(
+          `Harga grosir (${formatRupiah(
+            tier.tier_price
+          )}) harus lebih murah dari harga jual normal (${formatRupiah(
+            sellingPrice
+          )}).`
+        );
+        setActiveModalTab("TIERS");
+        return;
+      }
+    }
+
+    // Check duplicate min_quantity
+    const qtys = formPriceTiers.map((t) => t.min_quantity);
+    if (new Set(qtys).size !== qtys.length) {
+      setModalError(
+        "Terdapat minimal kuantitas yang duplikat pada tabel harga grosir."
+      );
+      setActiveModalTab("TIERS");
+      return;
+    }
+
     setSaving(true);
     setModalError(null);
     try {
@@ -188,6 +248,7 @@ export const ProductsPage: React.FC = () => {
         discount_value: discountVal,
         initial_stock: editingProduct ? null : initialStock,
         is_active: formIsActive,
+        price_tiers: formPriceTiers,
       };
       await ipc.upsertProduct(payload);
       setModalOpen(false);
@@ -647,7 +708,7 @@ export const ProductsPage: React.FC = () => {
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => openEditModal(product)}
+                          onClick={() => void openEditModal(product)}
                           className="p-1.5 rounded-lg text-zinc-600 hover:text-teal-600 hover:bg-teal-50 transition-colors cursor-pointer"
                           title="Edit Produk"
                         >
@@ -710,6 +771,38 @@ export const ProductsPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Modal Tabs */}
+            <div className="flex border-b border-zinc-200 bg-zinc-50 px-6 pt-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("BASIC")}
+                className={`pb-2.5 px-3.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                  activeModalTab === "BASIC"
+                    ? "border-teal-600 text-teal-700 bg-white rounded-t-lg border-t border-x border-zinc-200 -mb-px"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                Informasi Utama & Diskon
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("TIERS")}
+                className={`pb-2.5 px-3.5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeModalTab === "TIERS"
+                    ? "border-teal-600 text-teal-700 bg-white rounded-t-lg border-t border-x border-zinc-200 -mb-px"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Harga Grosir / Bertingkat
+                {formPriceTiers.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold">
+                    {formPriceTiers.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <form
               onSubmit={(e) => void handleSaveProduct(e)}
               className="p-6 space-y-4 text-xs"
@@ -741,195 +834,343 @@ export const ProductsPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Kode SKU *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formSku}
-                    onChange={(e) => setFormSku(e.target.value)}
-                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Kode Barcode (EAN/UPC)
-                  </label>
-                  <input
-                    type="text"
-                    value={formBarcode}
-                    onChange={(e) => setFormBarcode(e.target.value)}
-                    placeholder="Scan atau ketik barcode..."
-                    className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-4 gap-3">
-                <div className="col-span-2">
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Nama Produk *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Contoh: Indomie Goreng 85g"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Kategori
-                  </label>
-                  <input
-                    type="text"
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    placeholder="Makanan / Minuman"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Satuan
-                  </label>
-                  <input
-                    type="text"
-                    value={formUnit}
-                    onChange={(e) => setFormUnit(e.target.value)}
-                    placeholder="pcs / btl / bks"
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
-                  />
-                </div>
-              </div>
+              {activeModalTab === "TIERS" ? (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl bg-teal-50/80 border border-teal-200 text-teal-900 flex items-start gap-3">
+                    <Layers className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed">
+                      <div className="font-bold text-teal-950">
+                        Aturan Diskon Grosir Bertingkat (BR-04)
+                      </div>
+                      <div className="text-teal-800 mt-0.5">
+                        Tier harga grosir otomatis aktif di Kasir saat kuantitas pembelian produk mencapai batas minimal.
+                        Harga grosir menggantikan diskon reguler demi menjaga batas keuntungan toko.
+                      </div>
+                      <div className="mt-2 text-[11px] font-mono font-semibold text-teal-900 bg-white/70 px-2 py-1 rounded border border-teal-200 inline-block">
+                        Harga Normal: {formatRupiah(parseInt(formSellingPrice, 10) || 0)} • HPP Modal: {formatRupiah(parseInt(formCostPrice, 10) || 0)}
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Harga Modal / HPP (Rp) *
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={formCostPrice}
-                    onChange={(e) => setFormCostPrice(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Harga Jual Normal (Rp) *
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={formSellingPrice}
-                    onChange={(e) => setFormSellingPrice(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  />
-                </div>
-              </div>
+                  {formPriceTiers.length === 0 ? (
+                    <div className="text-center py-8 px-4 border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                      <Layers className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-zinc-600">
+                        Belum ada aturan harga grosir untuk produk ini.
+                      </p>
+                      <p className="text-[11px] text-zinc-400 mt-1">
+                        Tambahkan tier harga untuk memberikan potongan bagi pelanggan yang membeli dalam jumlah banyak (misal: beli 3, 6, atau 12 pcs).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                          <tr>
+                            <th className="py-2.5 px-3">Beli Min. Qty</th>
+                            <th className="py-2.5 px-3">Harga Grosir / Pcs</th>
+                            <th className="py-2.5 px-3 text-right">Hemat / Pcs</th>
+                            <th className="py-2.5 px-3 text-right">Estimasi Margin</th>
+                            <th className="py-2.5 px-2 text-center w-10">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {formPriceTiers.map((tier, idx) => {
+                            const costP = parseInt(formCostPrice, 10) || 0;
+                            const sellP = parseInt(formSellingPrice, 10) || 0;
+                            const savings = sellP - tier.tier_price;
+                            const margin = tier.tier_price - costP;
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Tipe Diskon Produk
-                  </label>
-                  <select
-                    value={formDiscountType}
-                    onChange={(e) =>
-                      setFormDiscountType(e.target.value as DiscountType)
-                    }
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  >
-                    <option value="NONE">Tanpa Diskon (NONE)</option>
-                    <option value="NOMINAL">
-                      Potongan Nominal Rupiah (Rp)
-                    </option>
-                    <option value="PERCENT">Potongan Persentase (%)</option>
-                  </select>
-                </div>
+                            return (
+                              <tr key={idx} className="hover:bg-zinc-50/50">
+                                <td className="py-2 px-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min={2}
+                                      value={tier.min_quantity}
+                                      onChange={(e) => {
+                                        const val = Math.max(2, parseInt(e.target.value, 10) || 2);
+                                        const updated = [...formPriceTiers];
+                                        updated[idx] = { ...tier, min_quantity: val };
+                                        setFormPriceTiers(updated);
+                                      }}
+                                      className="w-20 px-2 py-1 font-mono font-bold text-center border border-zinc-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    />
+                                    <span className="text-zinc-500 font-medium">{formUnit || "pcs"}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-zinc-400 font-mono text-[11px]">Rp</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={tier.tier_price}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                        const updated = [...formPriceTiers];
+                                        updated[idx] = { ...tier, tier_price: val };
+                                        setFormPriceTiers(updated);
+                                      }}
+                                      className="w-28 px-2 py-1 font-mono font-bold text-right border border-zinc-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="py-2 px-3 text-right font-mono text-teal-700 font-bold">
+                                  {savings > 0 ? `-${formatRupiah(savings)}` : "Rp 0"}
+                                </td>
+                                <td
+                                  className={`py-2 px-3 text-right font-mono font-bold ${
+                                    margin >= 0 ? "text-emerald-700" : "text-rose-600"
+                                  }`}
+                                >
+                                  {formatRupiah(margin)}
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormPriceTiers(
+                                        formPriceTiers.filter((_, i) => i !== idx)
+                                      );
+                                    }}
+                                    className="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Hapus baris tier"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Nilai Diskon{" "}
-                    {formDiscountType === "PERCENT" ? "(0–100%)" : "(Rp)"}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={formDiscountType === "PERCENT" ? 100 : undefined}
-                    disabled={formDiscountType === "NONE"}
-                    value={formDiscountType === "NONE" ? "0" : formDiscountValue}
-                    onChange={(e) => setFormDiscountValue(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  />
-                </div>
-              </div>
-
-              {!editingProduct ? (
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                    Stok Awal *
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={formInitialStock}
-                    onChange={(e) => setFormInitialStock(e.target.value)}
-                    className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-                  />
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sellP = parseInt(formSellingPrice, 10) || 10000;
+                        const nextQty =
+                          formPriceTiers.length === 0
+                            ? 3
+                            : Math.max(...formPriceTiers.map((t) => t.min_quantity)) + 3;
+                        const defTierPrice = Math.max(1, Math.round(sellP * 0.9));
+                        setFormPriceTiers([
+                          ...formPriceTiers,
+                          { min_quantity: nextQty, tier_price: defTierPrice },
+                        ]);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Tambah Baris Grosir
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-xl p-3">
-                  <span className="text-zinc-600">
-                    Stok saat ini:{" "}
-                    <strong className="font-mono text-zinc-900">{editingProduct.stock}</strong>{" "}
-                    (Gunakan menu <em>Penyesuaian Stok</em> untuk koreksi stok)
-                  </span>
-                  <label className="flex items-center gap-2 font-bold text-zinc-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formIsActive}
-                      onChange={(e) => setFormIsActive(e.target.checked)}
-                      className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
-                    />
-                    Produk Aktif
-                  </label>
-                </div>
-              )}
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Kode SKU *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formSku}
+                        onChange={(e) => setFormSku(e.target.value)}
+                        className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Kode Barcode (EAN/UPC)
+                      </label>
+                      <input
+                        type="text"
+                        value={formBarcode}
+                        onChange={(e) => setFormBarcode(e.target.value)}
+                        placeholder="Scan atau ketik barcode..."
+                        className="w-full px-3 py-2 font-mono border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
+                      />
+                    </div>
+                  </div>
 
-              {/* Live Price & Margin Preview */}
-              <div className="bg-emerald-50/90 text-emerald-950 rounded-xl p-3.5 flex items-center justify-between border-2 border-emerald-500/80 shadow-xs">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
-                    Harga Jual Efektif (Setelah Diskon)
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="col-span-2">
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Nama Produk *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formName}
+                        onChange={(e) => setFormName(e.target.value)}
+                        placeholder="Contoh: Indomie Goreng 85g"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Kategori
+                      </label>
+                      <input
+                        type="text"
+                        value={formCategory}
+                        onChange={(e) => setFormCategory(e.target.value)}
+                        placeholder="Makanan / Minuman"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Satuan
+                      </label>
+                      <input
+                        type="text"
+                        value={formUnit}
+                        onChange={(e) => setFormUnit(e.target.value)}
+                        placeholder="pcs / btl / bks"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-zinc-400"
+                      />
+                    </div>
                   </div>
-                  <div className="text-lg font-extrabold font-mono text-emerald-950 tabular-nums">
-                    {formatRupiah(previewEffective)}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Harga Modal / HPP (Rp) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={formCostPrice}
+                        onChange={(e) => setFormCostPrice(e.target.value)}
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Harga Jual Normal (Rp) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={formSellingPrice}
+                        onChange={(e) => setFormSellingPrice(e.target.value)}
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
-                    Estimasi Margin Laba / {formUnit || "pcs"}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Tipe Diskon Produk
+                      </label>
+                      <select
+                        value={formDiscountType}
+                        onChange={(e) =>
+                          setFormDiscountType(e.target.value as DiscountType)
+                        }
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      >
+                        <option value="NONE">Tanpa Diskon (NONE)</option>
+                        <option value="NOMINAL">
+                          Potongan Nominal Rupiah (Rp)
+                        </option>
+                        <option value="PERCENT">Potongan Persentase (%)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Nilai Diskon{" "}
+                        {formDiscountType === "PERCENT" ? "(0–100%)" : "(Rp)"}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={formDiscountType === "PERCENT" ? 100 : undefined}
+                        disabled={formDiscountType === "NONE"}
+                        value={
+                          formDiscountType === "NONE" ? "0" : formDiscountValue
+                        }
+                        onChange={(e) => setFormDiscountValue(e.target.value)}
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      />
+                    </div>
                   </div>
-                  <div
-                    className={`text-sm font-bold font-mono tabular-nums ${
-                      previewMargin >= 0 ? "text-emerald-700" : "text-rose-600"
-                    }`}
-                  >
-                    {formatRupiah(previewMargin)}
+
+                  {!editingProduct ? (
+                    <div>
+                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Stok Awal *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={formInitialStock}
+                        onChange={(e) => setFormInitialStock(e.target.value)}
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                      <span className="text-zinc-600">
+                        Stok saat ini:{" "}
+                        <strong className="font-mono text-zinc-900">
+                          {editingProduct.stock}
+                        </strong>{" "}
+                        (Gunakan menu <em>Penyesuaian Stok</em> untuk koreksi stok)
+                      </span>
+                      <label className="flex items-center gap-2 font-bold text-zinc-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formIsActive}
+                          onChange={(e) => setFormIsActive(e.target.checked)}
+                          className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        Produk Aktif
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Live Price & Margin Preview */}
+                  <div className="bg-emerald-50/90 text-emerald-950 rounded-xl p-3.5 flex items-center justify-between border-2 border-emerald-500/80 shadow-xs">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
+                        Harga Jual Efektif (Setelah Diskon)
+                      </div>
+                      <div className="text-lg font-extrabold font-mono text-emerald-950 tabular-nums">
+                        {formatRupiah(previewEffective)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
+                        Estimasi Margin Laba / {formUnit || "pcs"}
+                      </div>
+                      <div
+                        className={`text-sm font-bold font-mono tabular-nums ${
+                          previewMargin >= 0
+                            ? "text-emerald-700"
+                            : "text-rose-600"
+                        }`}
+                      >
+                        {formatRupiah(previewMargin)}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-200">
                 <button

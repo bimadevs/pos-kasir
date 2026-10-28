@@ -1,13 +1,20 @@
 use crate::config::{LocalConfig, PrinterConfig};
 use crate::error::AppResult;
-use crate::hardware::spooler::{kick_drawer_local, list_local_printers as enumerate_printers, print_receipt_local};
+use crate::hardware::spooler::{
+    kick_drawer_local, list_local_printers as enumerate_printers, print_receipt_local,
+    print_shift_report_local,
+};
 use crate::models::{
-    AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, DiscountType, HealthCheckResponse, HeldBill, ImportProductsResult,
-    LoginRequest, PrintOutcome, Product, ProductFilter, ProductImportRow, RecalledHeldBill,
-    ReceiptData, Sale, SaleLineItem, SaleStatus, SaleWithItems, SalesReport, SalesReportFilter,
-    SetupClientRequest, SetupServerRequest, StockAdjustment, StoreSettings, TerminalStatus,
-    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    AuthSession, CashMovement, CashMovementRequest, CashierShift, CloseShiftRequest,
+    CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
+    CreateStockAdjustmentRequest, CsvImportResult, DiscountType, HealthCheckResponse, HeldBill,
+    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameSessionDetail, PrintOutcome,
+    Product, ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill, ReceiptData,
+    RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus, SaleWithItems, SalesReport,
+    SalesReportFilter, SetPriceTiersRequest, SetupClientRequest, SetupServerRequest,
+    ShiftReportData, StockAdjustment, StockOpnameItem, StockOpnameSession, StoreSettings,
+    TerminalStatus, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
+    UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use crate::services::dispatcher::BackendDispatcher;
@@ -313,6 +320,7 @@ pub fn test_printer_and_drawer(
             total_amount: 17_500,
             cash_received: 20_000,
             change_amount: 2_500,
+            shift_id: None,
             status: SaleStatus::COMPLETED,
             voided_by_user_id: None,
             voided_by_name_snapshot: None,
@@ -336,6 +344,8 @@ pub fn test_printer_and_drawer(
                 discount_type_snapshot: DiscountType::NONE,
                 discount_value_snapshot: 0,
                 unit_discount_amount: 0,
+                applied_tier_min_qty: None,
+                applied_tier_price: None,
                 subtotal: 7_000,
             },
             SaleLineItem {
@@ -352,6 +362,8 @@ pub fn test_printer_and_drawer(
                 discount_type_snapshot: DiscountType::NOMINAL,
                 discount_value_snapshot: 500,
                 unit_discount_amount: 500,
+                applied_tier_min_qty: None,
+                applied_tier_price: None,
                 subtotal: 10_500,
             },
         ],
@@ -375,6 +387,148 @@ pub fn backup_database(state: DispatcherState<'_>, target_path: String) -> AppRe
 pub fn restore_database(state: DispatcherState<'_>, source_path: String) -> AppResult<()> {
     let path = PathBuf::from(source_path.trim());
     state.restore_database(&path)
+}
+
+// ============================================================================
+// 9. Manajemen Shift Kasir & Rekap Kas Laci (Shift Float & Cash Movements)
+// ============================================================================
+
+#[tauri::command]
+pub async fn open_shift(
+    state: DispatcherState<'_>,
+    req: OpenShiftRequest,
+) -> AppResult<CashierShift> {
+    state.open_shift(&req).await
+}
+
+#[tauri::command]
+pub async fn get_active_shift(
+    state: DispatcherState<'_>,
+) -> AppResult<Option<CashierShift>> {
+    state.get_active_shift().await
+}
+
+#[tauri::command]
+pub async fn record_cash_movement(
+    state: DispatcherState<'_>,
+    req: CashMovementRequest,
+) -> AppResult<CashMovement> {
+    state.record_cash_movement(&req).await
+}
+
+#[tauri::command]
+pub async fn get_shift_x_report(
+    state: DispatcherState<'_>,
+    shift_id: String,
+) -> AppResult<ShiftReportData> {
+    state.get_shift_x_report(&shift_id).await
+}
+
+#[tauri::command]
+pub async fn close_shift(
+    state: DispatcherState<'_>,
+    req: CloseShiftRequest,
+) -> AppResult<CashierShift> {
+    state.close_shift(&req).await
+}
+
+#[tauri::command]
+pub async fn list_shifts(
+    state: DispatcherState<'_>,
+    start_date: Option<String>,
+    end_date: Option<String>,
+) -> AppResult<Vec<CashierShift>> {
+    state.list_shifts(start_date.as_deref(), end_date.as_deref()).await
+}
+
+#[tauri::command]
+pub fn print_shift_report(
+    state: DispatcherState<'_>,
+    report: ShiftReportData,
+) -> AppResult<PrintOutcome> {
+    let cfg = state.get_config();
+    print_shift_report_local(state.app_data_dir(), &cfg.printer, &report)
+}
+
+// ============================================================================
+// 10. Alur Stok Opname Fisik Massal (Stock Opname Session & Items)
+// ============================================================================
+
+#[tauri::command]
+pub async fn create_opname_session(
+    state: DispatcherState<'_>,
+    req: CreateOpnameSessionRequest,
+) -> AppResult<StockOpnameSession> {
+    state.create_opname_session(&req).await
+}
+
+#[tauri::command]
+pub async fn list_opname_sessions(
+    state: DispatcherState<'_>,
+    status: Option<String>,
+) -> AppResult<Vec<StockOpnameSession>> {
+    state.list_opname_sessions(status.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn get_opname_session_detail(
+    state: DispatcherState<'_>,
+    session_id: String,
+) -> AppResult<OpnameSessionDetail> {
+    state.get_opname_session_detail(&session_id).await
+}
+
+#[tauri::command]
+pub async fn record_opname_scan(
+    state: DispatcherState<'_>,
+    req: RecordOpnameScanRequest,
+) -> AppResult<StockOpnameItem> {
+    state.record_opname_scan(&req).await
+}
+
+#[tauri::command]
+pub async fn update_opname_item_qty(
+    state: DispatcherState<'_>,
+    req: UpdateOpnameItemQtyRequest,
+) -> AppResult<StockOpnameItem> {
+    state.update_opname_item_qty(&req).await
+}
+
+#[tauri::command]
+pub async fn commit_opname_session(
+    state: DispatcherState<'_>,
+    req: CommitOpnameSessionRequest,
+) -> AppResult<StockOpnameSession> {
+    state.commit_opname_session(&req).await
+}
+
+#[tauri::command]
+pub async fn cancel_opname_session(
+    state: DispatcherState<'_>,
+    session_id: String,
+    reason: String,
+) -> AppResult<StockOpnameSession> {
+    state.cancel_opname_session(&session_id, &reason).await
+}
+
+// ============================================================================
+// 11. Harga Bertingkat / Tiered Pricing
+// ============================================================================
+
+#[tauri::command]
+pub async fn get_product_price_tiers(
+    state: DispatcherState<'_>,
+    product_id: String,
+) -> AppResult<Vec<ProductPriceTier>> {
+    state.get_product_price_tiers(&product_id).await
+}
+
+#[tauri::command]
+pub async fn set_product_price_tiers(
+    state: DispatcherState<'_>,
+    req: SetPriceTiersRequest,
+) -> AppResult<Vec<ProductPriceTier>> {
+    state.set_product_price_tiers(&req).await
 }
 
 #[tauri::command]

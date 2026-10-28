@@ -45,8 +45,79 @@ export interface CartTotals {
   totalAmount: number;
 }
 
+export interface CalculatedItemPrice {
+  unitPrice: number;
+  effectiveUnitPrice: number;
+  unitDiscount: number;
+  appliedTierMinQty: number | null;
+  appliedTierPrice: number | null;
+  isTierApplied: boolean;
+  subtotal: number;
+  savingsTotal: number;
+}
+
 /**
- * BR-02: Menghitung subtotal kotor, total potongan diskon, dan total tagihan bersih dari keranjang kasir.
+ * BR-01 & BR-04: Menghitung harga per item termasuk evaluasi Harga Bertingkat / Tier Grosir.
+ * Jika kuantitas memenuhi tier grosir (BR-04), diskon reguler dinonaktifkan guna menjaga margin.
+ */
+export function calculateItemPrice(
+  product: Product,
+  quantity: number,
+): CalculatedItemPrice {
+  const qty = Math.max(1, Math.trunc(quantity));
+  const sellingPrice = Math.max(0, Math.trunc(product.selling_price));
+
+  // Evaluasi Tier Grosir (BR-04)
+  let activeTier: { min_quantity: number; tier_price: number } | null = null;
+  if (product.price_tiers && product.price_tiers.length > 0) {
+    const sortedTiers = [...product.price_tiers].sort(
+      (a, b) => b.min_quantity - a.min_quantity,
+    );
+    for (const t of sortedTiers) {
+      if (qty >= t.min_quantity) {
+        activeTier = t;
+        break;
+      }
+    }
+  }
+
+  if (activeTier) {
+    const tierPrice = activeTier.tier_price;
+    const subtotal = tierPrice * qty;
+    const normalSubtotal = sellingPrice * qty;
+    return {
+      unitPrice: sellingPrice,
+      effectiveUnitPrice: tierPrice,
+      unitDiscount: 0,
+      appliedTierMinQty: activeTier.min_quantity,
+      appliedTierPrice: tierPrice,
+      isTierApplied: true,
+      subtotal,
+      savingsTotal: Math.max(0, normalSubtotal - subtotal),
+    };
+  }
+
+  const unitDisc = calculateUnitDiscount(
+    sellingPrice,
+    product.discount_type,
+    product.discount_value,
+  );
+  const effective = sellingPrice - unitDisc;
+  const subtotal = effective * qty;
+  return {
+    unitPrice: sellingPrice,
+    effectiveUnitPrice: effective,
+    unitDiscount: unitDisc,
+    appliedTierMinQty: null,
+    appliedTierPrice: null,
+    isTierApplied: false,
+    subtotal,
+    savingsTotal: unitDisc * qty,
+  };
+}
+
+/**
+ * BR-02 & BR-04: Menghitung subtotal kotor, total potongan diskon/tier, dan total tagihan bersih dari keranjang kasir.
  */
 export function calculateCartTotals(items: CartItem[]): CartTotals {
   let totalUnitsQty = 0;
@@ -55,16 +126,11 @@ export function calculateCartTotals(items: CartItem[]): CartTotals {
 
   for (const item of items) {
     const qty = Math.max(1, Math.trunc(item.quantity));
-    const unitPrice = Math.max(0, Math.trunc(item.product.selling_price));
-    const unitDisc = calculateUnitDiscount(
-      unitPrice,
-      item.product.discount_type,
-      item.product.discount_value,
-    );
+    const calc = calculateItemPrice(item.product, qty);
 
     totalUnitsQty += qty;
-    subtotalGross += unitPrice * qty;
-    discountTotal += unitDisc * qty;
+    subtotalGross += calc.unitPrice * qty;
+    discountTotal += calc.savingsTotal;
   }
 
   return {

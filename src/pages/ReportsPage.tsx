@@ -3,12 +3,15 @@ import {
   AlertTriangle,
   Ban,
   Calendar,
+  Clock,
   Download,
   Eye,
   Printer,
   TrendingUp,
 } from "lucide-react";
 import { VoidPinModal } from "../components/pos/VoidPinModal";
+import { ShiftReportPreviewModal } from "../components/receipt/ShiftReportPreviewModal";
+import { ShiftHistoryView } from "../components/reports/ShiftHistoryView";
 import { useTerminal } from "../context/TerminalContext";
 import { ipc } from "../services/ipc";
 import type { Sale, SalesReport, User } from "../types/domain";
@@ -32,7 +35,17 @@ function getLocalDateStr(offsetDays: number = 0): string {
 }
 
 export const ReportsPage: React.FC = () => {
-  const { openReceiptPreview, terminalStatus } = useTerminal();
+  const {
+    openReceiptPreview,
+    previewShiftReport,
+    previewOutcome,
+    closeShiftReportPreview,
+    terminalStatus,
+  } = useTerminal();
+
+  const [activeReportTab, setActiveReportTab] = useState<"SALES" | "SHIFTS">(
+    "SALES"
+  );
 
   const todayStr = todayLocalIsoDate();
   const [startDate, setStartDate] = useState<string>(todayStr);
@@ -144,36 +157,74 @@ export const ReportsPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
-            Laporan Penjualan &amp; Laba Kotor (Gross Profit)
+            {activeReportTab === "SALES"
+              ? "Laporan Penjualan & Laba Kotor (Gross Profit)"
+              : "Riwayat Shift Kasir & Rekap Kas Laci (Laporan X & Z)"}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Perhitungan historis akurat berdasarkan snapshot harga jual, diskon, dan HPP saat transaksi terjadi (BR-03).
+            {activeReportTab === "SALES"
+              ? "Perhitungan historis akurat berdasarkan snapshot harga jual, diskon, dan HPP saat transaksi terjadi (BR-03)."
+              : "Audit rekap kas, saldo modal awal (float), mutasi kas masuk/keluar, dan selisih kas fisik laci (cash discrepancy)."}
           </p>
         </div>
 
+        {activeReportTab === "SALES" && (
+          <button
+            type="button"
+            onClick={() => void handleExportExcel()}
+            disabled={!report || loading}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            title="Ekspor Laporan Penjualan 2-Sheet (Ringkasan & Rincian) ke format Excel (.xlsx)"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            Ekspor Excel Laporan
+          </button>
+        )}
+      </div>
+
+      {/* Subtab Switcher */}
+      <div className="flex border-b border-zinc-200 gap-1">
         <button
           type="button"
-          onClick={() => void handleExportExcel()}
-          disabled={!report || loading}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 active:scale-[0.98] text-zinc-800 text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-          title="Ekspor Laporan Penjualan 2-Sheet (Ringkasan & Rincian) ke format Excel (.xlsx)"
+          onClick={() => setActiveReportTab("SALES")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            activeReportTab === "SALES"
+              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
         >
-          <Download className="w-4 h-4 text-emerald-600" />
-          Ekspor Excel Laporan
+          <TrendingUp className="w-4 h-4" />
+          Penjualan &amp; Laba Kotor
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveReportTab("SHIFTS")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            activeReportTab === "SHIFTS"
+              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Rekap Shift &amp; Kas Laci
         </button>
       </div>
 
-      {feedback && (
-        <div
-          className={`px-4 py-3 rounded-xl border text-xs font-semibold ${
-            feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
+      {activeReportTab === "SHIFTS" ? (
+        <ShiftHistoryView />
+      ) : (
+        <>
+          {feedback && (
+            <div
+              className={`px-4 py-3 rounded-xl border text-xs font-semibold ${
+                feedback.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  : "bg-rose-50 border-rose-200 text-rose-800"
+              }`}
+            >
+              {feedback.message}
+            </div>
+          )}
 
       {/* Filter Bar */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-4 flex flex-wrap items-end justify-between gap-4 shadow-2xs">
@@ -607,22 +658,31 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      <VoidPinModal
-        sale={voidTarget}
-        onClose={() => setVoidTarget(null)}
-        onConfirmVoid={async (saleId, adminPin, voidReason) => {
-          await ipc.voidSale({
-            sale_id: saleId,
-            admin_pin: adminPin,
-            void_reason: voidReason,
-          });
-          await loadReport();
-          setFeedback({
-            type: "success",
-            message:
-              "Transaksi berhasil dibatalkan (Void) dan stok dikembalikan.",
-          });
-        }}
+          <VoidPinModal
+            sale={voidTarget}
+            onClose={() => setVoidTarget(null)}
+            onConfirmVoid={async (saleId, adminPin, voidReason) => {
+              await ipc.voidSale({
+                sale_id: saleId,
+                admin_pin: adminPin,
+                void_reason: voidReason,
+              });
+              await loadReport();
+              setFeedback({
+                type: "success",
+                message:
+                  "Transaksi berhasil dibatalkan (Void) dan stok dikembalikan.",
+              });
+            }}
+          />
+        </>
+      )}
+
+      {/* Shift Report Preview & Reprint Modal */}
+      <ShiftReportPreviewModal
+        report={previewShiftReport}
+        outcome={previewOutcome}
+        onClose={closeShiftReportPreview}
       />
     </div>
   );

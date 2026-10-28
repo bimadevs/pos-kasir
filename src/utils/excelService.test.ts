@@ -116,6 +116,7 @@ describe("excelService — Layanan Excel Ramah Admin Awam", () => {
         {
           sale: {
             id: "s1",
+            shift_id: null,
             receipt_number: "INV-20261023-0001",
             cashier_id: "u1",
             cashier_name_snapshot: "Kasir 1",
@@ -148,6 +149,8 @@ describe("excelService — Layanan Excel Ramah Admin Awam", () => {
               discount_type_snapshot: "NONE",
               discount_value_snapshot: 0,
               unit_discount_amount: 0,
+              applied_tier_min_qty: null,
+              applied_tier_price: null,
               subtotal: 72000,
             },
           ],

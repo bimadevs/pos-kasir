@@ -14,6 +14,7 @@ describe("Receipt Preview & Fallback Formatter", () => {
     is_reprint: false,
     sale: {
       id: "sale-01",
+      shift_id: null,
       receipt_number: "INV-20261019-0001",
       cashier_id: "u-1",
       cashier_name_snapshot: "Ahmad Saifullah Hidayat",
@@ -47,6 +48,8 @@ describe("Receipt Preview & Fallback Formatter", () => {
         discount_type_snapshot: "NOMINAL",
         discount_value_snapshot: 5000,
         unit_discount_amount: 5000,
+        applied_tier_min_qty: null,
+        applied_tier_price: null,
         subtotal: 35000,
       },
       {
@@ -63,6 +66,8 @@ describe("Receipt Preview & Fallback Formatter", () => {
         discount_type_snapshot: "NONE",
         discount_value_snapshot: 0,
         unit_discount_amount: 0,
+        applied_tier_min_qty: null,
+        applied_tier_price: null,
         subtotal: 35000,
       },
     ],

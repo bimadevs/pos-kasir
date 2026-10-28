@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS sales (
     cashier_id TEXT NOT NULL REFERENCES users(id),
     cashier_name_snapshot TEXT NOT NULL,
     terminal_name TEXT NOT NULL,
+    shift_id TEXT REFERENCES cashier_shifts(id),
     subtotal INTEGER NOT NULL CHECK (subtotal >= 0),
     discount_total INTEGER NOT NULL CHECK (discount_total >= 0),
     total_amount INTEGER NOT NULL CHECK (total_amount >= 0),
@@ -103,6 +104,8 @@ CREATE TABLE IF NOT EXISTS sale_line_items (
     discount_type_snapshot TEXT NOT NULL CHECK (discount_type_snapshot IN ('NONE', 'NOMINAL', 'PERCENT')),
     discount_value_snapshot INTEGER NOT NULL CHECK (discount_value_snapshot >= 0),
     unit_discount_amount INTEGER NOT NULL CHECK (unit_discount_amount >= 0),
+    applied_tier_min_qty INTEGER,
+    applied_tier_price INTEGER,
     subtotal INTEGER NOT NULL CHECK (subtotal >= 0)
 );
 
@@ -125,3 +128,89 @@ CREATE TABLE IF NOT EXISTS held_bill_items (
     product_id TEXT NOT NULL REFERENCES products(id),
     quantity INTEGER NOT NULL CHECK (quantity >= 1)
 );
+
+-- 8. Sesi Shift Kasir (Cashier Shift)
+CREATE TABLE IF NOT EXISTS cashier_shifts (
+    id TEXT PRIMARY KEY,
+    terminal_name TEXT NOT NULL,
+    cashier_id TEXT NOT NULL REFERENCES users(id),
+    cashier_name_snapshot TEXT NOT NULL,
+    opened_at TEXT NOT NULL,
+    closed_at TEXT,
+    opening_float INTEGER NOT NULL CHECK (opening_float >= 0),
+    cash_sales_total INTEGER NOT NULL DEFAULT 0,
+    cash_in_total INTEGER NOT NULL DEFAULT 0,
+    cash_out_total INTEGER NOT NULL DEFAULT 0,
+    expected_closing_cash INTEGER,
+    actual_closing_cash INTEGER,
+    cash_discrepancy INTEGER,
+    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED')),
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_shifts_terminal_status ON cashier_shifts(terminal_name, status);
+CREATE INDEX IF NOT EXISTS idx_shifts_cashier ON cashier_shifts(cashier_id, opened_at DESC);
+
+-- 9. Mutasi Kas Operasional Laci (Cash Movement)
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id TEXT PRIMARY KEY,
+    shift_id TEXT NOT NULL REFERENCES cashier_shifts(id) ON DELETE CASCADE,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('CASH_IN', 'CASH_OUT')),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_movements_shift ON cash_movements(shift_id);
+
+-- 10. Sesi Audit Stok Opname Fisik Massal (Stock Opname Session)
+CREATE TABLE IF NOT EXISTS stock_opname_sessions (
+    id TEXT PRIMARY KEY,
+    session_name TEXT NOT NULL,
+    creator_user_id TEXT NOT NULL REFERENCES users(id),
+    creator_name_snapshot TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'COUNTING' CHECK (status IN ('COUNTING', 'REVIEW', 'COMMITTED', 'CANCELLED')),
+    total_items_counted INTEGER NOT NULL DEFAULT 0,
+    total_discrepancy_qty INTEGER NOT NULL DEFAULT 0,
+    total_discrepancy_value INTEGER NOT NULL DEFAULT 0,
+    committed_by_user_id TEXT REFERENCES users(id),
+    committed_at TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_opname_sessions_status ON stock_opname_sessions(status, created_at DESC);
+
+-- 11. Item Hitungan Fisik Sesi Opname (Stock Opname Item)
+CREATE TABLE IF NOT EXISTS stock_opname_items (
+    id TEXT PRIMARY KEY,
+    opname_session_id TEXT NOT NULL REFERENCES stock_opname_sessions(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES products(id),
+    physical_count INTEGER NOT NULL DEFAULT 0 CHECK (physical_count >= 0),
+    system_stock_snapshot INTEGER NOT NULL,
+    cost_price_snapshot INTEGER NOT NULL,
+    updated_at TEXT NOT NULL,
+    CONSTRAINT uq_opname_item UNIQUE (opname_session_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_opname_items_session ON stock_opname_items(opname_session_id);
+CREATE INDEX IF NOT EXISTS idx_opname_items_product ON stock_opname_items(product_id);
+
+-- 12. Skema Harga Grosir Bertingkat (Product Price Tiers)
+CREATE TABLE IF NOT EXISTS product_price_tiers (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    min_quantity INTEGER NOT NULL CHECK (min_quantity >= 2),
+    tier_price INTEGER NOT NULL CHECK (tier_price >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CONSTRAINT uq_product_tier UNIQUE (product_id, min_quantity)
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_price_tiers_product_id ON product_price_tiers(product_id);
+
+-- 13. Indeks Shift pada Transaksi Penjualan
+CREATE INDEX IF NOT EXISTS idx_sales_shift_id ON sales(shift_id);

@@ -4,12 +4,15 @@ use crate::error::{AppError, AppResult};
 use crate::lan::client::RemoteHttpClient;
 use crate::lan::server::spawn_lan_server;
 use crate::models::{
-    AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
-    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
-    SalesReportFilter, SetupClientRequest, SetupServerRequest, StockAdjustment, StoreSettings,
-    TerminalStatus, UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User,
-    VoidSaleRequest,
+    AuthSession, CashMovement, CashMovementRequest, CashierShift, CloseShiftRequest,
+    CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
+    CreateStockAdjustmentRequest, CsvImportResult, HealthCheckResponse, HeldBill,
+    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameSessionDetail, Product,
+    ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill, ReceiptData,
+    RecordOpnameScanRequest, SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest,
+    SetupClientRequest, SetupServerRequest, ShiftReportData, StockAdjustment, StockOpnameItem,
+    StockOpnameSession, StoreSettings, TerminalStatus, UpdateOpnameItemQtyRequest,
+    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use std::path::{Path, PathBuf};
@@ -721,6 +724,283 @@ impl BackendDispatcher {
         }
         self.core.restore_database(&sess.user, source_path)
     }
+
+    // --- Shift Kasir & Rekap Kas Laci ---
+    pub async fn open_shift(&self, req: &OpenShiftRequest) -> AppResult<CashierShift> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => {
+                self.core.open_shift(&sess.user, &cfg.terminal_name, req)
+            }
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .open_shift(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_active_shift(&self) -> AppResult<Option<CashierShift>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_active_shift(&sess.user.id),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .get_active_shift(&sess.session_token)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn record_cash_movement(&self, req: &CashMovementRequest) -> AppResult<CashMovement> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.record_cash_movement(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .record_cash_movement(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_shift_x_report(&self, shift_id: &str) -> AppResult<ShiftReportData> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_shift_x_report(shift_id),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .get_shift_x_report(&sess.session_token, shift_id)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn close_shift(&self, req: &CloseShiftRequest) -> AppResult<CashierShift> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.close_shift(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .close_shift(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn list_shifts(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> AppResult<Vec<CashierShift>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.list_shifts(start_date, end_date),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .list_shifts(&sess.session_token, start_date, end_date)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    // --- Alur Stok Opname Fisik Massal ---
+    pub async fn create_opname_session(
+        &self,
+        req: &CreateOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.create_opname_session(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .create_opname_session(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn list_opname_sessions(
+        &self,
+        status: Option<&str>,
+    ) -> AppResult<Vec<StockOpnameSession>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.list_opname_sessions(),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .list_opname_sessions(&sess.session_token, status)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_opname_session_detail(
+        &self,
+        session_id: &str,
+    ) -> AppResult<OpnameSessionDetail> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_opname_session_detail(session_id),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .get_opname_session_detail(&sess.session_token, session_id)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn record_opname_scan(
+        &self,
+        req: &RecordOpnameScanRequest,
+    ) -> AppResult<StockOpnameItem> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.record_opname_scan(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .record_opname_scan(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn update_opname_item_qty(
+        &self,
+        req: &UpdateOpnameItemQtyRequest,
+    ) -> AppResult<StockOpnameItem> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.update_opname_item_qty(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .update_opname_item_qty(&sess.session_token, &req.item_id, req.physical_count)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn commit_opname_session(
+        &self,
+        req: &CommitOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.commit_opname_session(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .commit_opname_session(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn cancel_opname_session(
+        &self,
+        session_id: &str,
+        reason: &str,
+    ) -> AppResult<StockOpnameSession> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.cancel_opname_session(&sess.user, session_id),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .cancel_opname_session(&sess.session_token, session_id, reason)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    // --- Harga Bertingkat / Tiered Pricing ---
+    pub async fn get_product_price_tiers(
+        &self,
+        product_id: &str,
+    ) -> AppResult<Vec<ProductPriceTier>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_product_price_tiers(product_id),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .get_product_price_tiers(&sess.session_token, product_id)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn set_product_price_tiers(
+        &self,
+        req: &SetPriceTiersRequest,
+    ) -> AppResult<Vec<ProductPriceTier>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.set_product_price_tiers(&sess.user, req),
+            TerminalMode::CLIENT => {
+                Self::remote_client_for_config(&cfg)
+                    .set_product_price_tiers(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -826,11 +1106,23 @@ mod tests {
                 discount_value: 0,
                 initial_stock: Some(10),
                 is_active: Some(true),
+                price_tiers: None,
             })
             .await;
         assert!(matches!(forbidden, Err(AppError::Forbidden(_))));
 
-        // 7. Cashier menahan Held Bill di Client Terminal, lalu memanggilnya kembali
+        // 7. Cashier membuka shift kasir dari Client Terminal
+        let open_shift_res = client_dispatcher
+            .open_shift(&OpenShiftRequest {
+                opening_float: 100_000,
+                notes: Some("Shift Pagi Client".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(open_shift_res.status, "OPEN");
+        assert_eq!(open_shift_res.opening_float, 100_000);
+
+        // 8. Cashier menahan Held Bill di Client Terminal, lalu memanggilnya kembali
         let held = client_dispatcher
             .create_held_bill(&CreateHeldBillRequest {
                 hold_label: "Pelanggan Kasir 2".to_string(),
@@ -848,7 +1140,7 @@ mod tests {
         assert!(recalled.warnings.is_empty());
         assert_eq!(recalled.held_bill.items[0].quantity, 3);
 
-        // 8. Cashier menyelesaikan pembayaran tunai (Sale) dari Client Terminal
+        // 9. Cashier menyelesaikan pembayaran tunai (Sale) dari Client Terminal
         let receipt = client_dispatcher
             .create_sale(&CreateSaleRequest {
                 items: vec![SaleItemInput {
@@ -863,7 +1155,7 @@ mod tests {
         assert_eq!(receipt.sale.change_amount, 9_500);
         assert_eq!(receipt.sale.terminal_name, "Kasir 2 (Client)");
 
-        // 9. Cashier melakukan Void pada transaksi tersebut menggunakan PIN Admin ("654321")
+        // 10. Cashier melakukan Void pada transaksi tersebut menggunakan PIN Admin ("654321")
         let voided = client_dispatcher
             .void_sale(&VoidSaleRequest {
                 sale_id: receipt.sale.id.clone(),
@@ -873,5 +1165,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(voided.sale.status, SaleStatus::VOIDED);
+
+        // 11. Cashier mencetak laporan X dan menutup shift dari Client Terminal
+        let x_rep = client_dispatcher.get_shift_x_report(&open_shift_res.id).await.unwrap();
+        assert_eq!(x_rep.shift.opening_float, 100_000);
+        assert_eq!(x_rep.void_count, 1);
+
+        let closed = client_dispatcher
+            .close_shift(&CloseShiftRequest {
+                shift_id: open_shift_res.id,
+                actual_closing_cash: 100_000,
+                notes: Some("Shift selesai".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(closed.status, "CLOSED");
+        assert_eq!(closed.cash_discrepancy, Some(0));
     }
 }

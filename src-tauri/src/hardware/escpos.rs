@@ -1,4 +1,4 @@
-use crate::models::{ReceiptData, SaleLineItem, SaleStatus};
+use crate::models::{ReceiptData, SaleLineItem, SaleStatus, ShiftReportData};
 
 pub const ESC_INIT: [u8; 2] = [0x1B, 0x40];
 pub const ESC_ALIGN_LEFT: [u8; 3] = [0x1B, 0x61, 0x00];
@@ -503,6 +503,115 @@ pub fn build_escpos_bytes(
     buf
 }
 
+/// Merender representasi teks murni laporan shift kasir (X-Report atau Z-Report) untuk pratinjau.
+pub fn render_shift_report_text(report: &ShiftReportData, paper_width: u16, left_margin_chars: u8) -> String {
+    let total_cols = columns_for_paper_width(paper_width);
+    let margin_count = (left_margin_chars as usize).min(total_cols.saturating_sub(16));
+    let cols = total_cols.saturating_sub(margin_count);
+    let margin = " ".repeat(margin_count);
+    let divider = "-".repeat(cols);
+    let double_divider = "=".repeat(cols);
+    let is_z = report.shift.status == "CLOSED";
+    let title = if is_z {
+        "LAPORAN Z (TUTUP SHIFT)"
+    } else {
+        "LAPORAN X (SEMENTARA)"
+    };
+
+    let mut lines: Vec<String> = Vec::new();
+    lines.push(format!("{}{}", margin, double_divider));
+    for line in wrap_text(&report.store_name.to_uppercase(), cols) {
+        lines.push(format!("{}{}", margin, center_line(&line, cols)));
+    }
+    lines.push(format!("{}{}", margin, center_line(title, cols)));
+    lines.push(format!("{}{}", margin, double_divider));
+
+    lines.push(format!("{}{}", margin, format_two_column_line("Terminal", &report.shift.terminal_name, cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Kasir", &report.shift.cashier_name_snapshot, cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Waktu Buka", &format_timestamp_short(&report.shift.opened_at), cols)));
+    if is_z {
+        if let Some(ref closed_at) = report.shift.closed_at {
+            lines.push(format!("{}{}", margin, format_two_column_line("Waktu Tutup", &format_timestamp_short(closed_at), cols)));
+        }
+    } else {
+        let now = chrono::Local::now().to_rfc3339();
+        lines.push(format!("{}{}", margin, format_two_column_line("Waktu Cetak", &format_timestamp_short(&now), cols)));
+    }
+    lines.push(format!("{}{}", margin, divider));
+
+    lines.push(format!("{}{}", margin, format_two_column_line("Modal Awal (Float)", &format!("Rp {}", format_rupiah_plain(report.shift.opening_float)), cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Penjualan Tunai Net", &format!("Rp {}", format_rupiah_plain(report.total_cash_sales)), cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Total Kas Masuk", &format!("Rp {}", format_rupiah_plain(report.total_cash_in)), cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Total Kas Keluar", &format!("Rp {}", format_rupiah_plain(report.total_cash_out)), cols)));
+    lines.push(format!("{}{}", margin, divider));
+
+    if is_z {
+        lines.push(format!("{}{}", margin, format_two_column_line("Kas Sistem Diharapkan", &format!("Rp {}", format_rupiah_plain(report.expected_cash)), cols)));
+        let actual = report.shift.actual_closing_cash.unwrap_or(0);
+        lines.push(format!("{}{}", margin, format_two_column_line("Kas Fisik Dihitung", &format!("Rp {}", format_rupiah_plain(actual)), cols)));
+        lines.push(format!("{}{}", margin, divider));
+        let disc = report.shift.cash_discrepancy.unwrap_or(0);
+        lines.push(format!("{}{}", margin, format_two_column_line("Selisih Kas Fisik", &format!("Rp {}", format_rupiah_plain(disc)), cols)));
+        let status_desc = if disc == 0 {
+            "PAS / SESUAI"
+        } else if disc > 0 {
+            "LEBIH"
+        } else {
+            "KURANG"
+        };
+        lines.push(format!("{}{}", margin, format_two_column_line("Status Selisih", status_desc, cols)));
+    } else {
+        lines.push(format!("{}{}", margin, format_two_column_line("Saldo Kas Fisik Laci", &format!("Rp {}", format_rupiah_plain(report.expected_cash)), cols)));
+    }
+
+    lines.push(format!("{}{}", margin, divider));
+    lines.push(format!("{}{}", margin, format_two_column_line("Total Transaksi", &report.total_transactions.to_string(), cols)));
+    lines.push(format!("{}{}", margin, format_two_column_line("Transaksi Void", &format!("{} (Rp {})", report.void_count, format_rupiah_plain(report.void_total)), cols)));
+    lines.push(format!("{}{}", margin, double_divider));
+
+    if is_z {
+        if let Some(ref note) = report.shift.notes {
+            if !note.trim().is_empty() {
+                lines.push(format!("{}{}", margin, format!("Catatan: {}", note)));
+                lines.push(format!("{}{}", margin, double_divider));
+            }
+        }
+        lines.push(format!("{}{}", margin, center_line("[STATUS SHIFT: CLOSED]", cols)));
+    } else {
+        lines.push(format!("{}{}", margin, center_line("[STATUS SHIFT: MASIH AKTIF]", cols)));
+    }
+    lines.push(format!("{}{}", margin, double_divider));
+
+    lines.join("\n")
+}
+
+/// Merakit barisan byte Raw ESC/POS (`Vec<u8>`) untuk struk X-Report atau Z-Report printer thermal.
+pub fn build_shift_report_escpos_bytes(
+    report: &ShiftReportData,
+    paper_width: u16,
+    left_margin_chars: u8,
+) -> Vec<u8> {
+    let is_z = report.shift.status == "CLOSED";
+    let text = render_shift_report_text(report, paper_width, left_margin_chars);
+    let mut buf = Vec::with_capacity(text.len() + 32);
+
+    buf.extend_from_slice(&ESC_INIT);
+    for line in text.lines() {
+        buf.extend_from_slice(line.as_bytes());
+        buf.push(b'\n');
+    }
+
+    // Jika Z-Report, picu buka Cash Drawer sebelum cut
+    if is_z {
+        buf.extend_from_slice(&ESC_KICK_DRAWER);
+    }
+
+    // Feed & Cut
+    buf.extend_from_slice(b"\n\n\n\n");
+    buf.extend_from_slice(&GS_PARTIAL_CUT);
+    buf
+}
+
 /// Menghasilkan urutan byte khusus untuk memantik buka laci uang (Cash Drawer RJ11) tanpa mencetak struk.
 pub fn build_drawer_kick_only_bytes() -> Vec<u8> {
     let mut buf = Vec::with_capacity(7);
@@ -533,6 +642,7 @@ mod tests {
                 total_amount: 17_500,
                 cash_received: 20_000,
                 change_amount: 2_500,
+                shift_id: None,
                 status: SaleStatus::COMPLETED,
                 voided_by_user_id: None,
                 voided_by_name_snapshot: None,
@@ -556,6 +666,8 @@ mod tests {
                     discount_type_snapshot: DiscountType::NONE,
                     discount_value_snapshot: 0,
                     unit_discount_amount: 0,
+                    applied_tier_min_qty: None,
+                    applied_tier_price: None,
                     subtotal: 7_000,
                 },
                 SaleLineItem {
@@ -572,6 +684,8 @@ mod tests {
                     discount_type_snapshot: DiscountType::NOMINAL,
                     discount_value_snapshot: 500,
                     unit_discount_amount: 500,
+                    applied_tier_min_qty: None,
+                    applied_tier_price: None,
                     subtotal: 10_500,
                 },
             ],
@@ -645,6 +759,8 @@ mod tests {
             discount_type_snapshot: DiscountType::NONE,
             discount_value_snapshot: 0,
             unit_discount_amount: 0,
+            applied_tier_min_qty: None,
+            applied_tier_price: None,
             subtotal: 38_500,
         });
 

@@ -1,12 +1,16 @@
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-     calculate_effective_unit_price, calculate_line_item, calculate_unit_discount, AdjustmentType,
-    AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    DiscountType, HealthCheckResponse, HeldBill, HeldBillItemDetail, LoginRequest,
-    LowStockProductRow, Product, ProductFilter, RecalledHeldBill, ReceiptData, Sale, SaleLineItem,
-    SaleStatus, SaleWithItems, SalesReport, SalesReportFilter, SetupServerRequest, StockAdjustment,
-    StoreSettings, TopProductRow, UpdateStoreSettingsRequest, UpsertProductRequest,
+    calculate_effective_unit_price, calculate_line_item_with_tiers, calculate_unit_discount,
+    AdjustmentType, AuthSession, CashMovement, CashMovementRequest, CashierShift,
+    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
+    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, DiscountType,
+    HealthCheckResponse, HeldBill, HeldBillItemDetail, LoginRequest, LowStockProductRow,
+    OpnameSessionDetail, OpenShiftRequest, Product, ProductFilter, ProductPriceTier,
+    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus,
+    SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest, SetupServerRequest,
+    ShiftReportData, StockAdjustment, StockOpnameItem, StockOpnameSession, StoreSettings,
+    TopProductRow, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
     UpsertUserRequest, User, UserRole, VoidSaleRequest,
 };
 use crate::services::auth_service::{
@@ -860,6 +864,7 @@ impl CoreService {
             effective_unit_price,
             stock: row.get(10)?,
             is_active: row.get::<_, i64>(11)? != 0,
+            price_tiers: None,
             created_at: row.get(12)?,
             updated_at: row.get(13)?,
         })
@@ -1046,7 +1051,43 @@ impl CoreService {
             new_id
         };
 
-        let product = tx.query_row(
+        if let Some(tiers) = &req.price_tiers {
+            tx.execute(
+                "DELETE FROM product_price_tiers WHERE product_id = ?1",
+                params![product_id],
+            )?;
+            for tier in tiers {
+                if tier.min_quantity < 2 {
+                    return Err(AppError::Validation(
+                        "Kuantitas minimum harga grosir harus minimal 2 unit.".to_string(),
+                    ));
+                }
+                if tier.tier_price < 0 {
+                    return Err(AppError::Validation(
+                        "Harga grosir tier tidak boleh bernilai negatif.".to_string(),
+                    ));
+                }
+                if tier.tier_price >= req.selling_price {
+                    return Err(AppError::Validation(
+                        "Harga grosir tier harus lebih murah dari harga jual satuan reguler.".to_string(),
+                    ));
+                }
+                tx.execute(
+                    "INSERT INTO product_price_tiers (id, product_id, min_quantity, tier_price, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        Uuid::new_v4().to_string(),
+                        product_id,
+                        tier.min_quantity,
+                        tier.tier_price,
+                        now,
+                        now
+                    ],
+                )?;
+            }
+        }
+
+        let mut product = tx.query_row(
             "SELECT id, sku, barcode, name, category_name, unit, cost_price, selling_price,
                     discount_type, discount_value, stock, is_active, created_at, updated_at
              FROM products WHERE id = ?1",
@@ -1054,8 +1095,123 @@ impl CoreService {
             |r| Self::map_product_row(r, actor.role),
         )?;
 
+        let loaded_tiers = {
+            let mut tiers_stmt = tx.prepare(
+                "SELECT id, product_id, min_quantity, tier_price, created_at
+                 FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
+            )?;
+            tiers_stmt
+                .query_map(params![product_id], |r| {
+                    Ok(ProductPriceTier {
+                        id: r.get(0)?,
+                        product_id: r.get(1)?,
+                        min_quantity: r.get(2)?,
+                        tier_price: r.get(3)?,
+                        created_at: r.get(4)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+
+        product.price_tiers = Some(loaded_tiers);
+
         tx.commit()?;
         Ok(product)
+    }
+
+    pub fn get_product_price_tiers(&self, product_id: &str) -> AppResult<Vec<ProductPriceTier>> {
+        let conn = self.db.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, product_id, min_quantity, tier_price, created_at
+             FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
+        )?;
+        let rows = stmt
+            .query_map(params![product_id], |r| {
+                Ok(ProductPriceTier {
+                    id: r.get(0)?,
+                    product_id: r.get(1)?,
+                    min_quantity: r.get(2)?,
+                    tier_price: r.get(3)?,
+                    created_at: r.get(4)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    pub fn set_product_price_tiers(
+        &self,
+        actor: &User,
+        req: &SetPriceTiersRequest,
+    ) -> AppResult<Vec<ProductPriceTier>> {
+        Self::require_admin(actor)?;
+        let now = Self::now_iso();
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        // Pastikan produk ada dan ambil harga jualnya
+        let selling_price: i64 = tx
+            .query_row(
+                "SELECT selling_price FROM products WHERE id = ?1",
+                params![req.product_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| AppError::NotFound("Produk tidak ditemukan.".to_string()))?;
+
+        tx.execute(
+            "DELETE FROM product_price_tiers WHERE product_id = ?1",
+            params![req.product_id],
+        )?;
+
+        for tier in &req.tiers {
+            if tier.min_quantity < 2 {
+                return Err(AppError::Validation(
+                    "Kuantitas minimum tier harus minimal 2 unit.".to_string(),
+                ));
+            }
+            if tier.tier_price < 0 {
+                return Err(AppError::Validation(
+                    "Harga grosir tier tidak boleh bernilai negatif.".to_string(),
+                ));
+            }
+            if tier.tier_price >= selling_price {
+                return Err(AppError::Validation(
+                    "Harga grosir tier harus lebih murah dari harga jual satuan reguler.".to_string(),
+                ));
+            }
+            tx.execute(
+                "INSERT INTO product_price_tiers (id, product_id, min_quantity, tier_price, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    Uuid::new_v4().to_string(),
+                    req.product_id,
+                    tier.min_quantity,
+                    tier.tier_price,
+                    now,
+                    now
+                ],
+            )?;
+        }
+
+        let rows = {
+            let mut stmt = tx.prepare(
+                "SELECT id, product_id, min_quantity, tier_price, created_at
+                 FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
+            )?;
+            stmt.query_map(params![req.product_id], |r| {
+                Ok(ProductPriceTier {
+                    id: r.get(0)?,
+                    product_id: r.get(1)?,
+                    min_quantity: r.get(2)?,
+                    tier_price: r.get(3)?,
+                    created_at: r.get(4)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+        };
+
+        tx.commit()?;
+        Ok(rows)
     }
 
     pub fn deactivate_product(&self, actor: &User, product_id: &str) -> AppResult<()> {
@@ -1261,6 +1417,20 @@ impl CoreService {
         // Algoritma 5.1 SYSTEM-DESIGN: Buka transaksi dengan BEGIN IMMEDIATE
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
+        let active_shift_id: Option<String> = tx
+            .query_row(
+                "SELECT id FROM cashier_shifts WHERE cashier_id = ?1 AND status = 'OPEN' ORDER BY opened_at DESC LIMIT 1",
+                params![actor.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+
+        if actor.role == UserRole::CASHIER && active_shift_id.is_none() {
+            return Err(AppError::Validation(
+                "Kasir wajib membuka shift kasir terlebih dahulu sebelum melayani transaksi.".to_string(),
+            ));
+        }
+
         let sale_id = Uuid::new_v4().to_string();
         let mut subtotal: i64 = 0;
         let mut discount_total: i64 = 0;
@@ -1316,6 +1486,20 @@ impl CoreService {
                 )));
             }
 
+            let is_in_active_opname: bool = tx.query_row(
+                "SELECT COUNT(*) FROM stock_opname_items soi
+                 JOIN stock_opname_sessions sos ON soi.opname_session_id = sos.id
+                 WHERE sos.status = 'COUNTING' AND soi.product_id = ?1",
+                params![pid],
+                |r| r.get::<_, i64>(0),
+            )? > 0;
+
+            if is_in_active_opname {
+                return Err(AppError::Conflict(format!(
+                    "Produk '{name}' sedang dalam sesi stok opname aktif (Shift Freeze). Selesaikan atau batalkan opname terlebih dahulu."
+                )));
+            }
+
             if stock == 0 || stock < *qty {
                 return Err(AppError::Conflict(format!(
                     "Stok {name} tidak mencukupi (tersisa: {stock} {unit}, diminta: {qty} {unit})."
@@ -1323,8 +1507,40 @@ impl CoreService {
             }
 
             let discount_type = DiscountType::from_str(&disc_type_str)?;
-            let calc =
-                calculate_line_item(cost_price, selling_price, discount_type, discount_value, *qty)?;
+
+            // Load tiered pricing for this product
+            let mut tiers_stmt = tx.prepare(
+                "SELECT id, product_id, min_quantity, tier_price, created_at
+                 FROM product_price_tiers WHERE product_id = ?1 ORDER BY min_quantity ASC",
+            )?;
+            let product_tiers = tiers_stmt
+                .query_map(params![pid], |r| {
+                    Ok(ProductPriceTier {
+                        id: r.get(0)?,
+                        product_id: r.get(1)?,
+                        min_quantity: r.get(2)?,
+                        tier_price: r.get(3)?,
+                        created_at: r.get(4)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let (calc, applied_tier) = calculate_line_item_with_tiers(
+                cost_price,
+                selling_price,
+                discount_type,
+                discount_value,
+                *qty,
+                if product_tiers.is_empty() {
+                    None
+                } else {
+                    Some(&product_tiers)
+                },
+            )?;
+            let (applied_tier_min_qty, applied_tier_price) = match applied_tier {
+                Some((min_q, t_price)) => (Some(min_q), Some(t_price)),
+                None => (None, None),
+            };
 
             tx.execute(
                 "UPDATE products SET stock = stock - ?1, updated_at = ?2 WHERE id = ?3",
@@ -1348,6 +1564,8 @@ impl CoreService {
                 discount_type_snapshot: discount_type,
                 discount_value_snapshot: discount_value,
                 unit_discount_amount: calc.unit_discount_amount,
+                applied_tier_min_qty,
+                applied_tier_price,
                 subtotal: calc.line_subtotal,
             });
         }
@@ -1373,8 +1591,8 @@ impl CoreService {
             "INSERT INTO sales (
                 id, receipt_number, cashier_id, cashier_name_snapshot, terminal_name,
                 subtotal, discount_total, total_amount, cash_received, change_amount,
-                status, transaction_date, created_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'COMPLETED', ?11, ?12)",
+                shift_id, status, transaction_date, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'COMPLETED', ?12, ?13)",
             params![
                 sale_id,
                 receipt_number,
@@ -1386,6 +1604,7 @@ impl CoreService {
                 total_amount,
                 req.cash_received,
                 change_amount,
+                active_shift_id,
                 today_date,
                 now
             ],
@@ -1398,8 +1617,8 @@ impl CoreService {
                     product_name_snapshot, unit_snapshot, quantity,
                     cost_price_snapshot, selling_price_snapshot,
                     discount_type_snapshot, discount_value_snapshot,
-                    unit_discount_amount, subtotal
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                    unit_discount_amount, applied_tier_min_qty, applied_tier_price, subtotal
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 params![
                     li.id,
                     li.sale_id,
@@ -1414,6 +1633,8 @@ impl CoreService {
                     li.discount_type_snapshot.as_str(),
                     li.discount_value_snapshot,
                     li.unit_discount_amount,
+                    li.applied_tier_min_qty,
+                    li.applied_tier_price,
                     li.subtotal
                 ],
             )?;
@@ -1444,6 +1665,7 @@ impl CoreService {
             total_amount,
             cash_received: req.cash_received,
             change_amount,
+            shift_id: active_shift_id,
             status: SaleStatus::COMPLETED,
             voided_by_user_id: None,
             voided_by_name_snapshot: None,
@@ -1477,6 +1699,7 @@ impl CoreService {
             total_amount: r.get(7)?,
             cash_received: r.get(8)?,
             change_amount: r.get(9)?,
+            shift_id: r.get(17)?,
             status: SaleStatus::from_str(&status_str).unwrap_or(SaleStatus::COMPLETED),
             voided_by_user_id: r.get(11)?,
             voided_by_name_snapshot: r.get(12)?,
@@ -1497,7 +1720,7 @@ impl CoreService {
                     product_name_snapshot, unit_snapshot, quantity,
                     cost_price_snapshot, selling_price_snapshot,
                     discount_type_snapshot, discount_value_snapshot,
-                    unit_discount_amount, subtotal
+                    unit_discount_amount, subtotal, applied_tier_min_qty, applied_tier_price
              FROM sale_line_items
              WHERE sale_id = ?1
              ORDER BY rowid ASC",
@@ -1526,6 +1749,8 @@ impl CoreService {
                         .unwrap_or(DiscountType::NONE),
                     discount_value_snapshot: r.get(11)?,
                     unit_discount_amount: r.get(12)?,
+                    applied_tier_min_qty: r.get(14)?,
+                    applied_tier_price: r.get(15)?,
                     subtotal: r.get(13)?,
                 })
             })?
@@ -1541,7 +1766,7 @@ impl CoreService {
             "SELECT id, receipt_number, cashier_id, cashier_name_snapshot, terminal_name,
                     subtotal, discount_total, total_amount, cash_received, change_amount,
                     status, voided_by_user_id, voided_by_name_snapshot, void_reason,
-                    voided_at, transaction_date, created_at
+                    voided_at, transaction_date, created_at, shift_id
              FROM sales
              WHERE transaction_date = ?1
              ORDER BY created_at DESC, rowid DESC",
@@ -1571,7 +1796,7 @@ impl CoreService {
                 "SELECT id, receipt_number, cashier_id, cashier_name_snapshot, terminal_name,
                         subtotal, discount_total, total_amount, cash_received, change_amount,
                         status, voided_by_user_id, voided_by_name_snapshot, void_reason,
-                        voided_at, transaction_date, created_at
+                        voided_at, transaction_date, created_at, shift_id
                  FROM sales WHERE id = ?1",
                 params![sale_id],
                 Self::map_sale_row,
@@ -1678,7 +1903,7 @@ impl CoreService {
             "SELECT id, receipt_number, cashier_id, cashier_name_snapshot, terminal_name,
                     subtotal, discount_total, total_amount, cash_received, change_amount,
                     status, voided_by_user_id, voided_by_name_snapshot, void_reason,
-                    voided_at, transaction_date, created_at
+                    voided_at, transaction_date, created_at, shift_id
              FROM sales WHERE id = ?1",
             params![req.sale_id],
             Self::map_sale_row,
@@ -2062,7 +2287,7 @@ impl CoreService {
             "SELECT id, receipt_number, cashier_id, cashier_name_snapshot, terminal_name,
                     subtotal, discount_total, total_amount, cash_received, change_amount,
                     status, voided_by_user_id, voided_by_name_snapshot, void_reason,
-                    voided_at, transaction_date, created_at
+                    voided_at, transaction_date, created_at, shift_id
              FROM sales
              WHERE transaction_date >= ?1 AND transaction_date <= ?2
                AND (?3 IS NULL OR cashier_id = ?3)
@@ -2177,12 +2402,905 @@ impl CoreService {
         let _ = conn.execute("DETACH DATABASE backup_src", []);
         restore_result
     }
+
+    // ========================================================================
+    // 10. Manajemen Shift Kasir & Rekap Kas Laci (Shift Float & Cash Movements)
+    // ========================================================================
+
+    fn map_shift_row(r: &Row<'_>) -> rusqlite::Result<CashierShift> {
+        Ok(CashierShift {
+            id: r.get(0)?,
+            terminal_name: r.get(1)?,
+            cashier_id: r.get(2)?,
+            cashier_name_snapshot: r.get(3)?,
+            opened_at: r.get(4)?,
+            closed_at: r.get(5)?,
+            opening_float: r.get(6)?,
+            cash_sales_total: r.get(7)?,
+            cash_in_total: r.get(8)?,
+            cash_out_total: r.get(9)?,
+            expected_closing_cash: r.get(10)?,
+            actual_closing_cash: r.get(11)?,
+            cash_discrepancy: r.get(12)?,
+            status: r.get(13)?,
+            notes: r.get(14)?,
+            created_at: r.get(15)?,
+            updated_at: r.get(16)?,
+        })
+    }
+
+    pub fn open_shift(
+        &self,
+        actor: &User,
+        terminal_name: &str,
+        req: &OpenShiftRequest,
+    ) -> AppResult<CashierShift> {
+        if req.opening_float < 0 {
+            return Err(AppError::Validation(
+                "Modal awal kasir (Opening Float) tidak boleh bernilai negatif.".to_string(),
+            ));
+        }
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let active_shift: Option<String> = tx
+            .query_row(
+                "SELECT id FROM cashier_shifts WHERE cashier_id = ?1 AND status = 'OPEN' LIMIT 1",
+                params![actor.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+
+        if active_shift.is_some() {
+            return Err(AppError::Conflict(
+                "Kasir ini masih memiliki shift yang sedang aktif (OPEN). Tutup shift sebelumnya terlebih dahulu."
+                    .to_string(),
+            ));
+        }
+
+        let id = Uuid::new_v4().to_string();
+        let now = Self::now_iso();
+
+        tx.execute(
+            "INSERT INTO cashier_shifts (
+                id, terminal_name, cashier_id, cashier_name_snapshot, opened_at,
+                opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                status, notes, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, 0, 'OPEN', ?7, ?8, ?8)",
+            params![
+                id,
+                terminal_name,
+                actor.id,
+                actor.full_name,
+                now,
+                req.opening_float,
+                req.notes.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty()),
+                now
+            ],
+        )?;
+
+        let shift = tx.query_row(
+            "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                    opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                    expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                    status, notes, created_at, updated_at
+             FROM cashier_shifts WHERE id = ?1",
+            params![id],
+            Self::map_shift_row,
+        )?;
+
+        tx.commit()?;
+        Ok(shift)
+    }
+
+    pub fn get_active_shift(&self, cashier_id: &str) -> AppResult<Option<CashierShift>> {
+        let conn = self.db.lock_conn()?;
+        let shift_opt = conn
+            .query_row(
+                "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                        opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                        expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                        status, notes, created_at, updated_at
+                 FROM cashier_shifts
+                 WHERE cashier_id = ?1 AND status = 'OPEN'
+                 ORDER BY opened_at DESC LIMIT 1",
+                params![cashier_id],
+                Self::map_shift_row,
+            )
+            .optional()?;
+        Ok(shift_opt)
+    }
+
+    pub fn get_shift_by_id(&self, shift_id: &str) -> AppResult<CashierShift> {
+        let conn = self.db.lock_conn()?;
+        conn.query_row(
+            "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                    opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                    expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                    status, notes, created_at, updated_at
+             FROM cashier_shifts WHERE id = ?1",
+            params![shift_id],
+            Self::map_shift_row,
+        )
+        .map_err(|_| AppError::NotFound("Data shift tidak ditemukan.".to_string()))
+    }
+
+    pub fn record_cash_movement(
+        &self,
+        _actor: &User,
+        req: &CashMovementRequest,
+    ) -> AppResult<CashMovement> {
+        if req.amount <= 0 {
+            return Err(AppError::Validation(
+                "Nominal mutasi kas harus lebih besar dari 0.".to_string(),
+            ));
+        }
+
+        let norm_type = match req.movement_type.trim().to_uppercase().as_str() {
+            "IN" | "CASH_IN" => "CASH_IN",
+            "OUT" | "CASH_OUT" => "CASH_OUT",
+            _ => {
+                return Err(AppError::Validation(
+                    "Jenis mutasi kas harus 'CASH_IN' atau 'CASH_OUT'.".to_string(),
+                ))
+            }
+        };
+
+        let reason = req.reason.trim();
+        if reason.is_empty() {
+            return Err(AppError::Validation(
+                "Alasan mutasi kas wajib diisi.".to_string(),
+            ));
+        }
+
+        let shift = self.get_shift_by_id(&req.shift_id)?;
+        if shift.status != "OPEN" {
+            return Err(AppError::Validation(
+                "Mutasi kas hanya dapat dicatat pada shift yang sedang aktif (OPEN).".to_string(),
+            ));
+        }
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        if norm_type == "CASH_OUT" {
+            let net_cash_sales: i64 = tx.query_row(
+                "SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE shift_id = ?1 AND status = 'COMPLETED'",
+                params![shift.id],
+                |r| r.get(0),
+            )?;
+            let cash_in: i64 = tx.query_row(
+                "SELECT COALESCE(SUM(amount), 0) FROM cash_movements WHERE shift_id = ?1 AND movement_type = 'CASH_IN'",
+                params![shift.id],
+                |r| r.get(0),
+            )?;
+            let cash_out: i64 = tx.query_row(
+                "SELECT COALESCE(SUM(amount), 0) FROM cash_movements WHERE shift_id = ?1 AND movement_type = 'CASH_OUT'",
+                params![shift.id],
+                |r| r.get(0),
+            )?;
+
+            let current_cash = shift.opening_float + net_cash_sales + cash_in - cash_out;
+            if current_cash < req.amount {
+                return Err(AppError::Conflict(format!(
+                    "Saldo kas laci tidak mencukupi untuk pengeluaran kas (Tersedia: Rp {current_cash}, Diminta: Rp {}).",
+                    req.amount
+                )));
+            }
+        }
+
+        let id = Uuid::new_v4().to_string();
+        let now = Self::now_iso();
+
+        tx.execute(
+            "INSERT INTO cash_movements (
+                id, shift_id, movement_type, amount, reason, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, shift.id, norm_type, req.amount, reason, now],
+        )?;
+
+        if norm_type == "CASH_IN" {
+            tx.execute(
+                "UPDATE cashier_shifts SET cash_in_total = cash_in_total + ?1, updated_at = ?2 WHERE id = ?3",
+                params![req.amount, now, shift.id],
+            )?;
+        } else {
+            tx.execute(
+                "UPDATE cashier_shifts SET cash_out_total = cash_out_total + ?1, updated_at = ?2 WHERE id = ?3",
+                params![req.amount, now, shift.id],
+            )?;
+        }
+
+        let movement = CashMovement {
+            id,
+            shift_id: shift.id,
+            movement_type: norm_type.to_string(),
+            amount: req.amount,
+            reason: reason.to_string(),
+            created_at: now,
+        };
+
+        tx.commit()?;
+        Ok(movement)
+    }
+
+    pub fn get_shift_x_report(&self, shift_id: &str) -> AppResult<ShiftReportData> {
+        let shift = self.get_shift_by_id(shift_id)?;
+        let conn = self.db.lock_conn()?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, shift_id, movement_type, amount, reason, created_at
+             FROM cash_movements WHERE shift_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let movements = stmt
+            .query_map(params![shift_id], |r| {
+                Ok(CashMovement {
+                    id: r.get(0)?,
+                    shift_id: r.get(1)?,
+                    movement_type: r.get(2)?,
+                    amount: r.get(3)?,
+                    reason: r.get(4)?,
+                    created_at: r.get(5)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let (gross_sales, total_discounts, net_sales, total_transactions): (i64, i64, i64, i64) =
+            conn.query_row(
+                "SELECT
+                    COALESCE(SUM(subtotal), 0),
+                    COALESCE(SUM(discount_total), 0),
+                    COALESCE(SUM(total_amount), 0),
+                    COUNT(*)
+                 FROM sales
+                 WHERE shift_id = ?1 AND status = 'COMPLETED'",
+                params![shift_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )?;
+
+        let (void_count, void_total): (i64, i64) = conn.query_row(
+            "SELECT
+                COUNT(*),
+                COALESCE(SUM(total_amount), 0)
+             FROM sales
+             WHERE shift_id = ?1 AND status = 'VOIDED'",
+            params![shift_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+
+        let total_cash_sales = net_sales;
+        let mut total_cash_in = 0;
+        let mut total_cash_out = 0;
+        for m in &movements {
+            if m.movement_type == "CASH_IN" {
+                total_cash_in += m.amount;
+            } else if m.movement_type == "CASH_OUT" {
+                total_cash_out += m.amount;
+            }
+        }
+
+        let expected_cash = shift.opening_float + total_cash_sales + total_cash_in - total_cash_out;
+
+        let (store_name, store_address, store_phone): (String, String, String) = conn.query_row(
+            "SELECT store_name, store_address, store_phone FROM store_settings WHERE id = 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+
+        Ok(ShiftReportData {
+            shift,
+            movements,
+            gross_sales,
+            total_discounts,
+            net_sales,
+            total_transactions,
+            void_count,
+            void_total,
+            total_cash_sales,
+            total_cash_in,
+            total_cash_out,
+            expected_cash,
+            store_name,
+            store_address,
+            store_phone,
+        })
+    }
+
+    pub fn close_shift(&self, _actor: &User, req: &CloseShiftRequest) -> AppResult<CashierShift> {
+        let shift = self.get_shift_by_id(&req.shift_id)?;
+        if shift.status != "OPEN" {
+            return Err(AppError::Validation(
+                "Shift ini sudah ditutup sebelumnya.".to_string(),
+            ));
+        }
+
+        if req.actual_closing_cash < 0 {
+            return Err(AppError::Validation(
+                "Kas fisik aktual tidak boleh bernilai negatif.".to_string(),
+            ));
+        }
+
+        let report = self.get_shift_x_report(&shift.id)?;
+        let expected_cash = report.expected_cash;
+        let cash_discrepancy = req.actual_closing_cash - expected_cash;
+
+        let notes_cleaned = req.notes.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+        if cash_discrepancy != 0 && notes_cleaned.is_none() {
+            return Err(AppError::Validation(format!(
+                "Terdapat selisih kas sebesar Rp {cash_discrepancy}. Catatan alasan selisih wajib diisi."
+            )));
+        }
+
+        let now = Self::now_iso();
+        let conn = self.db.lock_conn()?;
+        conn.execute(
+            "UPDATE cashier_shifts
+             SET status = 'CLOSED', closed_at = ?1, expected_closing_cash = ?2,
+                 actual_closing_cash = ?3, cash_discrepancy = ?4, notes = ?5, updated_at = ?1
+             WHERE id = ?6",
+            params![
+                now,
+                expected_cash,
+                req.actual_closing_cash,
+                cash_discrepancy,
+                notes_cleaned,
+                shift.id
+            ],
+        )?;
+
+        drop(conn);
+        self.get_shift_by_id(&shift.id)
+    }
+
+    pub fn list_shifts(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> AppResult<Vec<CashierShift>> {
+        let conn = self.db.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                    opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                    expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                    status, notes, created_at, updated_at
+             FROM cashier_shifts
+             WHERE (?1 IS NULL OR opened_at >= ?1) AND (?2 IS NULL OR opened_at <= ?2 || 'T23:59:59')
+             ORDER BY opened_at DESC",
+        )?;
+        let rows = stmt
+            .query_map(params![start_date, end_date], Self::map_shift_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    // ========================================================================
+    // 11. Alur Stok Opname Fisik Massal (Stock Opname Session & Items)
+    // ========================================================================
+
+    fn map_opname_session_row(r: &Row<'_>) -> rusqlite::Result<StockOpnameSession> {
+        Ok(StockOpnameSession {
+            id: r.get(0)?,
+            session_name: r.get(1)?,
+            creator_user_id: r.get(2)?,
+            creator_name_snapshot: r.get(3)?,
+            status: r.get(4)?,
+            total_items_counted: r.get(5)?,
+            total_discrepancy_qty: r.get(6)?,
+            total_discrepancy_value: r.get(7)?,
+            committed_by_user_id: r.get(8)?,
+            committed_at: r.get(9)?,
+            notes: r.get(10)?,
+            created_at: r.get(11)?,
+            updated_at: r.get(12)?,
+        })
+    }
+
+    fn map_opname_item_row(r: &Row<'_>) -> rusqlite::Result<StockOpnameItem> {
+        let physical_count: i64 = r.get(7)?;
+        let system_stock_snapshot: i64 = r.get(8)?;
+        let cost_price_snapshot: i64 = r.get(9)?;
+        let discrepancy = physical_count - system_stock_snapshot;
+        let discrepancy_cost = discrepancy * cost_price_snapshot;
+
+        Ok(StockOpnameItem {
+            id: r.get(0)?,
+            opname_session_id: r.get(1)?,
+            product_id: r.get(2)?,
+            sku: r.get(3)?,
+            barcode: r.get(4)?,
+            product_name: r.get(5)?,
+            unit: r.get(6)?,
+            physical_count,
+            system_stock_snapshot,
+            cost_price_snapshot,
+            discrepancy,
+            discrepancy_cost,
+            updated_at: r.get(10)?,
+        })
+    }
+
+    fn sync_opname_session_aggregates(tx: &Connection, session_id: &str, now: &str) -> AppResult<()> {
+        let (total_items, total_disc_qty, total_disc_val): (i64, i64, i64) = tx.query_row(
+            "SELECT
+                COUNT(*),
+                COALESCE(SUM(physical_count - system_stock_snapshot), 0),
+                COALESCE(SUM((physical_count - system_stock_snapshot) * cost_price_snapshot), 0)
+             FROM stock_opname_items
+             WHERE opname_session_id = ?1",
+            params![session_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+
+        tx.execute(
+            "UPDATE stock_opname_sessions
+             SET total_items_counted = ?1, total_discrepancy_qty = ?2, total_discrepancy_value = ?3, updated_at = ?4
+             WHERE id = ?5",
+            params![total_items, total_disc_qty, total_disc_val, now, session_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn create_opname_session(
+        &self,
+        actor: &User,
+        req: &CreateOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let active_session: Option<String> = tx
+            .query_row(
+                "SELECT id FROM stock_opname_sessions WHERE status IN ('COUNTING', 'REVIEW') LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+
+        if active_session.is_some() {
+            return Err(AppError::Conflict(
+                "Masih ada sesi stok opname yang aktif (COUNTING/REVIEW). Selesaikan atau batalkan sesi tersebut terlebih dahulu."
+                    .to_string(),
+            ));
+        }
+
+        let today_compact = Self::today_compact_str();
+        let today_date = Self::today_date_str();
+        let count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM stock_opname_sessions WHERE created_at LIKE ?1 || '%'",
+            params![today_date],
+            |r| r.get(0),
+        )?;
+        let session_name = req
+            .session_name
+            .as_deref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("Opname-{}-{:03}", today_compact, count + 1));
+
+        let id = Uuid::new_v4().to_string();
+        let now = Self::now_iso();
+
+        tx.execute(
+            "INSERT INTO stock_opname_sessions (
+                id, session_name, creator_user_id, creator_name_snapshot, status,
+                total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                notes, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, 'COUNTING', 0, 0, 0, ?5, ?6, ?6)",
+            params![
+                id,
+                session_name,
+                actor.id,
+                actor.full_name,
+                req.notes.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty()),
+                now
+            ],
+        )?;
+
+        let session = tx.query_row(
+            "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
+                    total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                    committed_by_user_id, committed_at, notes, created_at, updated_at
+             FROM stock_opname_sessions WHERE id = ?1",
+            params![id],
+            Self::map_opname_session_row,
+        )?;
+
+        tx.commit()?;
+        Ok(session)
+    }
+
+    pub fn get_opname_session_by_id(&self, session_id: &str) -> AppResult<StockOpnameSession> {
+        let conn = self.db.lock_conn()?;
+        conn.query_row(
+            "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
+                    total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                    committed_by_user_id, committed_at, notes, created_at, updated_at
+             FROM stock_opname_sessions WHERE id = ?1",
+            params![session_id],
+            Self::map_opname_session_row,
+        )
+        .map_err(|_| AppError::NotFound("Sesi stok opname tidak ditemukan.".to_string()))
+    }
+
+    pub fn list_opname_sessions(&self) -> AppResult<Vec<StockOpnameSession>> {
+        let conn = self.db.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
+                    total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                    committed_by_user_id, committed_at, notes, created_at, updated_at
+             FROM stock_opname_sessions
+             ORDER BY created_at DESC",
+        )?;
+        let rows = stmt
+            .query_map([], Self::map_opname_session_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    pub fn get_opname_session_detail(&self, session_id: &str) -> AppResult<OpnameSessionDetail> {
+        let session = self.get_opname_session_by_id(session_id)?;
+        let conn = self.db.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT soi.id, soi.opname_session_id, soi.product_id,
+                    p.sku, p.barcode, p.name, p.unit,
+                    soi.physical_count, soi.system_stock_snapshot, soi.cost_price_snapshot,
+                    soi.updated_at
+             FROM stock_opname_items soi
+             JOIN products p ON soi.product_id = p.id
+             WHERE soi.opname_session_id = ?1
+             ORDER BY soi.updated_at DESC",
+        )?;
+        let items = stmt
+            .query_map(params![session_id], Self::map_opname_item_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(OpnameSessionDetail { session, items })
+    }
+
+    pub fn record_opname_scan(
+        &self,
+        _actor: &User,
+        req: &RecordOpnameScanRequest,
+    ) -> AppResult<StockOpnameItem> {
+        let session = self.get_opname_session_by_id(&req.session_id)?;
+        if session.status != "COUNTING" && session.status != "REVIEW" {
+            return Err(AppError::Validation(
+                "Pemindaian hanya diizinkan pada sesi stok opname yang berstatus COUNTING atau REVIEW."
+                    .to_string(),
+            ));
+        }
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let target_ident = req.product_identifier.trim();
+        let prod_row: Option<(String, String, Option<String>, String, String, i64, i64)> = tx
+            .query_row(
+                "SELECT id, sku, barcode, name, unit, stock, cost_price
+                 FROM products
+                 WHERE barcode = ?1 COLLATE NOCASE OR sku = ?1 COLLATE NOCASE OR id = ?1
+                 LIMIT 1",
+                params![target_ident],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        let Some((pid, sku, barcode, name, unit, sys_stock, cost_price)) = prod_row else {
+            return Err(AppError::NotFound(format!(
+                "Produk dengan kode/barcode '{target_ident}' tidak ditemukan."
+            )));
+        };
+
+        let existing_item: Option<(String, i64, i64, i64)> = tx
+            .query_row(
+                "SELECT id, physical_count, system_stock_snapshot, cost_price_snapshot
+                 FROM stock_opname_items
+                 WHERE opname_session_id = ?1 AND product_id = ?2",
+                params![session.id, pid],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .optional()?;
+
+        let now = Self::now_iso();
+        let is_increment = req.count_mode.trim().to_uppercase() == "INCREMENT";
+
+        let result_item = if let Some((item_id, item_phys_count, item_sys_stock, item_cost)) =
+            existing_item
+        {
+            let physical_count = if is_increment {
+                item_phys_count + req.quantity
+            } else {
+                req.quantity
+            };
+            let discrepancy = physical_count - item_sys_stock;
+            let discrepancy_cost = discrepancy * item_cost;
+
+            tx.execute(
+                "UPDATE stock_opname_items
+                 SET physical_count = ?1, updated_at = ?2
+                 WHERE id = ?3",
+                params![physical_count, now, item_id],
+            )?;
+
+            Self::sync_opname_session_aggregates(&tx, &session.id, &now)?;
+
+            StockOpnameItem {
+                id: item_id,
+                opname_session_id: session.id.clone(),
+                product_id: pid,
+                sku,
+                barcode,
+                product_name: name,
+                unit,
+                physical_count,
+                system_stock_snapshot: item_sys_stock,
+                cost_price_snapshot: item_cost,
+                discrepancy,
+                discrepancy_cost,
+                updated_at: now,
+            }
+        } else {
+            let physical_count = req.quantity;
+            let discrepancy = physical_count - sys_stock;
+            let discrepancy_cost = discrepancy * cost_price;
+            let new_id = Uuid::new_v4().to_string();
+
+            tx.execute(
+                "INSERT INTO stock_opname_items (
+                    id, opname_session_id, product_id, physical_count,
+                    system_stock_snapshot, cost_price_snapshot, updated_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    new_id,
+                    session.id,
+                    pid,
+                    physical_count,
+                    sys_stock,
+                    cost_price,
+                    now
+                ],
+            )?;
+
+            Self::sync_opname_session_aggregates(&tx, &session.id, &now)?;
+
+            StockOpnameItem {
+                id: new_id,
+                opname_session_id: session.id.clone(),
+                product_id: pid,
+                sku,
+                barcode,
+                product_name: name,
+                unit,
+                physical_count,
+                system_stock_snapshot: sys_stock,
+                cost_price_snapshot: cost_price,
+                discrepancy,
+                discrepancy_cost,
+                updated_at: now,
+            }
+        };
+
+        tx.commit()?;
+        Ok(result_item)
+    }
+
+    pub fn update_opname_item_qty(
+        &self,
+        _actor: &User,
+        req: &UpdateOpnameItemQtyRequest,
+    ) -> AppResult<StockOpnameItem> {
+        if req.physical_count < 0 {
+            return Err(AppError::Validation(
+                "Kuantitas fisik stok tidak boleh bernilai negatif.".to_string(),
+            ));
+        }
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let row: (
+            String,
+            String,
+            String,
+            String,
+            Option<String>,
+            String,
+            String,
+            i64,
+            i64,
+            String,
+        ) = tx
+            .query_row(
+                "SELECT soi.id, soi.opname_session_id, soi.product_id, p.sku,
+                        p.barcode, p.name, p.unit,
+                        soi.system_stock_snapshot, soi.cost_price_snapshot, sos.status
+                 FROM stock_opname_items soi
+                 JOIN stock_opname_sessions sos ON soi.opname_session_id = sos.id
+                 JOIN products p ON soi.product_id = p.id
+                 WHERE soi.id = ?1",
+                params![req.item_id],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                        r.get(7)?,
+                        r.get(8)?,
+                        r.get(9)?,
+                    ))
+                },
+            )
+            .map_err(|_| AppError::NotFound("Item opname tidak ditemukan.".to_string()))?;
+
+        if row.9 != "COUNTING" && row.9 != "REVIEW" {
+            return Err(AppError::Validation(
+                "Item opname hanya dapat diedit pada sesi yang berstatus COUNTING atau REVIEW."
+                    .to_string(),
+            ));
+        }
+
+        let now = Self::now_iso();
+        tx.execute(
+            "UPDATE stock_opname_items
+             SET physical_count = ?1, updated_at = ?2
+             WHERE id = ?3",
+            params![req.physical_count, now, row.0],
+        )?;
+
+        Self::sync_opname_session_aggregates(&tx, &row.1, &now)?;
+
+        let discrepancy = req.physical_count - row.7;
+        let discrepancy_cost = discrepancy * row.8;
+
+        let item = StockOpnameItem {
+            id: row.0,
+            opname_session_id: row.1,
+            product_id: row.2,
+            sku: row.3,
+            barcode: row.4,
+            product_name: row.5,
+            unit: row.6,
+            physical_count: req.physical_count,
+            system_stock_snapshot: row.7,
+            cost_price_snapshot: row.8,
+            discrepancy,
+            discrepancy_cost,
+            updated_at: now,
+        };
+
+        tx.commit()?;
+        Ok(item)
+    }
+
+    pub fn commit_opname_session(
+        &self,
+        _actor: &User,
+        req: &CommitOpnameSessionRequest,
+    ) -> AppResult<StockOpnameSession> {
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let admin_user = Self::find_admin_by_pin_conn(&tx, &req.admin_pin)?;
+
+        let session: (String, String, String) = tx
+            .query_row(
+                "SELECT id, session_name, status FROM stock_opname_sessions WHERE id = ?1",
+                params![req.session_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|_| AppError::NotFound("Sesi stok opname tidak ditemukan.".to_string()))?;
+
+        if session.2 != "COUNTING" && session.2 != "REVIEW" {
+            return Err(AppError::Conflict(format!(
+                "Hanya sesi dengan status COUNTING atau REVIEW yang dapat di-commit (status saat ini: {}).",
+                session.2
+            )));
+        }
+
+        let items: Vec<(String, i64, i64, i64)> = {
+            let mut stmt = tx.prepare(
+                "SELECT product_id, system_stock_snapshot, physical_count, (physical_count - system_stock_snapshot)
+                 FROM stock_opname_items WHERE opname_session_id = ?1",
+            )?;
+            let mapped = stmt
+                .query_map(params![session.0], |r| {
+                    Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            mapped
+        };
+
+        let now = Self::now_iso();
+
+        for (pid, sys_stock, phys_count, discrepancy) in items {
+            if discrepancy != 0 {
+                tx.execute(
+                    "UPDATE products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![phys_count, now, pid],
+                )?;
+
+                let adj_id = Uuid::new_v4().to_string();
+                let adj_note = format!(
+                    "Audit Stok Opname Sesi {} (Fisik: {}, Sistem: {})",
+                    session.1, phys_count, sys_stock
+                );
+                tx.execute(
+                    "INSERT INTO stock_adjustments (
+                        id, product_id, user_id, terminal_name, adjustment_type,
+                        stock_before, quantity_delta, stock_after, note, created_at
+                     ) VALUES (?1, ?2, ?3, 'Server Terminal', 'CORRECTION', ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        adj_id,
+                        pid,
+                        admin_user.id,
+                        sys_stock,
+                        discrepancy,
+                        phys_count,
+                        adj_note,
+                        now
+                    ],
+                )?;
+            }
+        }
+
+        tx.execute(
+            "UPDATE stock_opname_sessions
+             SET status = 'COMMITTED', committed_by_user_id = ?1, committed_at = ?2, updated_at = ?2
+             WHERE id = ?3",
+            params![admin_user.id, now, session.0],
+        )?;
+
+        tx.commit()?;
+        drop(conn);
+
+        self.get_opname_session_by_id(&session.0)
+    }
+
+    pub fn cancel_opname_session(
+        &self,
+        actor: &User,
+        session_id: &str,
+    ) -> AppResult<StockOpnameSession> {
+        Self::require_admin(actor)?;
+        let session = self.get_opname_session_by_id(session_id)?;
+        if session.status != "COUNTING" && session.status != "REVIEW" {
+            return Err(AppError::Conflict(format!(
+                "Hanya sesi dengan status COUNTING atau REVIEW yang dapat dibatalkan (status saat ini: {}).",
+                session.status
+            )));
+        }
+
+        let now = Self::now_iso();
+        let conn = self.db.lock_conn()?;
+        conn.execute(
+            "UPDATE stock_opname_sessions SET status = 'CANCELLED', updated_at = ?1 WHERE id = ?2",
+            params![now, session_id],
+        )?;
+
+        drop(conn);
+        self.get_opname_session_by_id(session_id)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{HeldBillItemInput, SaleItemInput};
+    use crate::models::{HeldBillItemInput, PriceTierInput, SaleItemInput};
 
     fn create_test_service() -> (CoreService, User) {
         let db = Arc::new(Database::open_in_memory().unwrap());
@@ -2232,6 +3350,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(5),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2253,6 +3372,7 @@ mod tests {
                     discount_value: 500,
                     initial_stock: Some(2),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2336,6 +3456,7 @@ mod tests {
                     discount_value: 10, // Diskon 1.500 -> Harga bersih 13.500, laba 3.500/pak
                     initial_stock: Some(10),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2373,6 +3494,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: None,
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2410,6 +3532,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(3),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2477,6 +3600,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(10),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2568,6 +3692,7 @@ mod tests {
                     discount_value: 0,
                     initial_stock: Some(10),
                     is_active: Some(true),
+                    price_tiers: None,
                 },
             )
             .unwrap();
@@ -2638,5 +3763,368 @@ mod tests {
             .unwrap();
         // 1 initial_stock + 3 manual adjustments = 4 log entries
         assert_eq!(logs.len(), 4);
+    }
+
+    #[test]
+    fn test_cashier_shift_lifecycle_and_solvency() {
+        let (service, admin) = create_test_service();
+
+        let cashier = service
+            .upsert_user(
+                &admin,
+                &UpsertUserRequest {
+                    id: None,
+                    username: "kasir1".to_string(),
+                    full_name: "Siti Kasir".to_string(),
+                    password: Some("kasir123".to_string()),
+                    pin: None,
+                    role: UserRole::CASHIER,
+                    is_active: true,
+                },
+            )
+            .unwrap();
+
+        // 1. Kasir membuka shift dengan modal awal Rp 50.000
+        let shift = service
+            .open_shift(
+                &cashier,
+                "Kasir 1",
+                &OpenShiftRequest {
+                    opening_float: 50_000,
+                    notes: Some("Buka shift pagi".to_string()),
+                },
+            )
+            .unwrap();
+        assert_eq!(shift.status, "OPEN");
+        assert_eq!(shift.opening_float, 50_000);
+
+        // 2. Membuka shift lagi saat masih OPEN ditolak
+        let dup = service.open_shift(
+            &cashier,
+            "Kasir 1",
+            &OpenShiftRequest {
+                opening_float: 10_000,
+                notes: None,
+            },
+        );
+        assert!(dup.is_err());
+
+        // 3. Kas Masuk (CASH_IN) Rp 20.000
+        let mov_in = service
+            .record_cash_movement(
+                &cashier,
+                &CashMovementRequest {
+                    shift_id: shift.id.clone(),
+                    movement_type: "CASH_IN".to_string(),
+                    amount: 20_000,
+                    reason: "Uang tukar tambahan".to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(mov_in.amount, 20_000);
+
+        // 4. Kas Keluar melebihi saldo laci (50rb + 20rb = 70rb, minta 80rb) ditolak (Solvency rule)
+        let insolv = service.record_cash_movement(
+            &cashier,
+            &CashMovementRequest {
+                shift_id: shift.id.clone(),
+                movement_type: "CASH_OUT".to_string(),
+                amount: 80_000,
+                reason: "Beli bensin toko".to_string(),
+            },
+        );
+        assert!(insolv.is_err());
+
+        // 5. Kas Keluar valid Rp 10.000
+        let mov_out = service
+            .record_cash_movement(
+                &cashier,
+                &CashMovementRequest {
+                    shift_id: shift.id.clone(),
+                    movement_type: "CASH_OUT".to_string(),
+                    amount: 10_000,
+                    reason: "Beli kantong kresek".to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(mov_out.amount, 10_000);
+
+        // 6. Buat produk dan lakukan transaksi penjualan kasir
+        let prod = service
+            .upsert_product(
+                &admin,
+                "Kasir 1",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "ROTI-01".to_string(),
+                    barcode: Some("8991112223334".to_string()),
+                    name: "Roti Tawar Gandum".to_string(),
+                    category_name: "Makanan".to_string(),
+                    unit: "bungkus".to_string(),
+                    cost_price: 10_000,
+                    selling_price: 15_000,
+                    discount_type: DiscountType::NONE,
+                    discount_value: 0,
+                    initial_stock: Some(10),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        let sale_receipt = service
+            .create_sale(
+                &cashier,
+                "Kasir 1",
+                &CreateSaleRequest {
+                    items: vec![SaleItemInput {
+                        product_id: prod.id.clone(),
+                        quantity: 1,
+                    }],
+                    cash_received: 20_000,
+                },
+            )
+            .unwrap();
+        assert_eq!(sale_receipt.sale.total_amount, 15_000);
+        assert_eq!(sale_receipt.sale.shift_id, Some(shift.id.clone()));
+
+        // 7. Laporan X (Audit Sementara)
+        // Saldo laci diharapkan: 50.000 (float) + 20.000 (in) - 10.000 (out) + 15.000 (penjualan) = 75.000
+        let x_rep = service.get_shift_x_report(&shift.id).unwrap();
+        assert_eq!(x_rep.expected_cash, 75_000);
+        assert_eq!(x_rep.total_transactions, 1);
+        assert_eq!(x_rep.total_cash_sales, 15_000);
+
+        // 8. Tutup Shift (Blind Close): Kasir menghitung fisik Rp 70.000 (selisih minus 5.000)
+        let closed = service
+            .close_shift(
+                &cashier,
+                &CloseShiftRequest {
+                    shift_id: shift.id.clone(),
+                    actual_closing_cash: 70_000,
+                    notes: Some("Tutup shift sore".to_string()),
+                },
+            )
+            .unwrap();
+        assert_eq!(closed.status, "CLOSED");
+        assert_eq!(closed.expected_closing_cash, Some(75_000));
+        assert_eq!(closed.actual_closing_cash, Some(70_000));
+        assert_eq!(closed.cash_discrepancy, Some(-5_000));
+    }
+
+    #[test]
+    fn test_mass_stock_opname_flow_and_commit() {
+        let (service, admin) = create_test_service();
+
+        // Siapkan produk stok awal 20
+        let prod = service
+            .upsert_product(
+                &admin,
+                "Kasir 1",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "MIE-01".to_string(),
+                    barcode: Some("8990001112223".to_string()),
+                    name: "Mie Sedap Goreng".to_string(),
+                    category_name: "Makanan".to_string(),
+                    unit: "bungkus".to_string(),
+                    cost_price: 2_500,
+                    selling_price: 3_500,
+                    discount_type: DiscountType::NONE,
+                    discount_value: 0,
+                    initial_stock: Some(20),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        // 1. Buat sesi stok opname
+        let session = service
+            .create_opname_session(
+                &admin,
+                &CreateOpnameSessionRequest {
+                    session_name: Some("Opname Lorong 1".to_string()),
+                    notes: Some("Audit berkala".to_string()),
+                },
+            )
+            .unwrap();
+        assert_eq!(session.status, "COUNTING");
+
+        // 2. Sesi konkuren kedua harus ditolak
+        let dup = service.create_opname_session(
+            &admin,
+            &CreateOpnameSessionRequest {
+                session_name: Some("Opname Lorong 2".to_string()),
+                notes: None,
+            },
+        );
+        assert!(dup.is_err());
+
+        // 3. Scan produk dengan mode REPLACE (hitung fisik = 15)
+        let scan1 = service
+            .record_opname_scan(
+                &admin,
+                &RecordOpnameScanRequest {
+                    session_id: session.id.clone(),
+                    product_identifier: "8990001112223".to_string(),
+                    count_mode: "REPLACE".to_string(),
+                    quantity: 15,
+                },
+            )
+            .unwrap();
+        assert_eq!(scan1.physical_count, 15);
+        assert_eq!(scan1.system_stock_snapshot, 20);
+        assert_eq!(scan1.discrepancy, -5);
+
+        // 4. Update manual kuantitas fisik menjadi 18
+        let updated = service
+            .update_opname_item_qty(
+                &admin,
+                &UpdateOpnameItemQtyRequest {
+                    item_id: scan1.id.clone(),
+                    physical_count: 18,
+                },
+            )
+            .unwrap();
+        assert_eq!(updated.physical_count, 18);
+        assert_eq!(updated.discrepancy, -2);
+        assert_eq!(updated.discrepancy_cost, -5_000); // -2 * 2500
+
+        // 5. Commit dengan PIN salah -> ditolak
+        let bad_commit = service.commit_opname_session(
+            &admin,
+            &CommitOpnameSessionRequest {
+                session_id: session.id.clone(),
+                admin_pin: "000000".to_string(),
+            },
+        );
+        assert!(bad_commit.is_err());
+
+        // 6. Commit dengan PIN benar ("123456") -> sukses
+        let committed = service
+            .commit_opname_session(
+                &admin,
+                &CommitOpnameSessionRequest {
+                    session_id: session.id.clone(),
+                    admin_pin: "123456".to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(committed.status, "COMMITTED");
+
+        // 7. Cek stok produk sekarang terupdate otomatis menjadi 18
+        let current_prod = service.find_product_by_code(&admin, &prod.sku).unwrap();
+        assert_eq!(current_prod.stock, 18);
+    }
+
+    #[test]
+    fn test_product_tiered_pricing_setup_and_sale() {
+        let (service, admin) = create_test_service();
+
+        // 1. Buat produk dasar harga Rp 5.000, diskon reguler Rp 500
+        let prod = service
+            .upsert_product(
+                &admin,
+                "Kasir 1",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "SABUN-01".to_string(),
+                    barcode: Some("8995556667778".to_string()),
+                    name: "Sabun Mandi Wangi".to_string(),
+                    category_name: "Kebersihan".to_string(),
+                    unit: "pcs".to_string(),
+                    cost_price: 3_000,
+                    selling_price: 5_000,
+                    discount_type: DiscountType::NOMINAL,
+                    discount_value: 500, // Harga diskon reguler = 4.500
+                    initial_stock: Some(50),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        // 2. Set harga bertingkat: beli >= 5 harga Rp 4.000 / pcs
+        let tiers = service
+            .set_product_price_tiers(
+                &admin,
+                &SetPriceTiersRequest {
+                    product_id: prod.id.clone(),
+                    tiers: vec![PriceTierInput {
+                        min_quantity: 5,
+                        tier_price: 4_000,
+                    }],
+                },
+            )
+            .unwrap();
+        assert_eq!(tiers.len(), 1);
+        assert_eq!(tiers[0].min_quantity, 5);
+        assert_eq!(tiers[0].tier_price, 4_000);
+
+        // 3. Validasi tier: tier_price >= selling_price ditolak
+        let invalid_tier = service.set_product_price_tiers(
+            &admin,
+            &SetPriceTiersRequest {
+                product_id: prod.id.clone(),
+                tiers: vec![PriceTierInput {
+                    min_quantity: 5,
+                    tier_price: 5_500,
+                }],
+            },
+        );
+        assert!(invalid_tier.is_err());
+
+        // 4. Admin buat shift dulu untuk transaksi
+        let shift = service
+            .open_shift(
+                &admin,
+                "Kasir Server",
+                &OpenShiftRequest {
+                    opening_float: 100_000,
+                    notes: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(shift.status, "OPEN");
+
+        // 5. Pembelian di bawah tier (qty = 3) -> menggunakan harga reguler diskon: 3 * (5000 - 500) = 13.500
+        let sale_below = service
+            .create_sale(
+                &admin,
+                "Kasir Server",
+                &CreateSaleRequest {
+                    items: vec![SaleItemInput {
+                        product_id: prod.id.clone(),
+                        quantity: 3,
+                    }],
+                    cash_received: 20_000,
+                },
+            )
+            .unwrap();
+        assert_eq!(sale_below.sale.total_amount, 13_500);
+        let receipt_below = service.get_sale_receipt(&admin, &sale_below.sale.id, false).unwrap();
+        assert_eq!(receipt_below.items[0].applied_tier_min_qty, None);
+
+        // 6. Pembelian mencapai tier (qty = 6) -> menggunakan tier price (BR-04: menonaktifkan diskon reguler)
+        // Subtotal = 6 * 4.000 = 24.000
+        let sale_tiered = service
+            .create_sale(
+                &admin,
+                "Kasir Server",
+                &CreateSaleRequest {
+                    items: vec![SaleItemInput {
+                        product_id: prod.id.clone(),
+                        quantity: 6,
+                    }],
+                    cash_received: 30_000,
+                },
+            )
+            .unwrap();
+        assert_eq!(sale_tiered.sale.total_amount, 24_000);
+        let receipt_tiered = service.get_sale_receipt(&admin, &sale_tiered.sale.id, false).unwrap();
+        assert_eq!(receipt_tiered.items[0].applied_tier_min_qty, Some(5));
+        assert_eq!(receipt_tiered.items[0].applied_tier_price, Some(4_000));
+        assert_eq!(receipt_tiered.items[0].subtotal, 24_000);
     }
 }

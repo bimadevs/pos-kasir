@@ -8,6 +8,7 @@ export interface PosShortcutHandlers {
   onHoldBill: () => void; // F4
   onOpenHeldBills: () => void; // F5
   onOpenTodaySales: () => void; // F6
+  onCashMovement?: () => void; // F7
   onOpenPaymentModal: () => void; // F8
   onQuickExactCash: () => void; // F9
   onReprintLastReceipt: () => void; // F10
@@ -57,6 +58,12 @@ export function usePosShortcuts(handlers: PosShortcutHandlers): void {
           case "F6":
             event.preventDefault();
             handlers.onOpenTodaySales();
+            return;
+          case "F7":
+            if (handlers.onCashMovement) {
+              event.preventDefault();
+              handlers.onCashMovement();
+            }
             return;
           case "F8":
             event.preventDefault();

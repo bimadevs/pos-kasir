@@ -3,17 +3,21 @@ use crate::lan::middleware::{
     authenticate_request, extract_header_str, verify_pairing_header, HEADER_SESSION_TOKEN,
 };
 use crate::models::{
-    AuthSession, CreateHeldBillRequest, CreateSaleRequest, CreateStockAdjustmentRequest,
-    CsvImportResult, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, Product,
-    ProductFilter, ProductImportRow, RecalledHeldBill, ReceiptData, SaleWithItems, SalesReport,
-    SalesReportFilter, StockAdjustment, StoreSettings, UpdateStoreSettingsRequest,
-    UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    AuthSession, CancelOpnameSessionRequest, CashMovement, CashMovementRequest, CashierShift,
+    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
+    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
+    HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, OpenShiftRequest,
+    OpnameQuery, OpnameSessionDetail, Product, ProductFilter, ProductImportRow, ProductPriceTier,
+    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, SaleWithItems, SalesReport,
+    SalesReportFilter, SetPriceTiersRequest, ShiftReportData, ShiftsQuery, StockAdjustment,
+    StockOpnameItem, StockOpnameSession, StoreSettings, UpdateOpnameItemQtyRequest,
+    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use axum::{
     extract::{Path, Query, State},
     http::HeaderMap,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -107,6 +111,28 @@ pub fn build_lan_router(state: LanServerState) -> Router {
         .route(
             "/api/v1/store-settings",
             get(handle_get_store_settings).put(handle_update_store_settings),
+        )
+        .route("/api/v1/shifts/open", post(handle_open_shift))
+        .route("/api/v1/shifts/active", get(handle_get_active_shift))
+        .route("/api/v1/shifts/movement", post(handle_record_cash_movement))
+        .route("/api/v1/shifts/{id}/x-report", get(handle_get_shift_x_report))
+        .route("/api/v1/shifts/close", post(handle_close_shift))
+        .route("/api/v1/shifts", get(handle_list_shifts))
+        .route(
+            "/api/v1/opname/sessions",
+            get(handle_list_opname_sessions).post(handle_create_opname_session),
+        )
+        .route(
+            "/api/v1/opname/sessions/{id}",
+            get(handle_get_opname_session_detail),
+        )
+        .route("/api/v1/opname/scan", post(handle_record_opname_scan))
+        .route("/api/v1/opname/items/{id}", put(handle_update_opname_item_qty))
+        .route("/api/v1/opname/commit", post(handle_commit_opname_session))
+        .route("/api/v1/opname/cancel", post(handle_cancel_opname_session))
+        .route(
+            "/api/v1/products/{id}/tiers",
+            get(handle_get_product_price_tiers).put(handle_set_product_price_tiers),
         )
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -409,4 +435,157 @@ async fn handle_update_store_settings(
     let (user, _) = authenticate_request(&state.core, &headers)?;
     let settings = state.core.update_store_settings(&user, &req)?;
     Ok(Json(settings))
+}
+
+async fn handle_open_shift(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<OpenShiftRequest>,
+) -> AppResult<Json<CashierShift>> {
+    let (user, terminal_name) = authenticate_request(&state.core, &headers)?;
+    let shift = state.core.open_shift(&user, &terminal_name, &req)?;
+    Ok(Json(shift))
+}
+
+async fn handle_get_active_shift(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+) -> AppResult<Json<Option<CashierShift>>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let shift = state.core.get_active_shift(&user.id)?;
+    Ok(Json(shift))
+}
+
+async fn handle_record_cash_movement(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<CashMovementRequest>,
+) -> AppResult<Json<CashMovement>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let mov = state.core.record_cash_movement(&user, &req)?;
+    Ok(Json(mov))
+}
+
+async fn handle_get_shift_x_report(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> AppResult<Json<ShiftReportData>> {
+    let _ = authenticate_request(&state.core, &headers)?;
+    let report = state.core.get_shift_x_report(&id)?;
+    Ok(Json(report))
+}
+
+async fn handle_close_shift(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<CloseShiftRequest>,
+) -> AppResult<Json<CashierShift>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let shift = state.core.close_shift(&user, &req)?;
+    Ok(Json(shift))
+}
+
+async fn handle_list_shifts(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(query): Query<ShiftsQuery>,
+) -> AppResult<Json<Vec<CashierShift>>> {
+    let _ = authenticate_request(&state.core, &headers)?;
+    let shifts = state.core.list_shifts(query.start_date.as_deref(), query.end_date.as_deref())?;
+    Ok(Json(shifts))
+}
+
+async fn handle_create_opname_session(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<CreateOpnameSessionRequest>,
+) -> AppResult<Json<StockOpnameSession>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let session = state.core.create_opname_session(&user, &req)?;
+    Ok(Json(session))
+}
+
+async fn handle_list_opname_sessions(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(_query): Query<OpnameQuery>,
+) -> AppResult<Json<Vec<StockOpnameSession>>> {
+    let _ = authenticate_request(&state.core, &headers)?;
+    let sessions = state.core.list_opname_sessions()?;
+    Ok(Json(sessions))
+}
+
+async fn handle_get_opname_session_detail(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> AppResult<Json<OpnameSessionDetail>> {
+    let _ = authenticate_request(&state.core, &headers)?;
+    let detail = state.core.get_opname_session_detail(&id)?;
+    Ok(Json(detail))
+}
+
+async fn handle_record_opname_scan(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<RecordOpnameScanRequest>,
+) -> AppResult<Json<StockOpnameItem>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let item = state.core.record_opname_scan(&user, &req)?;
+    Ok(Json(item))
+}
+
+async fn handle_update_opname_item_qty(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Path(_id): Path<String>,
+    Json(req): Json<UpdateOpnameItemQtyRequest>,
+) -> AppResult<Json<StockOpnameItem>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let item = state.core.update_opname_item_qty(&user, &req)?;
+    Ok(Json(item))
+}
+
+async fn handle_commit_opname_session(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<CommitOpnameSessionRequest>,
+) -> AppResult<Json<StockOpnameSession>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let session = state.core.commit_opname_session(&user, &req)?;
+    Ok(Json(session))
+}
+
+async fn handle_cancel_opname_session(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<CancelOpnameSessionRequest>,
+) -> AppResult<Json<StockOpnameSession>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let session = state.core.cancel_opname_session(&user, &req.session_id)?;
+    Ok(Json(session))
+}
+
+async fn handle_get_product_price_tiers(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> AppResult<Json<Vec<ProductPriceTier>>> {
+    let _ = authenticate_request(&state.core, &headers)?;
+    let tiers = state.core.get_product_price_tiers(&id)?;
+    Ok(Json(tiers))
+}
+
+async fn handle_set_product_price_tiers(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<SetPriceTiersRequest>,
+) -> AppResult<Json<Vec<ProductPriceTier>>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let mut payload = req;
+    payload.product_id = id;
+    let tiers = state.core.set_product_price_tiers(&user, &payload)?;
+    Ok(Json(tiers))
 }

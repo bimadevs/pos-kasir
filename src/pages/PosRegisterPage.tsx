@@ -5,6 +5,7 @@ import {
   Barcode,
   CheckCircle2,
   Clock,
+  FileText,
   History,
   PauseCircle,
   Printer,
@@ -13,9 +14,14 @@ import {
   Zap,
 } from "lucide-react";
 import { CartTable } from "../components/pos/CartTable";
+import { CashMovementModal } from "../components/pos/CashMovementModal";
 import { HeldBillsModal } from "../components/pos/HeldBillsModal";
 import { PaymentModal } from "../components/pos/PaymentModal";
+import { ShiftCloseModal } from "../components/pos/ShiftCloseModal";
+import { ShiftOpenModal } from "../components/pos/ShiftOpenModal";
 import { TodaySalesDrawer } from "../components/pos/TodaySalesDrawer";
+import { ShiftReportPreviewModal } from "../components/receipt/ShiftReportPreviewModal";
+import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
@@ -37,7 +43,22 @@ import { playErrorBeep, playScanSuccessBeep } from "../utils/sound";
 import { APP_VERSION_LABEL } from "../version";
 
 export const PosRegisterPage: React.FC = () => {
-  const { openReceiptPreview } = useTerminal();
+  const { user } = useAuth();
+  const {
+    activeShift,
+    refreshActiveShift,
+    openReceiptPreview,
+    previewShiftReport,
+    previewOutcome,
+    openShiftReportPreview,
+    closeShiftReportPreview,
+    terminalStatus,
+  } = useTerminal();
+
+  // Shift modals state
+  const [shiftOpenModalOpen, setShiftOpenModalOpen] = useState<boolean>(false);
+  const [shiftCloseModalOpen, setShiftCloseModalOpen] = useState<boolean>(false);
+  const [cashMovementModalOpen, setCashMovementModalOpen] = useState<boolean>(false);
 
   // Cart & selection state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -168,7 +189,43 @@ export const PosRegisterPage: React.FC = () => {
   );
 
   const isAnyModalOpen =
-    paymentModalOpen || heldModalMode !== null || todaySalesOpen;
+    paymentModalOpen ||
+    heldModalMode !== null ||
+    todaySalesOpen ||
+    shiftOpenModalOpen ||
+    shiftCloseModalOpen ||
+    cashMovementModalOpen ||
+    Boolean(previewShiftReport);
+
+  // Invarian & FR-35: Kasir wajib membuka shift kasir terlebih dahulu
+  useEffect(() => {
+    if (user?.role === "CASHIER" && activeShift === null) {
+      setShiftOpenModalOpen(true);
+    }
+  }, [user, activeShift]);
+
+  const handlePrintXReport = useCallback(async () => {
+    if (!activeShift) {
+      showBanner("warning", "Belum ada shift kasir aktif.");
+      return;
+    }
+    try {
+      const rep = await ipc.getShiftXReport(activeShift.id);
+      const outcome = await ipc.printShiftReport(rep);
+      if (outcome.show_preview_modal) {
+        openShiftReportPreview(rep, outcome);
+      } else {
+        showBanner("success", "Laporan X (audit sementara) berhasil dicetak.");
+      }
+    } catch (err) {
+      showBanner(
+        "error",
+        `Gagal mencetak Laporan X: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+  }, [activeShift, openShiftReportPreview, showBanner]);
 
   // Global USB HID Barcode Scanner hook
   useBarcodeScanner({
@@ -372,6 +429,13 @@ export const PosRegisterPage: React.FC = () => {
     },
     onOpenTodaySales: () => {
       void handleOpenTodaySales();
+    },
+    onCashMovement: () => {
+      if (activeShift) {
+        setCashMovementModalOpen(true);
+      } else {
+        setShiftOpenModalOpen(true);
+      }
     },
     onOpenPaymentModal: () => {
       if (cart.length === 0) {
@@ -671,16 +735,54 @@ export const PosRegisterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Secondary Operational Buttons (Hold, Recall, Today's Sales/Void, Reprint) */}
+            {/* Shift Cockpit Bar */}
+            <div className="p-3 bg-zinc-50 border border-zinc-200/90 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    activeShift ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`}
+                />
+                <div>
+                  <div className="font-extrabold text-zinc-900">
+                    {activeShift ? "Shift Kasir Aktif" : "Shift Belum Dibuka"}
+                  </div>
+                  <div className="text-[11px] text-zinc-500">
+                    {activeShift
+                      ? `Float: ${formatRupiah(activeShift.opening_float)} • ${activeShift.terminal_name}`
+                      : "Wajib buka shift untuk melayani"}
+                  </div>
+                </div>
+              </div>
+              {activeShift ? (
+                <button
+                  type="button"
+                  onClick={() => setShiftCloseModalOpen(true)}
+                  className="py-1 px-2.5 bg-zinc-900 hover:bg-black text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer shadow-2xs"
+                >
+                  Tutup Shift (Z)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShiftOpenModalOpen(true)}
+                  className="py-1 px-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer shadow-2xs"
+                >
+                  Buka Shift
+                </button>
+              )}
+            </div>
+
+            {/* Secondary Operational Buttons (Hold, Recall, Today's Sales/Void, Mutasi Kas F7, Reprint, Laporan X) */}
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleOpenHoldModal}
                 disabled={cart.length === 0}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] disabled:opacity-40 border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] disabled:opacity-40 border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <PauseCircle className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <PauseCircle className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                   Tahan (Hold)
                 </span>
                 <kbd className="kbd-key">F4</kbd>
@@ -689,10 +791,10 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenRecallModal()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                   Recall ({heldBills.length})
                 </span>
                 <kbd className="kbd-key">F5</kbd>
@@ -701,25 +803,56 @@ export const PosRegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleOpenTodaySales()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-zinc-500 shrink-0" />
-                  Riwayat / Void
+                  <History className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                  Riwayat/Void
                 </span>
                 <kbd className="kbd-key">F6</kbd>
               </button>
 
               <button
                 type="button"
-                onClick={() => void handleReprintLastReceipt()}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+                onClick={() => {
+                  if (activeShift) {
+                    setCashMovementModalOpen(true);
+                  } else {
+                    setShiftOpenModalOpen(true);
+                  }
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
               >
                 <span className="flex items-center gap-1.5">
-                  <Printer className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <Banknote className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                  Mutasi Kas
+                </span>
+                <kbd className="kbd-key">F7</kbd>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleReprintLastReceipt()}
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Printer className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                   Reprint Struk
                 </span>
                 <kbd className="kbd-key">F10</kbd>
+              </button>
+
+              <button
+                type="button"
+                disabled={!activeShift}
+                onClick={() => void handlePrintXReport()}
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 active:scale-[0.98] disabled:opacity-40 border border-zinc-200 text-left text-xs font-semibold text-zinc-700 hover:text-zinc-900 transition-all cursor-pointer shadow-2xs"
+              >
+                <span className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                  Laporan X
+                </span>
+                <span className="text-[10px] text-zinc-400 font-mono">Audit</span>
               </button>
             </div>
           </div>
@@ -963,6 +1096,68 @@ export const PosRegisterPage: React.FC = () => {
             "Transaksi berhasil dibatalkan (Void) & stok dikembalikan."
           );
         }}
+      />
+
+      {/* Shift Open Modal (Barrier modal if cashier has no active shift) */}
+      <ShiftOpenModal
+        isOpen={shiftOpenModalOpen || (user?.role === "CASHIER" && !activeShift)}
+        isBarrier={user?.role === "CASHIER" && !activeShift}
+        cashierName={user?.full_name || "Kasir"}
+        terminalName={terminalStatus?.config.terminal_name || "Kasir"}
+        onShiftOpened={async (shift) => {
+          await refreshActiveShift();
+          setShiftOpenModalOpen(false);
+          showBanner(
+            "success",
+            `Shift kasir dibuka dengan modal kas ${formatRupiah(
+              shift.opening_float
+            )}.`
+          );
+        }}
+        onClose={() => setShiftOpenModalOpen(false)}
+      />
+
+      {/* Shift Close Modal (Blind Close & Z-Report) */}
+      {activeShift && (
+        <ShiftCloseModal
+          isOpen={shiftCloseModalOpen}
+          activeShift={activeShift}
+          onClose={() => setShiftCloseModalOpen(false)}
+          onShiftClosed={async (_shift, report) => {
+            await refreshActiveShift();
+            setShiftCloseModalOpen(false);
+            showBanner(
+              "success",
+              `Shift kasir (${report.shift.cashier_name_snapshot}) berhasil ditutup. Laporan Z telah diproses.`
+            );
+          }}
+        />
+      )}
+
+      {/* Cash In / Cash Out Modal (F7) */}
+      {activeShift && (
+        <CashMovementModal
+          isOpen={cashMovementModalOpen}
+          activeShift={activeShift}
+          onClose={() => setCashMovementModalOpen(false)}
+          onMovementRecorded={async (movement) => {
+            await refreshActiveShift();
+            setCashMovementModalOpen(false);
+            showBanner(
+              "success",
+              `${
+                movement.movement_type === "CASH_IN" ? "Kas Masuk" : "Kas Keluar"
+              } sebesar ${formatRupiah(movement.amount)} tercatat.`
+            );
+          }}
+        />
+      )}
+
+      {/* Shift Report Preview & Re-print Modal */}
+      <ShiftReportPreviewModal
+        report={previewShiftReport}
+        outcome={previewOutcome}
+        onClose={closeShiftReportPreview}
       />
     </div>
   );

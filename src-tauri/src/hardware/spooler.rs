@@ -3,9 +3,10 @@ use crate::config::{PrinterConfig, VIRTUAL_PRINTER_NAME};
 use crate::error::AppError;
 use crate::error::AppResult;
 use crate::hardware::escpos::{
-    build_drawer_kick_only_bytes, build_escpos_bytes, render_receipt_text,
+    build_drawer_kick_only_bytes, build_escpos_bytes, build_shift_report_escpos_bytes,
+    render_receipt_text, render_shift_report_text,
 };
-use crate::models::{PrintOutcome, ReceiptData};
+use crate::models::{PrintOutcome, ReceiptData, ShiftReportData};
 use std::fs;
 use std::path::Path;
 
@@ -62,6 +63,48 @@ pub fn print_receipt_local(
         left_margin_chars,
         simulated,
         drawer_kicked: open_drawer,
+        bytes_written: raw_bytes.len(),
+        rendered_text,
+        show_preview_modal: printer_cfg.preview_on_screen || simulated,
+    })
+}
+
+/// Mencetak laporan shift kasir (X-Report atau Z-Report) ke printer lokal atau Virtual Thermal Printer.
+pub fn print_shift_report_local(
+    app_data_dir: &Path,
+    printer_cfg: &PrinterConfig,
+    report: &ShiftReportData,
+) -> AppResult<PrintOutcome> {
+    let paper_width = if printer_cfg.paper_width == 58 { 58 } else { 80 };
+    let left_margin_chars = printer_cfg.left_margin_chars;
+    let rendered_text = render_shift_report_text(report, paper_width, left_margin_chars);
+    let raw_bytes = build_shift_report_escpos_bytes(report, paper_width, left_margin_chars);
+    let is_z = report.shift.status == "CLOSED";
+
+    // Simpan salinan byte ESC/POS dan teks laporan shift terakhir untuk audit/diagnostik
+    let _ = fs::create_dir_all(app_data_dir);
+    let _ = fs::write(app_data_dir.join("last_shift_report.bin"), &raw_bytes);
+    let _ = fs::write(app_data_dir.join("last_shift_report.txt"), &rendered_text);
+
+    let printer_name = printer_cfg.printer_name.trim();
+    let is_virtual = printer_name.is_empty() || printer_name == VIRTUAL_PRINTER_NAME;
+
+    let simulated = if is_virtual {
+        true
+    } else {
+        send_raw_bytes_os(printer_name, &raw_bytes)?
+    };
+
+    Ok(PrintOutcome {
+        printer_name: if printer_name.is_empty() {
+            VIRTUAL_PRINTER_NAME.to_string()
+        } else {
+            printer_name.to_string()
+        },
+        paper_width,
+        left_margin_chars,
+        simulated,
+        drawer_kicked: is_z,
         bytes_written: raw_bytes.len(),
         rendered_text,
         show_preview_modal: printer_cfg.preview_on_screen || simulated,

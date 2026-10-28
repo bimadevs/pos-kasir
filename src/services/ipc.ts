@@ -1,7 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AuthSession,
+  CashMovement,
+  CashMovementRequest,
+  CashierShift,
+  CloseShiftRequest,
+  CommitOpnameSessionRequest,
   CreateHeldBillRequest,
+  CreateOpnameSessionRequest,
   CreateSaleRequest,
   CreateStockAdjustmentRequest,
   CsvImportResult,
@@ -10,21 +16,30 @@ import type {
   ImportProductsResult,
   LocalConfig,
   LoginRequest,
+  OpenShiftRequest,
+  OpnameSessionDetail,
   PrinterConfig,
   PrintOutcome,
   Product,
   ProductFilter,
   ProductImportRow,
+  ProductPriceTier,
   RecalledHeldBill,
   ReceiptData,
+  RecordOpnameScanRequest,
   SaleWithItems,
   SalesReport,
   SalesReportFilter,
+  SetPriceTiersRequest,
   SetupClientRequest,
   SetupServerRequest,
+  ShiftReportData,
   StockAdjustment,
+  StockOpnameItem,
+  StockOpnameSession,
   StoreSettings,
   TerminalStatus,
+  UpdateOpnameItemQtyRequest,
   UpdateStoreSettingsRequest,
   UpsertProductRequest,
   UpsertUserRequest,
@@ -151,5 +166,49 @@ export const ipc = {
     callCommand<string>("backup_database", { targetPath }),
   restoreDatabase: (sourcePath: string) =>
     callCommand<void>("restore_database", { sourcePath }),
+
+  // 8. Manajemen Shift Kasir & Rekap Kas Laci
+  openShift: (req: OpenShiftRequest) =>
+    callCommand<CashierShift>("open_shift", { req }),
+  getActiveShift: () =>
+    callCommand<CashierShift | null>("get_active_shift"),
+  recordCashMovement: (req: CashMovementRequest) =>
+    callCommand<CashMovement>("record_cash_movement", { req }),
+  getShiftXReport: (shiftId: string) =>
+    callCommand<ShiftReportData>("get_shift_x_report", { shiftId }),
+  closeShift: (req: CloseShiftRequest) =>
+    callCommand<CashierShift>("close_shift", { req }),
+  listShifts: (startDate?: string | null, endDate?: string | null) =>
+    callCommand<CashierShift[]>("list_shifts", {
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
+    }),
+  printShiftReport: (report: ShiftReportData) =>
+    callCommand<PrintOutcome>("print_shift_report", { report }),
+
+  // 9. Alur Stok Opname Fisik Massal
+  createOpnameSession: (req: CreateOpnameSessionRequest) =>
+    callCommand<StockOpnameSession>("create_opname_session", { req }),
+  listOpnameSessions: (status?: string | null) =>
+    callCommand<StockOpnameSession[]>("list_opname_sessions", {
+      status: status ?? null,
+    }),
+  getOpnameSessionDetail: (sessionId: string) =>
+    callCommand<OpnameSessionDetail>("get_opname_session_detail", { sessionId }),
+  recordOpnameScan: (req: RecordOpnameScanRequest) =>
+    callCommand<StockOpnameItem>("record_opname_scan", { req }),
+  updateOpnameItemQty: (req: UpdateOpnameItemQtyRequest) =>
+    callCommand<StockOpnameItem>("update_opname_item_qty", { req }),
+  commitOpnameSession: (req: CommitOpnameSessionRequest) =>
+    callCommand<StockOpnameSession>("commit_opname_session", { req }),
+  cancelOpnameSession: (sessionId: string, reason: string) =>
+    callCommand<StockOpnameSession>("cancel_opname_session", { sessionId, reason }),
+
+  // 10. Harga Bertingkat / Tiered Pricing
+  getProductPriceTiers: (productId: string) =>
+    callCommand<ProductPriceTier[]>("get_product_price_tiers", { productId }),
+  setProductPriceTiers: (req: SetPriceTiersRequest) =>
+    callCommand<ProductPriceTier[]>("set_product_price_tiers", { req }),
+
   quitApplication: () => callCommand<void>("quit_application"),
 };

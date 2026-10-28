@@ -5,6 +5,7 @@ import {
   addProductToCart,
   calculateCartTotals,
   calculateEffectiveUnitPrice,
+  calculateItemPrice,
   calculateUnitDiscount,
   formatRupiah,
   updateCartItemQuantity,
@@ -127,5 +128,81 @@ describe("Deteksi USB HID Barcode Scanner (evaluateScannerBuffer)", () => {
     const chars = ["1", "2"];
     const timestamps = [100, 110];
     expect(evaluateScannerBuffer(chars, timestamps)).toBeNull();
+  });
+});
+
+describe("BR-04: Harga Bertingkat / Tiered Pricing (Grosir)", () => {
+  const tieredProduct = makeSampleProduct({
+    id: "prod-tier",
+    selling_price: 5000,
+    discount_type: "NOMINAL",
+    discount_value: 500, // Harga satuan diskon reguler = 4.500
+    price_tiers: [
+      {
+        id: "t1",
+        product_id: "prod-tier",
+        min_quantity: 5,
+        tier_price: 4000,
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "t2",
+        product_id: "prod-tier",
+        min_quantity: 10,
+        tier_price: 3500,
+        created_at: "",
+        updated_at: "",
+      },
+    ],
+  });
+
+  it("menggunakan harga reguler dan diskon jika kuantitas di bawah tier minimum", () => {
+    const res = calculateItemPrice(tieredProduct, 3);
+    expect(res.isTierApplied).toBe(false);
+    expect(res.appliedTierMinQty).toBeNull();
+    expect(res.appliedTierPrice).toBeNull();
+    expect(res.effectiveUnitPrice).toBe(4500);
+    expect(res.subtotal).toBe(13500); // 3 * 4.500
+    expect(res.savingsTotal).toBe(1500); // 3 * 500
+  });
+
+  it("menerapkan tier harga grosir pertama saat qty >= 5 dan menonaktifkan diskon reguler", () => {
+    const res = calculateItemPrice(tieredProduct, 6);
+    expect(res.isTierApplied).toBe(true);
+    expect(res.appliedTierMinQty).toBe(5);
+    expect(res.appliedTierPrice).toBe(4000);
+    expect(res.effectiveUnitPrice).toBe(4000);
+    expect(res.subtotal).toBe(24000); // 6 * 4.000
+    expect(res.savingsTotal).toBe(6000); // 6 * (5.000 - 4.000)
+  });
+
+  it("menerapkan tier harga grosir tertinggi saat qty >= 10", () => {
+    const res = calculateItemPrice(tieredProduct, 12);
+    expect(res.isTierApplied).toBe(true);
+    expect(res.appliedTierMinQty).toBe(10);
+    expect(res.appliedTierPrice).toBe(3500);
+    expect(res.effectiveUnitPrice).toBe(3500);
+    expect(res.subtotal).toBe(42000); // 12 * 3.500
+    expect(res.savingsTotal).toBe(18000); // 12 * (5.000 - 3.500)
+  });
+
+  it("menghitung total keranjang dengan campuran produk biasa dan produk tier grosir", () => {
+    const normalProduct = makeSampleProduct({
+      id: "prod-normal",
+      selling_price: 2000,
+      discount_type: "NONE",
+      discount_value: 0,
+    });
+
+    const totals = calculateCartTotals([
+      { product: normalProduct, quantity: 2 }, // 2 * 2000 = 4.000
+      { product: tieredProduct, quantity: 5 }, // 5 * 4000 = 20.000 (hemat 5.000 dari normal 25.000)
+    ]);
+
+    expect(totals.totalUnitsQty).toBe(7);
+    expect(totals.subtotalGross).toBe(29000); // 4.000 + 25.000
+    expect(totals.discountTotal).toBe(5000); // 0 + 5.000
+    expect(totals.totalAmount).toBe(24000); // 4.000 + 20.000
   });
 });

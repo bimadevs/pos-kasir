@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ArrowRight, ClipboardCheck, PackageCheck, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  FileCheck,
+  PackageCheck,
+  RefreshCw,
+} from "lucide-react";
+import { MassOpnameView } from "../components/stock/MassOpnameView";
 import { ipc } from "../services/ipc";
 import type {
   AdjustmentType,
@@ -9,6 +16,9 @@ import type {
 import { formatDateTimeId } from "../utils/posCalculator";
 
 export const StockAdjustmentPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"AD_HOC" | "MASS_OPNAME">(
+    "AD_HOC"
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -147,7 +157,38 @@ export const StockAdjustmentPage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-12 gap-5">
+      {/* Subtab Switcher */}
+      <div className="flex border-b border-zinc-200 gap-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("AD_HOC")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            activeTab === "AD_HOC"
+              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
+        >
+          <PackageCheck className="w-4 h-4" />
+          Koreksi Stok Ad-Hoc
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("MASS_OPNAME")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            activeTab === "MASS_OPNAME"
+              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
+        >
+          <FileCheck className="w-4 h-4" />
+          Audit Opname Fisik Massal
+        </button>
+      </div>
+
+      {activeTab === "MASS_OPNAME" ? (
+        <MassOpnameView onSessionCommitted={() => void loadData()} />
+      ) : (
+        <div className="grid grid-cols-12 gap-5">
         {/* Form Card (4 cols) */}
         <div className="col-span-4 bg-white rounded-2xl border border-zinc-200 shadow-2xs p-5 h-fit">
           <div className="flex items-center gap-2 pb-3 mb-4 border-b border-zinc-200">
@@ -406,6 +447,7 @@ export const StockAdjustmentPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
