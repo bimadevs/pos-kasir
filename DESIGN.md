@@ -213,7 +213,7 @@ Warna semantik memiliki aturan ketat dan tidak boleh ditukar fungsi:
 - **Status Dot LAN Putus**: `bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]`.
 
 #### D. Sinyal Netral / Informasi (`Metadata Badges`)
-- **Fungsi**: Badge Peran Kasir, SKU/Barcode, Versi Aplikasi (`Kassio vX.Y.Z`), Label Mode Terminal (Server / Client).
+- **Fungsi**: Badge Peran Kasir, SKU/Barcode, Versi Aplikasi (`Mudita Mart vX.Y.Z`), Label Mode Terminal (Server / Client).
 - **Pill Netral**: `bg-zinc-100 text-zinc-700 border-zinc-200/80` (pada area terang) atau `bg-slate-800 text-zinc-300 border-slate-700` (pada area gelap).
 
 ---
@@ -393,7 +393,7 @@ Setiap status memiliki formula:
    `bg-amber-50 text-amber-800 border-amber-200/80`
 3. **Stok Habis (0) / Void / LAN Putus / Nonaktif (Merah)**:
    `bg-rose-50 text-rose-800 border-rose-200/80`
-4. **Peran Admin (Kassio Teal)**:
+4. **Peran Admin (Mudita Teal)**:
    `bg-teal-50 text-teal-800 border-teal-200/80`
 5. **Peran Kasir / Netral (Charcoal Slate / Zinc)**:
    `bg-zinc-100 text-zinc-700 border-zinc-200/80`

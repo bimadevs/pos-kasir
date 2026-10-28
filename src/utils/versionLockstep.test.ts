@@ -33,7 +33,7 @@ describe("Disiplin Manajemen Versi & Rilis (SemVer Lockstep)", () => {
     expect(changelogRaw).toContain(expectedHeading);
   });
 
-  it("mencegah penulisan versi hardcoded (Mudita Mart / Kassio vX.Y.Z) di dalam komponen React (.tsx)", () => {
+  it("mencegah penulisan versi hardcoded (Mudita Mart vX.Y.Z) di dalam komponen React (.tsx)", () => {
     const entries = Object.entries(tsxFiles);
     expect(entries.length).toBeGreaterThan(0);
 

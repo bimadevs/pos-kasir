@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    kassio_lib::run()
+    mudita_mart_lib::run()
 }
