@@ -94,7 +94,7 @@ describe("Receipt Preview & Fallback Formatter", () => {
     }
 
     expect(text58).toContain("INV-20261019-0001");
-    expect(text58).toContain("TOTAL BAYAR");
+    expect(text58).toContain("TOTAL");
     expect(text58).toContain("Kembalian");
     expect(text58).not.toContain("*** CETAKAN ULANG ***");
   }, 20000);

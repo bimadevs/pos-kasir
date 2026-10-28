@@ -29,6 +29,7 @@ import { ipc } from "../services/ipc";
 import type {
   CartItem,
   HeldBill,
+  PrintOutcome,
   Product,
   ReceiptData,
   SaleWithItems,
@@ -48,6 +49,7 @@ export const PosRegisterPage: React.FC = () => {
     activeShift,
     refreshActiveShift,
     openReceiptPreview,
+    previewReceipt,
     previewShiftReport,
     previewOutcome,
     openShiftReportPreview,
@@ -92,6 +94,10 @@ export const PosRegisterPage: React.FC = () => {
   const [lastCompletedSaleId, setLastCompletedSaleId] = useState<string | null>(
     null
   );
+  const [lastPrintOutcome, setLastPrintOutcome] = useState<PrintOutcome | null>(
+    null
+  );
+  const isSubmittingCheckoutRef = useRef<boolean>(false);
 
   const [heldModalMode, setHeldModalMode] = useState<"HOLD" | "RECALL" | null>(
     null
@@ -195,6 +201,7 @@ export const PosRegisterPage: React.FC = () => {
     shiftOpenModalOpen ||
     shiftCloseModalOpen ||
     cashMovementModalOpen ||
+    Boolean(previewReceipt) ||
     Boolean(previewShiftReport);
 
   // Invarian & FR-35: Kasir wajib membuka shift kasir terlebih dahulu
@@ -263,14 +270,21 @@ export const PosRegisterPage: React.FC = () => {
 
   // Execute cash sale checkout
   const executeCheckout = useCallback(
-    async (cashReceived: number, openResultModal: boolean = true) => {
-      if (cart.length === 0 || submittingSale) return;
+    async (cashReceived: number) => {
+      if (
+        cart.length === 0 ||
+        submittingSale ||
+        isSubmittingCheckoutRef.current
+      ) {
+        return;
+      }
       if (cashReceived < totals.totalAmount) {
         playErrorBeep();
         showBanner("error", "Nominal uang diterima kurang dari total tagihan.");
         return;
       }
 
+      isSubmittingCheckoutRef.current = true;
       setSubmittingSale(true);
       setPaymentError(null);
       setPrintWarning(null);
@@ -290,18 +304,18 @@ export const PosRegisterPage: React.FC = () => {
         // Trigger local thermal print + cash drawer pulse (if enabled)
         try {
           const outcome = await ipc.printReceipt(receipt);
-          if (outcome.show_preview_modal) {
-            openReceiptPreview(receipt, outcome);
-          }
+          setLastPrintOutcome(outcome);
+          // CATATAN: Jangan memanggil openReceiptPreview() di sini agar tidak memunculkan
+          // modal ganda yang saling bertumpuk (ReceiptPreviewModal di atas PaymentModal).
+          // Layar sukses transaksi ditampilkan bersih di dalam PaymentModal (UI-UX-SPEC 4.3).
+          // Kasir dapat mengklik "Lihat / Cetak Struk" di PaymentModal kapan saja jika diperlukan.
         } catch (printErr) {
           setPrintWarning(
             printErr instanceof Error ? printErr.message : String(printErr)
           );
         }
 
-        if (!openResultModal) {
-          setPaymentModalOpen(true);
-        }
+        setPaymentModalOpen(true);
       } catch (err) {
         playErrorBeep();
         const msg = err instanceof Error ? err.message : String(err);
@@ -309,9 +323,10 @@ export const PosRegisterPage: React.FC = () => {
         showBanner("error", msg);
       } finally {
         setSubmittingSale(false);
+        isSubmittingCheckoutRef.current = false;
       }
     },
-    [cart, submittingSale, totals.totalAmount, openReceiptPreview, showBanner]
+    [cart, submittingSale, totals.totalAmount, showBanner]
   );
 
   const handleStartNewTransaction = useCallback(() => {
@@ -319,6 +334,7 @@ export const PosRegisterPage: React.FC = () => {
     setSelectedIndex(0);
     setEditingProductId(null);
     setCompletedReceipt(null);
+    setLastPrintOutcome(null);
     setPrintWarning(null);
     setPaymentError(null);
     setPaymentModalOpen(false);
@@ -452,7 +468,7 @@ export const PosRegisterPage: React.FC = () => {
         showBanner("warning", "Keranjang belanja masih kosong.");
         return;
       }
-      void executeCheckout(totals.totalAmount, false);
+      void executeCheckout(totals.totalAmount);
     },
     onReprintLastReceipt: () => {
       void handleReprintLastReceipt();
@@ -862,7 +878,7 @@ export const PosRegisterPage: React.FC = () => {
             <button
               type="button"
               disabled={cart.length === 0 || submittingSale}
-              onClick={() => void executeCheckout(totals.totalAmount, false)}
+              onClick={() => void executeCheckout(totals.totalAmount)}
               className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 active:scale-[0.98] disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border-zinc-200 text-amber-950 font-bold text-xs flex items-center justify-between transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:active:scale-100"
             >
               <span className="flex items-center gap-2">
@@ -944,12 +960,12 @@ export const PosRegisterPage: React.FC = () => {
         errorMessage={paymentError}
         onClose={() => setPaymentModalOpen(false)}
         onConfirmCashPayment={(cashReceived) => {
-          void executeCheckout(cashReceived, true);
+          void executeCheckout(cashReceived);
         }}
         onStartNewTransaction={handleStartNewTransaction}
         onShowReceiptPreview={() => {
           if (completedReceipt) {
-            openReceiptPreview(completedReceipt, null);
+            openReceiptPreview(completedReceipt, lastPrintOutcome);
           }
         }}
       />

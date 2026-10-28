@@ -1,5 +1,20 @@
 import type { ReceiptData } from "../types/domain";
-import { formatDateTimeId, formatRupiah } from "./posCalculator";
+import { formatRupiah } from "./posCalculator";
+
+/**
+ * Format timestamp ringkas dd/mm/yyyy hh:mm identik dengan implementasi Rust ESC/POS.
+ */
+export function formatTimestampShort(isoString: string): string {
+  if (!isoString) return "-";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return isoString.slice(0, 16);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
 
 /**
  * Memecah teks menjadi baris-baris yang tidak melebihi batas kolom (cols).
@@ -48,6 +63,7 @@ export function wrapFallbackWords(text: string, cols: number): string[] {
 /**
  * Menghasilkan representasi string monospaced struk kasir untuk mode pratinjau (Receipt Preview)
  * maupun fallback cetak tanpa driver grafis.
+ * Susunan teks dan label diselaraskan 100% identik dengan `render_receipt_text` di Rust ESC/POS.
  */
 export function renderFallbackReceiptText(
   receipt: ReceiptData,
@@ -58,7 +74,6 @@ export function renderFallbackReceiptText(
   const contentCols = cols - marginCount;
   const margin = " ".repeat(marginCount);
   const divider = "-".repeat(contentCols);
-  const doubleDivider = "=".repeat(contentCols);
 
   const center = (text: string) => {
     return wrapFallbackWords(text, contentCols)
@@ -80,15 +95,40 @@ export function renderFallbackReceiptText(
   };
 
   const lines: string[] = [];
-  lines.push(center(receipt.store_name.toUpperCase()));
+
+  // 1. Identitas Toko (Rata Tengah)
+  for (const line of wrapFallbackWords(receipt.store_name.toUpperCase(), contentCols)) {
+    lines.push(center(line));
+  }
   if (receipt.store_address?.trim()) {
-    lines.push(center(receipt.store_address));
+    for (const line of wrapFallbackWords(receipt.store_address, contentCols)) {
+      lines.push(center(line));
+    }
   }
   if (receipt.store_phone?.trim()) {
-    lines.push(center(`Telp: ${receipt.store_phone.trim()}`));
+    const phone = `Telp: ${receipt.store_phone.trim()}`;
+    for (const line of wrapFallbackWords(phone, contentCols)) {
+      lines.push(center(line));
+    }
   }
-  lines.push(margin + doubleDivider);
+  lines.push(margin + divider);
 
+  // 2. Metadata Transaksi
+  const noLine = `No   : ${receipt.sale.receipt_number}`;
+  for (const line of wrapFallbackWords(noLine, contentCols)) {
+    lines.push(margin + line);
+  }
+  const tglLine = `Tgl  : ${formatTimestampShort(receipt.sale.created_at)}`;
+  for (const line of wrapFallbackWords(tglLine, contentCols)) {
+    lines.push(margin + line);
+  }
+  const cashierLine = `Kasir: ${receipt.sale.cashier_name_snapshot} (${receipt.sale.terminal_name})`;
+  for (const line of wrapFallbackWords(cashierLine, contentCols)) {
+    lines.push(margin + line);
+  }
+  lines.push(margin + divider);
+
+  // 3. Indikator Cetakan Ulang atau Void
   if (receipt.is_reprint) {
     lines.push(center("*** CETAKAN ULANG ***"));
   }
@@ -96,25 +136,7 @@ export function renderFallbackReceiptText(
     lines.push(center("*** TRANSAKSI DIBATALKAN (VOID) ***"));
   }
 
-  for (const line of wrapFallbackWords(
-    `No   : ${receipt.sale.receipt_number}`,
-    contentCols,
-  )) {
-    lines.push(margin + line);
-  }
-  for (const line of wrapFallbackWords(
-    `Waktu: ${formatDateTimeId(receipt.sale.created_at)}`,
-    contentCols,
-  )) {
-    lines.push(margin + line);
-  }
-  const cashierLine = `Kasir: ${receipt.sale.cashier_name_snapshot} (${receipt.sale.terminal_name})`;
-  for (const line of wrapFallbackWords(cashierLine, contentCols)) {
-    lines.push(margin + line);
-  }
-
-  lines.push(margin + divider);
-
+  // 4. Line Items
   for (const item of receipt.items) {
     for (const nameLine of wrapFallbackWords(
       item.product_name_snapshot,
@@ -122,51 +144,58 @@ export function renderFallbackReceiptText(
     )) {
       lines.push(margin + nameLine);
     }
-    const grossLine = item.selling_price_snapshot * item.quantity;
 
     if (item.applied_tier_price != null && item.applied_tier_price > 0) {
+      const grossLine = item.selling_price_snapshot * item.quantity;
       const lineTotal = item.subtotal;
       const savings = Math.max(0, grossLine - lineTotal);
+      const qtyPriceLeft = `${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.applied_tier_price, false)}`;
       lines.push(
         leftRight(
-          `  ${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.applied_tier_price, false)}`,
+          qtyPriceLeft,
           formatRupiah(lineTotal, false),
         ),
       );
       lines.push(
-        leftRight(`  ↳ [Harga Grosir]`, `(Hemat ${formatRupiah(savings, false)})`),
+        leftRight(`  ↳ Harga Grosir`, `(Hemat ${formatRupiah(savings, false)})`),
       );
     } else {
+      const grossLine = item.selling_price_snapshot * item.quantity;
+      const qtyPriceLeft = `${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.selling_price_snapshot, false)}`;
       lines.push(
         leftRight(
-          `  ${item.quantity} ${item.unit_snapshot} x ${formatRupiah(item.selling_price_snapshot, false)}`,
+          qtyPriceLeft,
           formatRupiah(grossLine, false),
         ),
       );
       if (item.unit_discount_amount > 0) {
         const totalDisc = item.unit_discount_amount * item.quantity;
         lines.push(
-          leftRight(`  ↳ Diskon`, `-${formatRupiah(totalDisc, false)}`),
+          leftRight(`  Diskon Produk`, `(${formatRupiah(totalDisc, false)})`),
         );
       }
     }
   }
 
   lines.push(margin + divider);
-  lines.push(leftRight("Subtotal", formatRupiah(receipt.sale.subtotal)));
+
+  // 5. Ringkasan Finansial Pembayaran
+  lines.push(leftRight("Subtotal", formatRupiah(receipt.sale.subtotal, false)));
   if (receipt.sale.discount_total > 0) {
     lines.push(
-      leftRight("Total Diskon", `-${formatRupiah(receipt.sale.discount_total)}`),
+      leftRight("Total Diskon", `(${formatRupiah(receipt.sale.discount_total, false)})`),
     );
   }
-  lines.push(margin + doubleDivider);
-  lines.push(leftRight("TOTAL BAYAR", formatRupiah(receipt.sale.total_amount)));
-  lines.push(leftRight("Tunai", formatRupiah(receipt.sale.cash_received)));
-  lines.push(leftRight("Kembalian", formatRupiah(receipt.sale.change_amount)));
+  lines.push(leftRight("TOTAL", formatRupiah(receipt.sale.total_amount, false)));
+  lines.push(leftRight("Tunai", formatRupiah(receipt.sale.cash_received, false)));
+  lines.push(leftRight("Kembalian", formatRupiah(receipt.sale.change_amount, false)));
   lines.push(margin + divider);
 
+  // 6. Footer Struk
   if (receipt.receipt_footer?.trim()) {
-    lines.push(center(receipt.receipt_footer));
+    for (const line of wrapFallbackWords(receipt.receipt_footer, contentCols)) {
+      lines.push(center(line));
+    }
   }
 
   return lines.join("\n");
