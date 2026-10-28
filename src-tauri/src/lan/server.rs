@@ -135,6 +135,7 @@ pub fn build_lan_router(state: LanServerState) -> Router {
             "/api/v1/products/{id}/tiers",
             get(handle_get_product_price_tiers).put(handle_set_product_price_tiers),
         )
+        .layer(axum::extract::DefaultBodyLimit::max(25 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -151,7 +152,9 @@ pub async fn spawn_lan_server(
         server_terminal_name,
     });
     let handle = tokio::spawn(async move {
-        let _ = axum::serve(listener, router).await;
+        if let Err(e) = axum::serve(listener, router).await {
+            eprintln!("Axum LAN Server terminated: {e}");
+        }
     });
     Ok((local_addr, handle))
 }
@@ -458,10 +461,15 @@ async fn handle_get_active_shift(
     headers: HeaderMap,
     Query(query): Query<ActiveShiftQuery>,
 ) -> AppResult<Json<Option<CashierShift>>> {
-    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let (user, terminal_name) = authenticate_request(&state.core, &headers)?;
+    let target_terminal = query
+        .terminal_name
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&terminal_name);
     let shift = state
         .core
-        .get_active_shift_by_terminal_or_cashier(query.terminal_name.as_deref(), &user.id)?;
+        .get_active_shift_by_terminal_or_cashier(Some(target_terminal), &user.id)?;
     Ok(Json(shift))
 }
 

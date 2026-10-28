@@ -75,6 +75,16 @@ impl From<csv::Error> for AppError {
 
 impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
-        AppError::Network(err.to_string())
+        if err.is_timeout() {
+            AppError::Network(format!(
+                "Batas waktu komunikasi LAN habis (Timeout). Pastikan Server Terminal aktif dan terhubung ke jaringan: {err}"
+            ))
+        } else if err.is_connect() {
+            AppError::Network(format!(
+                "Gagal terhubung ke Server LAN (Koneksi Ditolak/Unreachable). Pastikan IP Server dan Port benar, Server aktif, dan Windows Defender Firewall mengizinkan port LAN: {err}"
+            ))
+        } else {
+            AppError::Network(format!("Komunikasi LAN ke Server Terminal gagal: {err}"))
+        }
     }
 }

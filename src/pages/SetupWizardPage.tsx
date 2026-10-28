@@ -72,13 +72,17 @@ export const SetupWizardPage: React.FC = () => {
     }
   };
 
+  const cleanServerIp = (ip: string) =>
+    ip.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+
   const handleTestClientConnection = async () => {
     setErrorMsg(null);
     setConnResult(null);
     setTestingConn(true);
     try {
+      const sanitizedIp = cleanServerIp(serverIp);
       const res = await ipc.testClientConnection({
-        server_ip: serverIp.trim(),
+        server_ip: sanitizedIp,
         server_port: Number(serverPort) || 3847,
         pairing_code: pairingCode.trim().toUpperCase(),
         terminal_name: clientTerminalName.trim() || "Kasir 2",
@@ -96,8 +100,9 @@ export const SetupWizardPage: React.FC = () => {
     setErrorMsg(null);
     setSubmitting(true);
     try {
+      const sanitizedIp = cleanServerIp(serverIp);
       await ipc.setupClientTerminal({
-        server_ip: serverIp.trim(),
+        server_ip: sanitizedIp,
         server_port: Number(serverPort) || 3847,
         pairing_code: pairingCode.trim().toUpperCase(),
         terminal_name: clientTerminalName.trim() || "Kasir 2",

@@ -16,13 +16,44 @@ use reqwest::{Client, Method, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 
+/// Membersihkan alamat IP server dari prefiks `http://` / `https://`, trailing slash,
+/// dan mengekstrak port jika pengguna tidak sengaja memasukkan `IP:PORT` ke dalam kolom input IP.
+pub fn sanitize_server_ip_and_port(ip: &str, port: u16) -> (String, u16) {
+    let mut s = ip.trim().to_string();
+    if s.to_ascii_lowercase().starts_with("http://") {
+        s = s[7..].to_string();
+    } else if s.to_ascii_lowercase().starts_with("https://") {
+        s = s[8..].to_string();
+    }
+    if let Some(idx) = s.find('/') {
+        s = s[..idx].to_string();
+    }
+    let mut effective_port = port;
+    if let Some((host, p)) = s.split_once(':') {
+        if let Ok(parsed_port) = p.parse::<u16>() {
+            effective_port = parsed_port;
+        }
+        s = host.to_string();
+    }
+    (s.trim().to_string(), effective_port)
+}
+
+/// Memastikan nilai header hanya berisi karakter ASCII yang diizinkan (RFC 7230/9110),
+/// menggantikan karakter non-ASCII (seperti em-dash, kurung kurawal, atau aksen) agar
+/// pembentukan HTTP HeaderValue pada reqwest tidak pernah gagal (builder error).
+pub fn safe_header_value(val: &str) -> String {
+    val.chars()
+        .map(|c| if c.is_ascii() && !c.is_ascii_control() { c } else { '_' })
+        .collect()
+}
+
 #[derive(Clone)]
 pub struct RemoteHttpClient {
     http: Client,
     health_http: Client,
-    base_url: String,
-    pairing_code: String,
-    terminal_name: String,
+    pub base_url: String,
+    pub pairing_code: String,
+    pub terminal_name: String,
 }
 
 impl RemoteHttpClient {
@@ -32,22 +63,43 @@ impl RemoteHttpClient {
         pairing_code: &str,
         terminal_name: &str,
     ) -> Self {
+        let (clean_ip, clean_port) = sanitize_server_ip_and_port(server_ip, server_port);
+
+        // Client HTTP utama untuk seluruh transaksi domain LAN:
+        // 1. .no_proxy() wajib: jangan pernah merutekan trafik lokal LAN melalui proxy sistem Windows / sekolah.
+        // 2. .timeout(30s) + .connect_timeout(10s): hindari false-positive timeout pada PC sekolah berkecepatan rendah.
+        // 3. .tcp_keepalive(30s) + .pool_idle_timeout(15s): pertahankan koneksi soket TCP agar tidak diputus diam-diam oleh router/switch.
+        // 4. .tcp_nodelay(true): pengiriman paket instan tanpa penundaan algoritma Nagle.
+        // 5. .http1_only(): Axum LAN berjalan pada HTTP/1.1 murni tanpa overhead negosiasi ALPN/HTTP2.
         let http = Client::builder()
-            .timeout(Duration::from_secs(6))
+            .no_proxy()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            .tcp_keepalive(Duration::from_secs(30))
+            .pool_idle_timeout(Duration::from_secs(15))
+            .pool_max_idle_per_host(10)
+            .tcp_nodelay(true)
+            .http1_only()
             .build()
             .unwrap_or_default();
+
         let health_http = Client::builder()
-            .timeout(Duration::from_millis(2500))
+            .no_proxy()
+            .timeout(Duration::from_secs(5))
+            .connect_timeout(Duration::from_secs(3))
+            .tcp_nodelay(true)
+            .http1_only()
             .build()
             .unwrap_or_default();
-        let base_url = format!("http://{}:{}", server_ip.trim(), server_port);
+
+        let base_url = format!("http://{}:{}", clean_ip, clean_port);
 
         Self {
             http,
             health_http,
             base_url,
-            pairing_code: pairing_code.trim().to_string(),
-            terminal_name: terminal_name.trim().to_string(),
+            pairing_code: safe_header_value(pairing_code.trim()),
+            terminal_name: safe_header_value(terminal_name.trim()),
         }
     }
 
@@ -59,7 +111,7 @@ impl RemoteHttpClient {
             .header(HEADER_PAIRING_CODE, &self.pairing_code)
             .header(HEADER_TERMINAL_NAME, &self.terminal_name);
         if let Some(tok) = session_token {
-            req = req.header(HEADER_SESSION_TOKEN, tok);
+            req = req.header(HEADER_SESSION_TOKEN, safe_header_value(tok.trim()));
         }
         req
     }
@@ -396,8 +448,9 @@ impl RemoteHttpClient {
     }
 
     pub async fn get_active_shift(&self, token: &str) -> AppResult<Option<CashierShift>> {
+        let path = format!("/api/v1/shifts/active?terminal_name={}", self.terminal_name);
         let resp = self
-            .request(Method::GET, "/api/v1/shifts/active", Some(token))
+            .request(Method::GET, &path, Some(token))
             .send()
             .await?;
         Self::parse_response(resp).await
@@ -575,5 +628,43 @@ impl RemoteHttpClient {
             .send()
             .await?;
         Self::parse_response(resp).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_server_ip_and_port() {
+        assert_eq!(
+            sanitize_server_ip_and_port("192.168.1.10", 3847),
+            ("192.168.1.10".to_string(), 3847)
+        );
+        assert_eq!(
+            sanitize_server_ip_and_port("  http://192.168.1.10  ", 3847),
+            ("192.168.1.10".to_string(), 3847)
+        );
+        assert_eq!(
+            sanitize_server_ip_and_port("https://192.168.1.10/", 3847),
+            ("192.168.1.10".to_string(), 3847)
+        );
+        assert_eq!(
+            sanitize_server_ip_and_port("192.168.1.10:44321", 3847),
+            ("192.168.1.10".to_string(), 44321)
+        );
+        assert_eq!(
+            sanitize_server_ip_and_port("http://192.168.1.10:44321/api", 3847),
+            ("192.168.1.10".to_string(), 44321)
+        );
+    }
+
+    #[test]
+    fn test_safe_header_value() {
+        assert_eq!(safe_header_value("Kasir 2"), "Kasir 2");
+        assert_eq!(safe_header_value("Kasir 2 (Client)"), "Kasir 2 (Client)");
+        // Karakter non-ASCII (en-dash, aksen, smart quotes) diganti dengan safe ASCII '_'
+        assert_eq!(safe_header_value("Kasir – 2"), "Kasir _ 2");
+        assert_eq!(safe_header_value("Café POS"), "Caf_ POS");
     }
 }

@@ -106,18 +106,32 @@ impl LocalConfig {
 }
 
 /// Mendeteksi alamat IPv4 LAN lokal pada mesin ini untuk memudahkan pairing Client Terminal.
+/// Menggunakan probe multi-target agar tetap mendeteksi IP interface LAN lokal pada laboratorium sekolah
+/// yang bersifat offline atau tidak memiliki akses internet ke 8.8.8.8.
 pub fn detect_local_lan_ips() -> Vec<String> {
     let mut ips = Vec::new();
-    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
-        if socket.connect("8.8.8.8:80").is_ok() {
-            if let Ok(local_addr) = socket.local_addr() {
-                let ip = local_addr.ip().to_string();
-                if !ip.is_empty() && ip != "127.0.0.1" {
-                    ips.push(ip);
+    let probe_targets = [
+        "8.8.8.8:80",
+        "192.168.1.1:80",
+        "192.168.0.1:80",
+        "10.0.0.1:80",
+        "172.16.0.1:80",
+        "224.0.0.1:80",
+    ];
+
+    for target in probe_targets {
+        if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+            if socket.connect(target).is_ok() {
+                if let Ok(local_addr) = socket.local_addr() {
+                    let ip = local_addr.ip().to_string();
+                    if !ip.is_empty() && ip != "127.0.0.1" && !ips.contains(&ip) {
+                        ips.push(ip);
+                    }
                 }
             }
         }
     }
+
     if !ips.contains(&"127.0.0.1".to_string()) {
         ips.push("127.0.0.1".to_string());
     }

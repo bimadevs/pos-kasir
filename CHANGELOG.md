@@ -3,6 +3,22 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.2] - 2026-10-28
+
+### Fixed
+- **Ketahanan Jaringan Komunikasi LAN (Client ↔ Server Windows)**:
+  - **Bypass Proxy Sistem Windows (`no_proxy`)**: Menonaktifkan auto-detection system proxy pada client HTTP LAN (`RemoteHttpClient`). Memastikan seluruh request LAN ke server terminal lokal tidak diblokir atau diarahkan ke server proxy sekolah/lab komputer.
+  - **Connection Pooling & TCP Keepalive**: Menambahkan `tcp_keepalive(30s)`, `pool_idle_timeout(15s)`, dan `tcp_nodelay(true)` pada client reqwest untuk mencegah pemutusan koneksi TCP diam-diam oleh router/switch LAN saat terminal berada dalam keadaan idle.
+  - **Peningkatan Batas Waktu Request (Timeout 30 Detik)**: Memperpanjang batas waktu timeout dari 6 detik menjadi 30 detik (dengan `connect_timeout` 10 detik) untuk mencegah false timeout pada PC server berkecepatan rendah atau disk lambat saat proses I/O transaksi SQLite berlangsung.
+  - **Daur Ulang Client HTTP Terpusat (`remote_client_cache`)**: Menyimpan dan mendaur ulang instance client HTTP pada `BackendDispatcher` daripada membuat client baru pada setiap panggilan IPC, mengeliminasi socket churn dan port exhaustion pada Windows.
+  - **Sanitasi Alamat IP & Port Input**: Menambahkan `sanitize_server_ip_and_port` yang secara cerdas membersihkan prefiks protokol (`http://`, `https://`), trailing slash, dan mengekstrak port jika pengguna memasukkan format `IP:PORT` pada form input IP.
+  - **Sanitasi Header Nilai ASCII (`safe_header_value`)**: Menjamin seluruh header HTTP (`x-terminal-name`, `x-pairing-code`, `x-session-token`) hanya berisi karakter ASCII yang diizinkan (RFC 7230/9110) sehingga tidak memicu error parser reqwest ketika terminal diberi nama dengan karakter spesial.
+  - **Penyembuhan Otomatis Server LAN (`ensure_lan_server_running`)**: Memastikan instance task Axum LAN server yang terhenti atau mengalami kegagalan binding secara otomatis dihidupkan kembali (*self-healing*).
+  - **Pesan Kesalahan Jaringan Informatif**: Menyesuaikan mapping `From<reqwest::Error> for AppError` agar menampilkan penjelasan bahasa Indonesia yang ramah pengguna dan solutif (panduan pemeriksaan Windows Defender Firewall, IP/Port, serta status server).
+  - **Deteksi IP LAN Lokal Multi-Probe (Mode Offline)**: Menambahkan probe alamat lokal (`192.168.1.1`, `10.0.0.1`, dll.) pada `detect_local_lan_ips` sehingga IP LAN server tetap terdeteksi pada laboratorium komputer sekolah yang tidak terhubung ke internet luar (offline).
+  - **Koreksi Tampilan Port LAN di Settings**: Memperbaiki fallback port default pada kartu konektivitas LAN di `SettingsPage.tsx` menjadi 3847 (sebelumnya tertulis 9876).
+  - **Dukungan Payload Ukuran Besar (25MB)**: Menambahkan `DefaultBodyLimit::max(25MB)` pada Axum router LAN untuk menjamin transfer CSV impor/ekspor massal berjalan lancar tanpa terpotong batas 2MB.
+
 ## [1.1.1] - 2026-10-28
 
 ### Added

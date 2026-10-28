@@ -25,6 +25,7 @@ pub struct BackendDispatcher {
     core: Arc<CoreService>,
     active_session: RwLock<Option<AuthSession>>,
     lan_server_handle: AsyncMutex<Option<tokio::task::JoinHandle<()>>>,
+    remote_client_cache: RwLock<Option<(LocalConfig, RemoteHttpClient)>>,
 }
 
 impl BackendDispatcher {
@@ -40,6 +41,7 @@ impl BackendDispatcher {
             core,
             active_session: RwLock::new(None),
             lan_server_handle: AsyncMutex::new(None),
+            remote_client_cache: RwLock::new(None),
         })
     }
 
@@ -63,6 +65,9 @@ impl BackendDispatcher {
         if let Ok(mut guard) = self.config.write() {
             *guard = new_cfg.clone();
         }
+        if let Ok(mut cache) = self.remote_client_cache.write() {
+            *cache = None;
+        }
         Ok(new_cfg)
     }
 
@@ -72,8 +77,10 @@ impl BackendDispatcher {
             return Ok(());
         }
         let mut guard = self.lan_server_handle.lock().await;
-        if guard.is_some() {
-            return Ok(());
+        if let Some(handle) = guard.as_ref() {
+            if !handle.is_finished() {
+                return Ok(());
+            }
         }
 
         let bind_addr = format!("0.0.0.0:{}", cfg.server_bind_port);
@@ -96,13 +103,31 @@ impl BackendDispatcher {
         }
     }
 
-    fn remote_client_for_config(cfg: &LocalConfig) -> RemoteHttpClient {
-        RemoteHttpClient::new(
+    fn remote_client(&self, cfg: &LocalConfig) -> RemoteHttpClient {
+        if let Ok(guard) = self.remote_client_cache.read() {
+            if let Some((cached_cfg, client)) = guard.as_ref() {
+                if cached_cfg.client_target_ip == cfg.client_target_ip
+                    && cached_cfg.client_target_port == cfg.client_target_port
+                    && cached_cfg.pairing_code == cfg.pairing_code
+                    && cached_cfg.terminal_name == cfg.terminal_name
+                {
+                    return client.clone();
+                }
+            }
+        }
+
+        let new_client = RemoteHttpClient::new(
             &cfg.client_target_ip,
             cfg.client_target_port,
             &cfg.pairing_code,
             &cfg.terminal_name,
-        )
+        );
+
+        if let Ok(mut guard) = self.remote_client_cache.write() {
+            *guard = Some((cfg.clone(), new_client.clone()));
+        }
+
+        new_client
     }
 
     fn require_local_session(&self) -> AppResult<AuthSession> {
@@ -166,7 +191,7 @@ impl BackendDispatcher {
                 }
             }
             TerminalMode::CLIENT => {
-                let client = Self::remote_client_for_config(&cfg);
+                let client = self.remote_client(&cfg);
                 match client.health_check().await {
                     Ok(health) => Ok(TerminalStatus {
                         config: cfg,
@@ -191,7 +216,9 @@ impl BackendDispatcher {
         &self,
         req: &SetupClientRequest,
     ) -> AppResult<HealthCheckResponse> {
-        if req.server_ip.trim().is_empty() {
+        let (clean_ip, clean_port) =
+            crate::lan::client::sanitize_server_ip_and_port(&req.server_ip, req.server_port);
+        if clean_ip.is_empty() {
             return Err(AppError::Validation("IP Server wajib diisi.".to_string()));
         }
         if req.pairing_code.trim().is_empty() {
@@ -200,8 +227,8 @@ impl BackendDispatcher {
             ));
         }
         let client = RemoteHttpClient::new(
-            &req.server_ip,
-            req.server_port,
+            &clean_ip,
+            clean_port,
             &req.pairing_code,
             &req.terminal_name,
         );
@@ -230,19 +257,27 @@ impl BackendDispatcher {
         &self,
         req: &SetupClientRequest,
     ) -> AppResult<TerminalStatus> {
+        let (clean_ip, clean_port) =
+            crate::lan::client::sanitize_server_ip_and_port(&req.server_ip, req.server_port);
         let terminal_name = if req.terminal_name.trim().is_empty() {
             "Kasir Client".to_string()
         } else {
             req.terminal_name.trim().to_string()
         };
-        let _health = self.test_client_connection(req).await?;
+        let sanitized_req = SetupClientRequest {
+            server_ip: clean_ip.clone(),
+            server_port: clean_port,
+            pairing_code: req.pairing_code.trim().to_uppercase(),
+            terminal_name: terminal_name.clone(),
+        };
+        let _health = self.test_client_connection(&sanitized_req).await?;
 
         let mut cfg = self.get_config();
         cfg.terminal_mode = TerminalMode::CLIENT;
         cfg.terminal_name = terminal_name;
-        cfg.client_target_ip = req.server_ip.trim().to_string();
-        cfg.client_target_port = req.server_port;
-        cfg.pairing_code = req.pairing_code.trim().to_uppercase();
+        cfg.client_target_ip = clean_ip;
+        cfg.client_target_port = clean_port;
+        cfg.pairing_code = sanitized_req.pairing_code;
         self.save_config(cfg)?;
         self.get_terminal_status().await
     }
@@ -262,7 +297,7 @@ impl BackendDispatcher {
         let session = match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.login(req)?,
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg).login(req).await?
+                self.remote_client(&cfg).login(req).await?
             }
             TerminalMode::UNCONFIGURED => {
                 return Err(AppError::Validation(
@@ -290,7 +325,7 @@ impl BackendDispatcher {
                     let _ = self.core.logout(&sess.session_token);
                 }
                 TerminalMode::CLIENT => {
-                    let _ = Self::remote_client_for_config(&cfg)
+                    let _ = self.remote_client(&cfg)
                         .logout(&sess.session_token)
                         .await;
                 }
@@ -306,7 +341,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_products(&sess.user, filter),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_products(&sess.session_token, filter)
                     .await
             }
@@ -322,7 +357,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.find_product_by_code(&sess.user, code),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .find_product_by_code(&sess.session_token, code)
                     .await
             }
@@ -341,7 +376,7 @@ impl BackendDispatcher {
                     .upsert_product(&sess.user, &cfg.terminal_name, req)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .upsert_product(&sess.session_token, req)
                     .await
             }
@@ -357,7 +392,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.deactivate_product(&sess.user, product_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .deactivate_product(&sess.session_token, product_id)
                     .await
             }
@@ -373,7 +408,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.export_products_csv(&sess.user),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .export_products_csv(&sess.session_token)
                     .await
             }
@@ -392,7 +427,7 @@ impl BackendDispatcher {
                     .import_products_csv(&sess.user, &cfg.terminal_name, csv_content)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .import_products_csv(&sess.session_token, csv_content)
                     .await
             }
@@ -411,7 +446,7 @@ impl BackendDispatcher {
                     .import_products_rows(&sess.user, &cfg.terminal_name, rows)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .import_products(&sess.session_token, &rows)
                     .await
             }
@@ -433,7 +468,7 @@ impl BackendDispatcher {
                     .create_stock_adjustment(&sess.user, &cfg.terminal_name, req)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .create_stock_adjustment(&sess.session_token, req)
                     .await
             }
@@ -452,7 +487,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_stock_adjustments(&sess.user, product_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_stock_adjustments(&sess.session_token, product_id)
                     .await
             }
@@ -468,7 +503,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.create_sale(&sess.user, &cfg.terminal_name, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .create_sale(&sess.session_token, req)
                     .await
             }
@@ -484,7 +519,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_today_sales(&sess.user),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_today_sales(&sess.session_token)
                     .await
             }
@@ -504,7 +539,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_sale_receipt(&sess.user, sale_id, is_reprint),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_sale_receipt(&sess.session_token, sale_id, is_reprint)
                     .await
             }
@@ -520,7 +555,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.void_sale(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .void_sale(&sess.session_token, req)
                     .await
             }
@@ -539,7 +574,7 @@ impl BackendDispatcher {
                     .create_held_bill(&sess.user, &cfg.terminal_name, req)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .create_held_bill(&sess.session_token, req)
                     .await
             }
@@ -555,7 +590,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_held_bills(),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_held_bills(&sess.session_token)
                     .await
             }
@@ -571,7 +606,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.consume_held_bill(held_bill_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .consume_held_bill(&sess.session_token, held_bill_id)
                     .await
             }
@@ -587,7 +622,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.delete_held_bill(held_bill_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .delete_held_bill(&sess.session_token, held_bill_id)
                     .await
             }
@@ -603,7 +638,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_sales_report(&sess.user, filter),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_sales_report(&sess.session_token, filter)
                     .await
             }
@@ -619,7 +654,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.export_sales_report_csv(&sess.user, filter),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .export_sales_report_csv(&sess.session_token, filter)
                     .await
             }
@@ -635,7 +670,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_users(&sess.user),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_users(&sess.session_token)
                     .await
             }
@@ -651,7 +686,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.upsert_user(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .upsert_user(&sess.session_token, req)
                     .await
             }
@@ -667,7 +702,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_store_settings(),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_store_settings(&sess.session_token)
                     .await
             }
@@ -694,7 +729,7 @@ impl BackendDispatcher {
                 Ok(updated)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .update_store_settings(&sess.session_token, req)
                     .await
             }
@@ -734,7 +769,7 @@ impl BackendDispatcher {
                 self.core.open_shift(&sess.user, &cfg.terminal_name, req)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .open_shift(&sess.session_token, req)
                     .await
             }
@@ -750,7 +785,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_active_shift(&sess.user.id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_active_shift(&sess.session_token)
                     .await
             }
@@ -766,7 +801,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.record_cash_movement(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .record_cash_movement(&sess.session_token, req)
                     .await
             }
@@ -782,7 +817,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_shift_x_report(shift_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_shift_x_report(&sess.session_token, shift_id)
                     .await
             }
@@ -798,7 +833,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.close_shift(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .close_shift(&sess.session_token, req)
                     .await
             }
@@ -818,7 +853,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_shifts(start_date, end_date),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_shifts(&sess.session_token, start_date, end_date)
                     .await
             }
@@ -838,7 +873,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.create_opname_session(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .create_opname_session(&sess.session_token, req)
                     .await
             }
@@ -857,7 +892,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.list_opname_sessions(),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .list_opname_sessions(&sess.session_token, status)
                     .await
             }
@@ -876,7 +911,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_opname_session_detail(session_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_opname_session_detail(&sess.session_token, session_id)
                     .await
             }
@@ -895,7 +930,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.record_opname_scan(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .record_opname_scan(&sess.session_token, req)
                     .await
             }
@@ -914,7 +949,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.update_opname_item_qty(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .update_opname_item_qty(&sess.session_token, &req.item_id, req.physical_count)
                     .await
             }
@@ -933,7 +968,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.commit_opname_session(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .commit_opname_session(&sess.session_token, req)
                     .await
             }
@@ -955,7 +990,7 @@ impl BackendDispatcher {
                 self.core.cancel_opname_session(&sess.user, session_id, reason)
             }
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .cancel_opname_session(&sess.session_token, session_id, reason)
                     .await
             }
@@ -975,7 +1010,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.get_product_price_tiers(product_id),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .get_product_price_tiers(&sess.session_token, product_id)
                     .await
             }
@@ -994,7 +1029,7 @@ impl BackendDispatcher {
         match cfg.terminal_mode {
             TerminalMode::SERVER => self.core.set_product_price_tiers(&sess.user, req),
             TerminalMode::CLIENT => {
-                Self::remote_client_for_config(&cfg)
+                self.remote_client(&cfg)
                     .set_product_price_tiers(&sess.session_token, req)
                     .await
             }
@@ -1184,5 +1219,11 @@ mod tests {
             .unwrap();
         assert_eq!(closed.status, "CLOSED");
         assert_eq!(closed.cash_discrepancy, Some(0));
+
+        // 12. Uji caching remote client: memanggil remote_client berulang kali menggunakan cache yang sama
+        let cfg = client_dispatcher.get_config();
+        let c1 = client_dispatcher.remote_client(&cfg);
+        let c2 = client_dispatcher.remote_client(&cfg);
+        assert_eq!(c1.base_url, c2.base_url);
     }
 }

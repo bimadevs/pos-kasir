@@ -554,7 +554,7 @@ export const SettingsPage: React.FC = () => {
                 Mode Terminal: {cfg?.terminal_mode} ({cfg?.terminal_name})
               </span>
               <span className="font-mono text-emerald-700 font-semibold">
-                Port LAN: {cfg?.server_bind_port || 9876}
+                Port LAN: {cfg?.server_bind_port || 3847}
               </span>
             </div>
 
