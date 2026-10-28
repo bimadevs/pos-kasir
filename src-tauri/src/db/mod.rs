@@ -248,4 +248,62 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_fresh_installation_creates_all_tables_columns_and_shift_index() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("fresh_installation.db");
+
+        // Buka database pada path baru yang belum ada file-nya sama sekali (simulasi instalasi baru)
+        let db = Database::open_file(&db_path).expect("Inisialisasi database instalasi baru harus sukses");
+
+        let conn = db.lock_conn().unwrap();
+
+        // 1. Verifikasi tabel sales ada dan memiliki kolom shift_id
+        let mut stmt = conn.prepare("PRAGMA table_info(sales)").unwrap();
+        let mut rows = stmt.query([]).unwrap();
+        let mut found_shift_id = false;
+        while let Some(row) = rows.next().unwrap() {
+            let name: String = row.get(1).unwrap();
+            if name == "shift_id" {
+                found_shift_id = true;
+                break;
+            }
+        }
+        assert!(found_shift_id, "Pada instalasi baru, kolom shift_id wajib terpasang!");
+
+        // 2. Verifikasi indeks idx_sales_shift_id terpasang pada instalasi baru
+        let mut stmt_idx = conn
+            .prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_sales_shift_id'")
+            .unwrap();
+        assert!(
+            stmt_idx.exists([]).unwrap(),
+            "Pada instalasi baru, indeks idx_sales_shift_id wajib otomatis terbuat!"
+        );
+
+        // 3. Verifikasi seluruh tabel inti terbuat
+        for table in &[
+            "users",
+            "products",
+            "stock_adjustments",
+            "sales",
+            "sale_line_items",
+            "held_bills",
+            "held_bill_items",
+            "cashier_shifts",
+            "cash_movements",
+            "stock_opname_sessions",
+            "stock_opname_items",
+            "product_price_tiers",
+        ] {
+            let mut stmt_t = conn
+                .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1")
+                .unwrap();
+            assert!(
+                stmt_t.exists([table]).unwrap(),
+                "Tabel {} wajib terbuat pada instalasi baru!",
+                table
+            );
+        }
+    }
 }
