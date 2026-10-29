@@ -3,6 +3,22 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.4] - 2026-10-29
+
+### Added
+- **Single-Instance Application & Wakeup dari System Tray (`tauri-plugin-single-instance`)**:
+  - Mencegah duplikasi proses service dan icon ganda di Windows System Tray ketika pengguna membuka ulang aplikasi Mudita Mart dari Shortcut Desktop/Start Menu saat aplikasi Server masih berjalan di latar belakang.
+  - Secara otomatis memunculkan kembali (`show`, `unminimize`, `set_focus`) jendela aplikasi yang sudah aktif tanpa konflik port LAN `3847`.
+- **Persistensi Sesi Login 1 Jam Sliding Window di Database Server (`user_sessions`) & Disk Lokal (`local_session.json`)**:
+  - Menyimpan sesi login Kasir & Admin secara persisten di tabel SQLite `user_sessions` pada Server serta `local_session.json` pada terminal lokal dengan masa berlaku 1 jam (3.600 detik) yang diperpanjang otomatis selama pengguna aktif.
+  - Menjamin sesi Kasir tetap valid tanpa perlu login ulang ketika aplikasi Server ditutup/dibuka kembali atau saat koneksi jaringan LAN sempat terputus lalu tersambung kembali.
+- **Tombol Ganti Akun / Login Ulang pada Popup Buka Shift (`ShiftOpenModal.tsx`)**:
+  - Menambahkan tombol `"Ganti Akun"` di header popup *Buka Shift Kasir Baru* dan tombol `"Login Ulang"` pada banner error, ditambah penanganan otomatis `muditamart:session-expired` untuk mengembalikan layar ke halaman Login apabila sesi 1 jam telah habis.
+
+### Fixed
+- **Pencegahan Reset `activeShift` Saat Gangguan Jaringan LAN Sementara (`TerminalContext.tsx`)**:
+  - Mempertahankan state `activeShift` terakhir ketika polling `getActiveShift` gagal akibat jaringan LAN ke Server terputus sementara, sehingga kasir yang sudah membuka shift tidak tiba-tiba terkunci di popup penghalang *Buka Shift Kasir Baru*.
+
 ## [1.1.3] - 2026-10-29
 
 ### Fixed

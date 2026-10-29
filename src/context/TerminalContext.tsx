@@ -20,6 +20,7 @@ interface TerminalContextValue {
   loadingTerminal: boolean;
   refreshTerminalStatus: () => Promise<TerminalStatus | null>;
   activeShift: CashierShift | null;
+  loadingShift: boolean;
   refreshActiveShift: () => Promise<CashierShift | null>;
   previewReceipt: ReceiptData | null;
   previewOutcome: PrintOutcome | null;
@@ -48,6 +49,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [loadingTerminal, setLoadingTerminal] = useState<boolean>(true);
   const [activeShift, setActiveShift] = useState<CashierShift | null>(null);
+  const [loadingShift, setLoadingShift] = useState<boolean>(true);
   const [previewReceipt, setPreviewReceipt] = useState<ReceiptData | null>(
     null,
   );
@@ -79,9 +81,21 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
         const shift = await ipc.getActiveShift();
         setActiveShift(shift);
         return shift;
-      } catch {
-        setActiveShift(null);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Hanya hapus state activeShift jika pengguna memang belum login atau sesi telah berakhir.
+        // Apabila gagal karena jaringan LAN ke Server sedang terputus sementara, pertahankan activeShift
+        // terakhir agar Kasir tidak tiba-tiba terkunci di popup "Buka Shift Kasir Baru".
+        if (
+          msg.includes("Silakan login") ||
+          msg.includes("Sesi tidak valid") ||
+          msg.includes("Akun sudah tidak aktif")
+        ) {
+          setActiveShift(null);
+        }
         return null;
+      } finally {
+        setLoadingShift(false);
       }
     }, []);
 
@@ -139,6 +153,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
         loadingTerminal,
         refreshTerminalStatus,
         activeShift,
+        loadingShift,
         refreshActiveShift,
         previewReceipt,
         previewOutcome,

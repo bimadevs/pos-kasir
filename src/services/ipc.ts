@@ -79,7 +79,19 @@ async function callCommand<T>(
   try {
     return await invoke<T>(cmd, args);
   } catch (err) {
-    throw new Error(extractErrorMessage(err));
+    const message = extractErrorMessage(err);
+    if (
+      cmd !== "auth_login" &&
+      cmd !== "auth_logout" &&
+      cmd !== "get_active_session" &&
+      (message.includes("Sesi tidak valid atau telah berakhir") ||
+        message.includes("Akun sudah tidak aktif"))
+    ) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("muditamart:session-expired"));
+      }
+    }
+    throw new Error(message);
   }
 }
 

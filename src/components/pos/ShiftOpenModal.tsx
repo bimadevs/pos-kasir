@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertCircle, Banknote, Sparkles, Store } from "lucide-react";
+import { AlertCircle, Banknote, LogOut, Sparkles, Store, WifiOff } from "lucide-react";
 import { ipc } from "../../services/ipc";
 import type { CashierShift } from "../../types/domain";
 import { formatRupiah } from "../../utils/posCalculator";
@@ -9,8 +9,10 @@ interface ShiftOpenModalProps {
   isBarrier?: boolean;
   cashierName: string;
   terminalName: string;
+  lanConnected?: boolean;
   onShiftOpened: (shift: CashierShift) => void;
   onClose?: () => void;
+  onLogout?: () => void;
 }
 
 const PRESET_FLOATS = [50_000, 100_000, 200_000, 500_000];
@@ -20,8 +22,10 @@ export const ShiftOpenModal: React.FC<ShiftOpenModalProps> = ({
   isBarrier = true,
   cashierName,
   terminalName,
+  lanConnected = true,
   onShiftOpened,
   onClose,
+  onLogout,
 }) => {
   const [floatAmount, setFloatAmount] = useState<number>(100_000);
   const [floatRaw, setFloatRaw] = useState<string>("100000");
@@ -96,15 +100,28 @@ export const ShiftOpenModal: React.FC<ShiftOpenModalProps> = ({
               </p>
             </div>
           </div>
-          {!isBarrier && onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-white/70 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-            >
-              ✕
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                title="Ganti Akun atau Login Ulang"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Ganti Akun</span>
+              </button>
+            )}
+            {!isBarrier && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-white/70 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Info Terminal & Kasir */}
@@ -120,10 +137,30 @@ export const ShiftOpenModal: React.FC<ShiftOpenModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {!lanConnected && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
+              <WifiOff className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="font-medium">
+                Koneksi ke Server sedang terputus. Pastikan aplikasi Server menyala — sistem akan terhubung kembali secara otomatis tanpa perlu login ulang.
+              </div>
+            </div>
+          )}
+
           {error && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="font-medium">{error}</div>
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start justify-between gap-2.5 text-xs text-rose-800">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="font-medium">{error}</div>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="shrink-0 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold transition-colors cursor-pointer"
+                >
+                  Login Ulang
+                </button>
+              )}
             </div>
           )}
 

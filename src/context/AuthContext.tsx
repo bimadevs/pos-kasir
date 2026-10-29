@@ -49,6 +49,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setSession(null);
+      void ipc.logout().catch(() => {});
+    };
+    window.addEventListener("muditamart:session-expired", handleSessionExpired);
+    return () => {
+      window.removeEventListener(
+        "muditamart:session-expired",
+        handleSessionExpired,
+      );
+    };
+  }, []);
+
   const login = useCallback(async (req: LoginRequest): Promise<AuthSession> => {
     const sess = await ipc.login(req);
     setSession(sess);

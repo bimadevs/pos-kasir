@@ -14,7 +14,8 @@ use crate::models::{
     UpsertUserRequest, User, UserRole, VoidSaleRequest,
 };
 use crate::services::auth_service::{
-    generate_pairing_code, hash_secret, verify_secret, SessionStore,
+    generate_pairing_code, hash_secret, now_unix_ts, verify_secret, SessionStore,
+    SESSION_TTL_SECONDS,
 };
 use chrono::Local;
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
@@ -566,7 +567,22 @@ impl CoreService {
             updated_at,
         };
 
-        let session_token = self.sessions.create_session(user.clone())?;
+        let (session_token, expires_at) = self.sessions.create_session(user.clone())?;
+        let now_ts = now_unix_ts();
+        let now_iso = Self::now_iso();
+        {
+            let conn = self.db.lock_conn()?;
+            let _ = conn.execute(
+                "DELETE FROM user_sessions WHERE expires_at <= ?1",
+                params![now_ts],
+            );
+            conn.execute(
+                "INSERT OR REPLACE INTO user_sessions (token, user_id, expires_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?4)",
+                params![session_token, user.id, expires_at, now_iso],
+            )?;
+        }
+
         Ok(AuthSession {
             session_token,
             user,
@@ -574,35 +590,112 @@ impl CoreService {
     }
 
     pub fn logout(&self, session_token: &str) -> AppResult<()> {
-        self.sessions.remove_session(session_token)
+        let _ = self.sessions.remove_session(session_token);
+        let conn = self.db.lock_conn()?;
+        let _ = conn.execute(
+            "DELETE FROM user_sessions WHERE token = ?1",
+            params![session_token],
+        );
+        Ok(())
     }
 
     pub fn validate_session(&self, session_token: &str) -> AppResult<User> {
-        let session_user = self.sessions.get_session(session_token)?;
-        // Pastikan status user masih aktif di database
+        let now_ts = now_unix_ts();
+        let new_expires_at = now_ts + SESSION_TTL_SECONDS;
+        let now_iso = Self::now_iso();
+
         let conn = self.db.lock_conn()?;
-        let active_role = conn
+        let row_opt = conn
             .query_row(
-                "SELECT role, is_active FROM users WHERE id = ?1",
-                params![session_user.id],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? != 0)),
+                "SELECT s.expires_at, u.id, u.username, u.full_name, u.pin_hash, u.role, u.is_active, u.created_at, u.updated_at
+                 FROM user_sessions s
+                 JOIN users u ON u.id = s.user_id
+                 WHERE s.token = ?1",
+                params![session_token],
+                |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                        r.get::<_, Option<String>>(4)?.is_some(),
+                        r.get::<_, String>(5)?,
+                        r.get::<_, i64>(6)? != 0,
+                        r.get::<_, String>(7)?,
+                        r.get::<_, String>(8)?,
+                    ))
+                },
             )
             .optional()?;
+
+        let Some((
+            expires_at,
+            id,
+            username,
+            full_name,
+            has_pin,
+            role_str,
+            is_active,
+            created_at,
+            updated_at,
+        )) = row_opt
+        else {
+            drop(conn);
+            let _ = self.sessions.remove_session(session_token);
+            return Err(AppError::Unauthorized(
+                "Sesi tidak valid atau telah berakhir. Silakan login kembali.".to_string(),
+            ));
+        };
+
+        if expires_at <= now_ts {
+            let _ = conn.execute(
+                "DELETE FROM user_sessions WHERE token = ?1",
+                params![session_token],
+            );
+            drop(conn);
+            let _ = self.sessions.remove_session(session_token);
+            return Err(AppError::Unauthorized(
+                "Sesi tidak valid atau telah berakhir. Silakan login kembali.".to_string(),
+            ));
+        }
+
+        if !is_active {
+            let _ = conn.execute(
+                "DELETE FROM user_sessions WHERE user_id = ?1",
+                params![id],
+            );
+            drop(conn);
+            let _ = self.sessions.revoke_user_sessions(&id);
+            return Err(AppError::Unauthorized(
+                "Akun sudah tidak aktif. Silakan login kembali.".to_string(),
+            ));
+        }
+
+        // Perpanjang masa berlaku sesi otomatis selama aktif (Sliding Window 1 Jam)
+        if new_expires_at - expires_at >= 15 {
+            let _ = conn.execute(
+                "UPDATE user_sessions SET expires_at = ?1, updated_at = ?2 WHERE token = ?3",
+                params![new_expires_at, now_iso, session_token],
+            );
+        }
         drop(conn);
 
-        match active_role {
-            Some((role_str, true)) => {
-                let mut refreshed = session_user;
-                refreshed.role = UserRole::from_str(&role_str)?;
-                Ok(refreshed)
-            }
-            _ => {
-                let _ = self.sessions.remove_session(session_token);
-                Err(AppError::Unauthorized(
-                    "Akun sudah tidak aktif. Silakan login kembali.".to_string(),
-                ))
-            }
-        }
+        let user = User {
+            id,
+            username,
+            full_name,
+            role: UserRole::from_str(&role_str)?,
+            has_pin,
+            is_active,
+            created_at,
+            updated_at,
+        };
+        let _ = self.sessions.insert_with_expiry(
+            session_token.to_string(),
+            user.clone(),
+            new_expires_at,
+        );
+        Ok(user)
     }
 
     /// Mencari user ADMIN aktif yang cocok dengan PIN yang diberikan (`FR-AUTH-04`).
@@ -762,6 +855,10 @@ impl CoreService {
             )?;
 
             if !req.is_active {
+                let _ = conn.execute(
+                    "DELETE FROM user_sessions WHERE user_id = ?1",
+                    params![existing_id],
+                );
                 let _ = self.sessions.revoke_user_sessions(existing_id);
             }
             existing_id.clone()
@@ -2419,6 +2516,7 @@ impl CoreService {
             let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             tx.execute_batch(
                 "PRAGMA foreign_keys = OFF;
+                 DELETE FROM user_sessions;
                  DELETE FROM stock_opname_items;
                  DELETE FROM stock_opname_sessions;
                  DELETE FROM cash_movements;
@@ -2449,6 +2547,7 @@ impl CoreService {
                 "cash_movements",
                 "stock_opname_sessions",
                 "stock_opname_items",
+                "user_sessions",
             ] {
                 let exists: i64 = tx.query_row(
                     "SELECT COUNT(*) FROM backup_src.sqlite_master WHERE type = 'table' AND name = ?1",
@@ -2464,6 +2563,7 @@ impl CoreService {
 
             tx.execute_batch("PRAGMA foreign_keys = ON;")?;
             tx.commit()?;
+            let _ = self.sessions.clear_all();
             Ok(())
         })();
 

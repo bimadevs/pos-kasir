@@ -14,16 +14,25 @@ use crate::models::{
     StockOpnameSession, StoreSettings, TerminalStatus, UpdateOpnameItemQtyRequest,
     UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
+use crate::services::auth_service::{now_unix_ts, SESSION_TTL_SECONDS};
 use crate::services::core_service::CoreService;
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PersistedLocalSession {
+    session: AuthSession,
+    expires_at: i64,
+}
 
 pub struct BackendDispatcher {
     app_data_dir: PathBuf,
     config: RwLock<LocalConfig>,
     core: Arc<CoreService>,
-    active_session: RwLock<Option<AuthSession>>,
+    active_session: RwLock<Option<PersistedLocalSession>>,
     lan_server_handle: AsyncMutex<Option<tokio::task::JoinHandle<()>>>,
     lan_bind_error: RwLock<Option<String>>,
     remote_client_cache: RwLock<Option<(LocalConfig, RemoteHttpClient)>>,
@@ -35,16 +44,54 @@ impl BackendDispatcher {
         let db_path = app_data_dir.join("muditamart.db");
         let db = Arc::new(Database::open_file(&db_path)?);
         let core = Arc::new(CoreService::new(db));
+        let initial_session = Self::load_persisted_session(&app_data_dir);
 
         Ok(Self {
             app_data_dir,
             config: RwLock::new(config),
             core,
-            active_session: RwLock::new(None),
+            active_session: RwLock::new(initial_session),
             lan_server_handle: AsyncMutex::new(None),
             lan_bind_error: RwLock::new(None),
             remote_client_cache: RwLock::new(None),
         })
+    }
+
+    fn session_file_path(app_data_dir: &Path) -> PathBuf {
+        app_data_dir.join("local_session.json")
+    }
+
+    fn load_persisted_session(app_data_dir: &Path) -> Option<PersistedLocalSession> {
+        let path = Self::session_file_path(app_data_dir);
+        let raw = fs::read_to_string(&path).ok()?;
+        let persisted: PersistedLocalSession = serde_json::from_str(&raw).ok()?;
+        if persisted.expires_at > now_unix_ts() {
+            Some(persisted)
+        } else {
+            let _ = fs::remove_file(&path);
+            None
+        }
+    }
+
+    fn persist_local_session(&self, session: AuthSession, expires_at: i64) {
+        let entry = PersistedLocalSession {
+            session,
+            expires_at,
+        };
+        if let Ok(mut guard) = self.active_session.write() {
+            *guard = Some(entry.clone());
+        }
+        let _ = fs::create_dir_all(&self.app_data_dir);
+        if let Ok(serialized) = serde_json::to_string_pretty(&entry) {
+            let _ = fs::write(Self::session_file_path(&self.app_data_dir), serialized);
+        }
+    }
+
+    fn clear_local_session(&self) {
+        if let Ok(mut guard) = self.active_session.write() {
+            *guard = None;
+        }
+        let _ = fs::remove_file(Self::session_file_path(&self.app_data_dir));
     }
 
     pub fn app_data_dir(&self) -> &Path {
@@ -141,17 +188,86 @@ impl BackendDispatcher {
     }
 
     fn require_local_session(&self) -> AppResult<AuthSession> {
-        let guard = self
-            .active_session
-            .read()
-            .map_err(|_| AppError::Database("Gagal membaca sesi aktif.".to_string()))?;
-        guard.clone().ok_or_else(|| {
-            AppError::Unauthorized("Silakan login terlebih dahulu.".to_string())
-        })
+        let entry = {
+            let guard = self
+                .active_session
+                .read()
+                .map_err(|_| AppError::Database("Gagal membaca sesi aktif.".to_string()))?;
+            guard.clone()
+        };
+
+        let Some(persisted) = entry else {
+            return Err(AppError::Unauthorized(
+                "Silakan login terlebih dahulu.".to_string(),
+            ));
+        };
+
+        let now_ts = now_unix_ts();
+        if persisted.expires_at <= now_ts {
+            self.clear_local_session();
+            return Err(AppError::Unauthorized(
+                "Sesi tidak valid atau telah berakhir. Silakan login kembali.".to_string(),
+            ));
+        }
+
+        let new_expires_at = now_ts + SESSION_TTL_SECONDS;
+        let mut session = persisted.session;
+
+        // Di Server Terminal, validasi sekaligus perpanjang sesi di tabel SQLite user_sessions
+        if self.is_server_mode() {
+            match self.core.validate_session(&session.session_token) {
+                Ok(fresh_user) => {
+                    session.user = fresh_user;
+                }
+                Err(e) => {
+                    self.clear_local_session();
+                    return Err(e);
+                }
+            }
+        }
+
+        // Perpanjang masa berlaku sesi lokal otomatis selama aktif (Sliding Window 1 Jam)
+        if new_expires_at - persisted.expires_at >= 15 {
+            self.persist_local_session(session.clone(), new_expires_at);
+        } else if let Ok(mut guard) = self.active_session.write() {
+            *guard = Some(PersistedLocalSession {
+                session: session.clone(),
+                expires_at: new_expires_at,
+            });
+        }
+
+        Ok(session)
     }
 
     pub fn get_active_session(&self) -> Option<AuthSession> {
-        self.active_session.read().ok().and_then(|g| g.clone())
+        self.require_local_session().ok()
+    }
+
+    pub async fn resolve_active_session(&self) -> Option<AuthSession> {
+        let sess = self.require_local_session().ok()?;
+        let cfg = self.get_config();
+        if cfg.terminal_mode == TerminalMode::CLIENT {
+            match self.remote_client(&cfg).get_me(&sess.session_token).await {
+                Ok(fresh_user) => {
+                    let updated = AuthSession {
+                        session_token: sess.session_token,
+                        user: fresh_user,
+                    };
+                    self.persist_local_session(updated.clone(), now_unix_ts() + SESSION_TTL_SECONDS);
+                    return Some(updated);
+                }
+                Err(AppError::Unauthorized(_)) | Err(AppError::Forbidden(_)) => {
+                    self.clear_local_session();
+                    return None;
+                }
+                Err(_) => {
+                    // Jika gagal karena jaringan LAN sedang terputus sementara, pertahankan sesi lokal
+                    // selama belum melewati masa berlaku 1 jam agar kasir tidak dipaksa login ulang.
+                    return Some(sess);
+                }
+            }
+        }
+        Some(sess)
     }
 
     // ========================================================================
@@ -322,17 +438,17 @@ impl BackendDispatcher {
             }
         };
 
-        if let Ok(mut guard) = self.active_session.write() {
-            *guard = Some(session.clone());
-        }
+        self.persist_local_session(session.clone(), now_unix_ts() + SESSION_TTL_SECONDS);
         Ok(session)
     }
 
     pub async fn logout(&self) -> AppResult<()> {
-        let current = self.get_active_session();
-        if let Ok(mut guard) = self.active_session.write() {
-            *guard = None;
-        }
+        let current = self
+            .active_session
+            .read()
+            .ok()
+            .and_then(|g| g.as_ref().map(|p| p.session.clone()));
+        self.clear_local_session();
         if let Some(sess) = current {
             let cfg = self.get_config();
             match cfg.terminal_mode {
@@ -1267,5 +1383,22 @@ mod tests {
         let c1 = client_dispatcher.remote_client(&cfg);
         let c2 = client_dispatcher.remote_client(&cfg);
         assert_eq!(c1.base_url, c2.base_url);
+
+        // 13. Uji persistensi sesi di database Server (user_sessions) & disk lokal (local_session.json):
+        // Simulasikan Server Terminal dan Client Terminal yang di-restart (memori RAM baru).
+        // Token sesi Kasir yang lama wajib tetap valid selama masa berlaku 1 jam belum habis!
+        let restarted_server = BackendDispatcher::new(server_dir.path().to_path_buf()).unwrap();
+        let validated_user = restarted_server
+            .core
+            .validate_session(&cashier_sess.session_token)
+            .expect("Sesi di database Server harus tetap valid setelah Server restart");
+        assert_eq!(validated_user.username, "kasir1");
+
+        let restarted_client = BackendDispatcher::new(client_dir.path().to_path_buf()).unwrap();
+        let restored_client_sess = restarted_client
+            .resolve_active_session()
+            .await
+            .expect("Sesi lokal Client harus pulih otomatis dari local_session.json");
+        assert_eq!(restored_client_sess.user.username, "kasir1");
     }
 }

@@ -44,9 +44,10 @@ import { playErrorBeep, playScanSuccessBeep } from "../utils/sound";
 import { APP_VERSION_LABEL } from "../version";
 
 export const PosRegisterPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const {
     activeShift,
+    loadingShift,
     refreshActiveShift,
     openReceiptPreview,
     previewReceipt,
@@ -1134,10 +1135,14 @@ export const PosRegisterPage: React.FC = () => {
 
       {/* Shift Open Modal (Barrier modal if cashier has no active shift) */}
       <ShiftOpenModal
-        isOpen={shiftOpenModalOpen || (user?.role === "CASHIER" && !activeShift)}
-        isBarrier={user?.role === "CASHIER" && !activeShift}
+        isOpen={
+          shiftOpenModalOpen ||
+          (!loadingShift && user?.role === "CASHIER" && !activeShift)
+        }
+        isBarrier={!loadingShift && user?.role === "CASHIER" && !activeShift}
         cashierName={user?.full_name || "Kasir"}
         terminalName={terminalStatus?.config.terminal_name || "Kasir"}
+        lanConnected={terminalStatus?.lan_connected ?? true}
         onShiftOpened={async (shift) => {
           await refreshActiveShift();
           setShiftOpenModalOpen(false);
@@ -1149,6 +1154,9 @@ export const PosRegisterPage: React.FC = () => {
           );
         }}
         onClose={() => setShiftOpenModalOpen(false)}
+        onLogout={() => {
+          void logout();
+        }}
       />
 
       {/* Shift Close Modal (Blind Close & Z-Report) */}

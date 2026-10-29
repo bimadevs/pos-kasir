@@ -73,7 +73,7 @@ pub async fn auth_logout(state: DispatcherState<'_>) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn get_active_session(state: DispatcherState<'_>) -> AppResult<Option<AuthSession>> {
-    Ok(state.get_active_session())
+    Ok(state.resolve_active_session().await)
 }
 
 // ============================================================================

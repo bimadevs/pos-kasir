@@ -4,10 +4,24 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
+use chrono::Utc;
 use rand::Rng;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use uuid::Uuid;
+
+/// Masa berlaku sesi login pengguna: 1 jam (3.600 detik), diperpanjang otomatis (sliding window) selama aktif.
+pub const SESSION_TTL_SECONDS: i64 = 3600;
+
+/// Mengembalikan waktu saat ini dalam Unix epoch seconds (UTC).
+pub fn now_unix_ts() -> i64 {
+    Utc::now().timestamp()
+}
+
+/// Menghasilkan token sesi baru (`sess_<uuid>`).
+pub fn generate_session_token() -> String {
+    format!("sess_{}", Uuid::new_v4().simple())
+}
 
 /// Hash password atau PIN Admin menggunakan Argon2id dengan salt kriptografis acak.
 pub fn hash_secret(secret: &str) -> AppResult<String> {
@@ -42,10 +56,11 @@ pub fn generate_pairing_code() -> String {
         .collect()
 }
 
-/// Menyimpan sesi aktif (`session_token -> User`) di memori Server Terminal.
+/// Menyimpan cache sesi aktif (`session_token -> (User, expires_at)`) di memori Server Terminal
+/// yang disinkronkan dengan tabel SQLite `user_sessions`.
 #[derive(Default)]
 pub struct SessionStore {
-    sessions: RwLock<HashMap<String, User>>,
+    sessions: RwLock<HashMap<String, (User, i64)>>,
 }
 
 impl SessionStore {
@@ -55,26 +70,20 @@ impl SessionStore {
         }
     }
 
-    pub fn create_session(&self, user: User) -> AppResult<String> {
-        let token = format!("sess_{}", Uuid::new_v4().simple());
+    pub fn create_session(&self, user: User) -> AppResult<(String, i64)> {
+        let token = generate_session_token();
+        let expires_at = now_unix_ts() + SESSION_TTL_SECONDS;
+        self.insert_with_expiry(token.clone(), user, expires_at)?;
+        Ok((token, expires_at))
+    }
+
+    pub fn insert_with_expiry(&self, token: String, user: User, expires_at: i64) -> AppResult<()> {
         let mut map = self
             .sessions
             .write()
             .map_err(|_| AppError::Database("Gagal mengunci penyimpanan sesi.".to_string()))?;
-        map.insert(token.clone(), user);
-        Ok(token)
-    }
-
-    pub fn get_session(&self, token: &str) -> AppResult<User> {
-        let map = self
-            .sessions
-            .read()
-            .map_err(|_| AppError::Database("Gagal membaca penyimpanan sesi.".to_string()))?;
-        map.get(token).cloned().ok_or_else(|| {
-            AppError::Unauthorized(
-                "Sesi tidak valid atau telah berakhir. Silakan login kembali.".to_string(),
-            )
-        })
+        map.insert(token, (user, expires_at));
+        Ok(())
     }
 
     pub fn remove_session(&self, token: &str) -> AppResult<()> {
@@ -91,7 +100,16 @@ impl SessionStore {
             .sessions
             .write()
             .map_err(|_| AppError::Database("Gagal mengunci penyimpanan sesi.".to_string()))?;
-        map.retain(|_, u| u.id != user_id);
+        map.retain(|_, (u, _)| u.id != user_id);
+        Ok(())
+    }
+
+    pub fn clear_all(&self) -> AppResult<()> {
+        let mut map = self
+            .sessions
+            .write()
+            .map_err(|_| AppError::Database("Gagal mengunci penyimpanan sesi.".to_string()))?;
+        map.clear();
         Ok(())
     }
 }
