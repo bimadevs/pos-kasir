@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { ipc } from "../services/ipc";
@@ -55,6 +56,8 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [previewShiftReport, setPreviewShiftReport] =
     useState<ShiftReportData | null>(null);
+  const pollingTerminalRef = useRef(false);
+  const pollingShiftRef = useRef(false);
 
   const refreshTerminalStatus =
     useCallback(async (): Promise<TerminalStatus | null> => {
@@ -85,10 +88,20 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     void refreshTerminalStatus();
     void refreshActiveShift();
-    // Polling kesehatan koneksi LAN berkala setiap 5 detik (NFR-REL-01)
+    // Polling kesehatan koneksi LAN berkala setiap 5 detik (NFR-REL-01) tanpa menumpuk request paralel
     const timer = window.setInterval(() => {
-      void refreshTerminalStatus();
-      void refreshActiveShift();
+      if (!pollingTerminalRef.current) {
+        pollingTerminalRef.current = true;
+        void refreshTerminalStatus().finally(() => {
+          pollingTerminalRef.current = false;
+        });
+      }
+      if (!pollingShiftRef.current) {
+        pollingShiftRef.current = true;
+        void refreshActiveShift().finally(() => {
+          pollingShiftRef.current = false;
+        });
+      }
     }, 5000);
     return () => window.clearInterval(timer);
   }, [refreshTerminalStatus, refreshActiveShift]);

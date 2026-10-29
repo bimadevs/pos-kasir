@@ -3,6 +3,23 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.3] - 2026-10-29
+
+### Fixed
+- **Perbaikan Kritis Self-Deadlock Database SQLite saat Kasir Client Login via LAN (`get_active_shift_by_terminal_or_cashier`)**:
+  - Menghilangkan penguncian ganda (`std::sync::Mutex<Connection>` re-entrant deadlock) pada `CoreService::get_active_shift_by_terminal_or_cashier` yang sebelumnya mengunci koneksi database kedua kalinya di thread yang sama ketika terminal kasir belum memiliki shift berstatus `OPEN`.
+  - Memastikan komputer Server/Admin tidak lagi tertahan di status *"Memuat katalog produk..."* (*infinite loading*) dan komputer Kasir (Client) tidak terputus setelah login kasir atau saat polling shift 5 detik berjalan.
+- **URL Encoding Query Parameter pada `RemoteHttpClient::get_active_shift`**:
+  - Mengganti interpolasi string mentah `?terminal_name=...` pada path URL dengan `.query(&[("terminal_name", &self.terminal_name)])` agar nama terminal yang mengandung spasi atau tanda kurung (mis. `"Kasir 2 (Client)"`) di-*encode* sesuai standar HTTP.
+- **Sinkronisasi Akumulasi `cash_sales_total` Shift Kasir & Resolusi Shift**:
+  - Memperbarui kolom `cash_sales_total` pada tabel `cashier_shifts` secara atomik saat transaksi penjualan selesai (`create_sale`), dibatalkan (`void_sale`), maupun ditutup (`close_shift`).
+  - Menyelaraskan pembacaan shift aktif pada `BackendDispatcher::get_active_shift` di mode `SERVER` agar turut memeriksa terminal dan kasir secara konsisten.
+- **Pelaporan Status Bind Port LAN Akurat & Guard Polling Frontend**:
+  - Menyimpan dan melaporkan status error apabila port LAN `3847` gagal di-*bind* (`lan_bind_error`) pada `BackendDispatcher::get_terminal_status`.
+  - Menambahkan *in-flight guard* (`useRef`) pada polling 5 detik di `TerminalContext.tsx` agar request status terminal dan shift tidak menumpuk pada jaringan LAN yang lambat.
+- **Kelengkapan Tabel pada `restore_database`**:
+  - Menyertakan pembersihan dan pemulihan tabel `product_price_tiers`, `cashier_shifts`, `cash_movements`, `stock_opname_sessions`, dan `stock_opname_items` saat melakukan restore database cadangan.
+
 ## [1.1.2] - 2026-10-28
 
 ### Fixed

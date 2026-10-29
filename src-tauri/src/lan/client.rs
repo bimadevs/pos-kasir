@@ -448,9 +448,9 @@ impl RemoteHttpClient {
     }
 
     pub async fn get_active_shift(&self, token: &str) -> AppResult<Option<CashierShift>> {
-        let path = format!("/api/v1/shifts/active?terminal_name={}", self.terminal_name);
         let resp = self
-            .request(Method::GET, &path, Some(token))
+            .request(Method::GET, "/api/v1/shifts/active", Some(token))
+            .query(&[("terminal_name", &self.terminal_name)])
             .send()
             .await?;
         Self::parse_response(resp).await

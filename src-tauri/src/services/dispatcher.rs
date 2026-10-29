@@ -25,6 +25,7 @@ pub struct BackendDispatcher {
     core: Arc<CoreService>,
     active_session: RwLock<Option<AuthSession>>,
     lan_server_handle: AsyncMutex<Option<tokio::task::JoinHandle<()>>>,
+    lan_bind_error: RwLock<Option<String>>,
     remote_client_cache: RwLock<Option<(LocalConfig, RemoteHttpClient)>>,
 }
 
@@ -41,6 +42,7 @@ impl BackendDispatcher {
             core,
             active_session: RwLock::new(None),
             lan_server_handle: AsyncMutex::new(None),
+            lan_bind_error: RwLock::new(None),
             remote_client_cache: RwLock::new(None),
         })
     }
@@ -93,11 +95,19 @@ impl BackendDispatcher {
         {
             Ok((_addr, handle)) => {
                 *guard = Some(handle);
+                if let Ok(mut err_guard) = self.lan_bind_error.write() {
+                    *err_guard = None;
+                }
                 Ok(())
             }
             Err(e) => {
-                // Jangan menggagalkan startup aplikasi jika port sudah dipakai oleh instance lain
-                eprintln!("Peringatan bind server LAN ({bind_addr}): {e}");
+                // Jangan menggagalkan startup aplikasi jika port sudah dipakai oleh instance lain,
+                // namun simpan status error agar indikator LAN di Server melaporkan kondisi sebenarnya.
+                let err_msg = e.to_string();
+                eprintln!("Peringatan bind server LAN ({bind_addr}): {err_msg}");
+                if let Ok(mut err_guard) = self.lan_bind_error.write() {
+                    *err_guard = Some(err_msg);
+                }
                 Ok(())
             }
         }
@@ -167,6 +177,11 @@ impl BackendDispatcher {
             }),
             TerminalMode::SERVER => {
                 let _ = self.ensure_lan_server_running().await;
+                let bind_err = self
+                    .lan_bind_error
+                    .read()
+                    .ok()
+                    .and_then(|g| g.clone());
                 match self.core.get_store_settings() {
                     Ok(settings) => {
                         if cfg.pairing_code != settings.pairing_code {
@@ -176,9 +191,9 @@ impl BackendDispatcher {
                         Ok(TerminalStatus {
                             config: cfg,
                             local_lan_ips,
-                            lan_connected: true,
+                            lan_connected: bind_err.is_none(),
                             store_name: Some(settings.store_name),
-                            server_error: None,
+                            server_error: bind_err,
                         })
                     }
                     Err(e) => Ok(TerminalStatus {
@@ -783,7 +798,9 @@ impl BackendDispatcher {
         let sess = self.require_local_session()?;
         let cfg = self.get_config();
         match cfg.terminal_mode {
-            TerminalMode::SERVER => self.core.get_active_shift(&sess.user.id),
+            TerminalMode::SERVER => self
+                .core
+                .get_active_shift_by_terminal_or_cashier(Some(&cfg.terminal_name), &sess.user.id),
             TerminalMode::CLIENT => {
                 self.remote_client(&cfg)
                     .get_active_shift(&sess.session_token)
@@ -1115,6 +1132,31 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(cashier_sess.user.username, "kasir1");
+
+        // 4b. REGRESI KRITIS: Segera setelah Cashier login di Client Terminal (sebelum shift dibuka),
+        // UI memanggil get_active_shift() via LAN. Pastikan tidak terjadi self-deadlock pada Mutex DB Server!
+        let initial_shift = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            client_dispatcher.get_active_shift(),
+        )
+        .await
+        .expect("get_active_shift tidak boleh deadlock/timeout")
+        .unwrap();
+        assert!(initial_shift.is_none());
+
+        // Pastikan Server Terminal tetap responsif memuat katalog produk setelah polling shift dari Client
+        let server_products = server_dispatcher
+            .core
+            .list_products(
+                &cashier_sess.user,
+                &ProductFilter {
+                    search: None,
+                    category: None,
+                    only_active: Some(true),
+                },
+            )
+            .unwrap();
+        assert!(!server_products.is_empty());
 
         // 5. Cashier mencari produk via Barcode di jaringan LAN; pastikan cost_price disensor menjadi 0
         let aqua = client_dispatcher

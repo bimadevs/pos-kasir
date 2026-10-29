@@ -1426,13 +1426,27 @@ impl CoreService {
         // Algoritma 5.1 SYSTEM-DESIGN: Buka transaksi dengan BEGIN IMMEDIATE
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
-        let active_shift_id: Option<String> = tx
-            .query_row(
-                "SELECT id FROM cashier_shifts WHERE cashier_id = ?1 AND status = 'OPEN' ORDER BY opened_at DESC LIMIT 1",
-                params![actor.id],
-                |r| r.get(0),
-            )
-            .optional()?;
+        let active_shift_id: Option<String> = {
+            let by_cashier: Option<String> = tx
+                .query_row(
+                    "SELECT id FROM cashier_shifts WHERE cashier_id = ?1 AND status = 'OPEN' ORDER BY opened_at DESC LIMIT 1",
+                    params![actor.id],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if by_cashier.is_some() {
+                by_cashier
+            } else if !terminal_name.trim().is_empty() {
+                tx.query_row(
+                    "SELECT id FROM cashier_shifts WHERE terminal_name = ?1 AND status = 'OPEN' ORDER BY opened_at DESC LIMIT 1",
+                    params![terminal_name.trim()],
+                    |r| r.get(0),
+                )
+                .optional()?
+            } else {
+                None
+            }
+        };
 
         if actor.role == UserRole::CASHIER && active_shift_id.is_none() {
             return Err(AppError::Validation(
@@ -1619,6 +1633,13 @@ impl CoreService {
                 now
             ],
         )?;
+
+        if let Some(ref sid) = active_shift_id {
+            tx.execute(
+                "UPDATE cashier_shifts SET cash_sales_total = cash_sales_total + ?1, updated_at = ?2 WHERE id = ?3",
+                params![total_amount, now, sid],
+            )?;
+        }
 
         for li in &line_items {
             tx.execute(
@@ -1854,11 +1875,16 @@ impl CoreService {
 
         let admin_user = Self::find_admin_by_pin_conn(&tx, &req.admin_pin)?;
 
-        let (status_str, transaction_date): (String, String) = tx
+        let (status_str, transaction_date, total_amount, shift_id): (
+            String,
+            String,
+            i64,
+            Option<String>,
+        ) = tx
             .query_row(
-                "SELECT status, transaction_date FROM sales WHERE id = ?1",
+                "SELECT status, transaction_date, total_amount, shift_id FROM sales WHERE id = ?1",
                 params![req.sale_id],
-                |r| Ok((r.get(0)?, r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .map_err(|_| AppError::NotFound("Transaksi tidak ditemukan.".to_string()))?;
 
@@ -1904,6 +1930,13 @@ impl CoreService {
                 req.sale_id
             ],
         )?;
+
+        if let Some(ref sid) = shift_id {
+            tx.execute(
+                "UPDATE cashier_shifts SET cash_sales_total = MAX(0, cash_sales_total - ?1), updated_at = ?2 WHERE id = ?3",
+                params![total_amount, now, sid],
+            )?;
+        }
 
         tx.commit()?;
         drop(conn);
@@ -2386,6 +2419,11 @@ impl CoreService {
             let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             tx.execute_batch(
                 "PRAGMA foreign_keys = OFF;
+                 DELETE FROM stock_opname_items;
+                 DELETE FROM stock_opname_sessions;
+                 DELETE FROM cash_movements;
+                 DELETE FROM cashier_shifts;
+                 DELETE FROM product_price_tiers;
                  DELETE FROM held_bill_items;
                  DELETE FROM held_bills;
                  DELETE FROM sale_line_items;
@@ -2402,9 +2440,29 @@ impl CoreService {
                  INSERT INTO sales SELECT * FROM backup_src.sales;
                  INSERT INTO sale_line_items SELECT * FROM backup_src.sale_line_items;
                  INSERT INTO held_bills SELECT * FROM backup_src.held_bills;
-                 INSERT INTO held_bill_items SELECT * FROM backup_src.held_bill_items;
-                 PRAGMA foreign_keys = ON;",
+                 INSERT INTO held_bill_items SELECT * FROM backup_src.held_bill_items;",
             )?;
+
+            for optional_table in [
+                "product_price_tiers",
+                "cashier_shifts",
+                "cash_movements",
+                "stock_opname_sessions",
+                "stock_opname_items",
+            ] {
+                let exists: i64 = tx.query_row(
+                    "SELECT COUNT(*) FROM backup_src.sqlite_master WHERE type = 'table' AND name = ?1",
+                    params![optional_table],
+                    |r| r.get(0),
+                )?;
+                if exists > 0 {
+                    tx.execute_batch(&format!(
+                        "INSERT INTO {optional_table} SELECT * FROM backup_src.{optional_table};"
+                    ))?;
+                }
+            }
+
+            tx.execute_batch("PRAGMA foreign_keys = ON;")?;
             tx.commit()?;
             Ok(())
         })();
@@ -2561,7 +2619,7 @@ impl CoreService {
                      FROM cashier_shifts
                      WHERE terminal_name = ?1 AND status = 'OPEN'
                      ORDER BY opened_at DESC LIMIT 1",
-                    params![t_name],
+                    params![t_name.trim()],
                     Self::map_shift_row,
                 )
                 .optional()?;
@@ -2570,7 +2628,20 @@ impl CoreService {
             }
         }
 
-        self.get_active_shift(cashier_id)
+        let shift_by_cashier = conn
+            .query_row(
+                "SELECT id, terminal_name, cashier_id, cashier_name_snapshot, opened_at, closed_at,
+                        opening_float, cash_sales_total, cash_in_total, cash_out_total,
+                        expected_closing_cash, actual_closing_cash, cash_discrepancy,
+                        status, notes, created_at, updated_at
+                 FROM cashier_shifts
+                 WHERE cashier_id = ?1 AND status = 'OPEN'
+                 ORDER BY opened_at DESC LIMIT 1",
+                params![cashier_id],
+                Self::map_shift_row,
+            )
+            .optional()?;
+        Ok(shift_by_cashier)
     }
 
     pub fn get_shift_by_id(&self, shift_id: &str) -> AppResult<CashierShift> {
@@ -2801,11 +2872,12 @@ impl CoreService {
         let conn = self.db.lock_conn()?;
         conn.execute(
             "UPDATE cashier_shifts
-             SET status = 'CLOSED', closed_at = ?1, expected_closing_cash = ?2,
-                 actual_closing_cash = ?3, cash_discrepancy = ?4, notes = ?5, updated_at = ?1
-             WHERE id = ?6",
+             SET status = 'CLOSED', closed_at = ?1, cash_sales_total = ?2, expected_closing_cash = ?3,
+                 actual_closing_cash = ?4, cash_discrepancy = ?5, notes = ?6, updated_at = ?1
+             WHERE id = ?7",
             params![
                 now,
+                report.total_cash_sales,
                 expected_cash,
                 req.actual_closing_cash,
                 cash_discrepancy,
