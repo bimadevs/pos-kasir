@@ -163,6 +163,7 @@ pub fn run() {
             commands::get_store_settings,
             commands::update_store_settings,
             commands::list_local_printers,
+            commands::list_local_printer_details,
             commands::update_printer_config,
             commands::print_receipt,
             commands::kick_cash_drawer,

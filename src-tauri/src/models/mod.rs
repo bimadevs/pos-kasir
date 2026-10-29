@@ -506,6 +506,17 @@ pub struct TerminalStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LocalPrinterInfo {
+    pub name: String,
+    pub port_name: Option<String>,
+    pub driver_name: Option<String>,
+    pub is_online: bool,
+    pub is_default: bool,
+    pub is_virtual: bool,
+    pub status_label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrintOutcome {
     pub printer_name: String,
     pub paper_width: u16,

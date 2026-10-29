@@ -3,6 +3,15 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.1.5] - 2026-10-29
+
+### Added
+- **Indikator Status Printer Thermal Aktif & Deteksi Online/Offline Win32 Spooler (`list_local_printer_details`)**:
+  - Menambahkan enumerasi printer Win32 Level 2 (`PRINTER_INFO_2W` + `GetDefaultPrinterW` dengan fallback otomatis ke Level 4 `PRINTER_INFO_4W`) pada backend Rust (`src-tauri/src/hardware/spooler.rs`) untuk membaca status nyata printer (`🟢 Siap / Online` vs `⚪ Offline / Mati`, *Paper Out*, *Paper Jam*, *Door Open*), nama port fisik (`USB001`, `COM1`, dsb.), serta status *Default Printer Windows*.
+  - Mengurutkan printer fisik yang berstatus *Siap / Online* di urutan teratas dropdown pemilihan printer pada halaman Pengaturan (`SettingsPage.tsx`).
+  - Menampilkan penanda `★ [Sedang Digunakan]` pada printer yang aktif tersimpan di terminal, badge informasi status & port secara langsung di bawah pilihan printer, serta tombol **"Segarkan Daftar"** untuk memindai ulang printer tanpa keluar dari halaman pengaturan.
+  - Menjaga kompatibilitas 100% dengan fungsi cetak struk Raw ESC/POS (`OpenPrinterW`) dan pembuka laci kasir RJ11 karena nilai konfigurasi `printer_name` tetap menyimpan nama asli printer Windows tanpa modifikasi.
+
 ## [1.1.4] - 2026-10-29
 
 ### Added

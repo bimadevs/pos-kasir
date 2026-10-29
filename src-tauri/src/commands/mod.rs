@@ -1,17 +1,17 @@
 use crate::config::{LocalConfig, PrinterConfig};
 use crate::error::AppResult;
 use crate::hardware::spooler::{
-    kick_drawer_local, list_local_printers as enumerate_printers, print_receipt_local,
-    print_shift_report_local,
+    kick_drawer_local, list_local_printer_details as enumerate_printer_details,
+    list_local_printers as enumerate_printers, print_receipt_local, print_shift_report_local,
 };
 use crate::models::{
     AuthSession, CashMovement, CashMovementRequest, CashierShift, CloseShiftRequest,
     CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
     CreateStockAdjustmentRequest, CsvImportResult, DiscountType, HealthCheckResponse, HeldBill,
-    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameSessionDetail, PrintOutcome,
-    Product, ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill, ReceiptData,
-    RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus, SaleWithItems, SalesReport,
-    SalesReportFilter, SetPriceTiersRequest, SetupClientRequest, SetupServerRequest,
+    ImportProductsResult, LocalPrinterInfo, LoginRequest, OpenShiftRequest, OpnameSessionDetail,
+    PrintOutcome, Product, ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill,
+    ReceiptData, RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus, SaleWithItems,
+    SalesReport, SalesReportFilter, SetPriceTiersRequest, SetupClientRequest, SetupServerRequest,
     ShiftReportData, StockAdjustment, StockOpnameItem, StockOpnameSession, StoreSettings,
     TerminalStatus, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
     UpsertUserRequest, User, VoidSaleRequest,
@@ -269,6 +269,11 @@ pub async fn update_store_settings(
 #[tauri::command]
 pub fn list_local_printers() -> AppResult<Vec<String>> {
     Ok(enumerate_printers())
+}
+
+#[tauri::command]
+pub fn list_local_printer_details() -> AppResult<Vec<LocalPrinterInfo>> {
+    Ok(enumerate_printer_details())
 }
 
 #[tauri::command]

@@ -13,8 +13,27 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
 import { ipc } from "../services/ipc";
-import type { PrinterConfig } from "../types/domain";
+import type { LocalPrinterInfo, PrinterConfig } from "../types/domain";
 import { APP_VERSION_LABEL } from "../version";
+
+const VIRTUAL_PRINTER_NAME = "Mudita Mart Virtual Thermal Printer (Simulasi)";
+
+function formatPrinterOptionLabel(
+  info: LocalPrinterInfo,
+  savedPrinterName: string
+): string {
+  const isSaved = info.name === savedPrinterName;
+  const activeTag = isSaved ? "  ★ [Sedang Digunakan]" : "";
+
+  if (info.is_virtual) {
+    return `🖥️ ${info.name}${activeTag}`;
+  }
+
+  const statusDot = info.is_online ? "🟢" : "⚪";
+  const portTag = info.port_name ? ` [${info.port_name}]` : "";
+  const defaultTag = info.is_default ? " • Default Windows" : "";
+  return `${statusDot} ${info.name}${portTag} — ${info.status_label}${defaultTag}${activeTag}`;
+}
 
 export const SettingsPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -23,12 +42,12 @@ export const SettingsPage: React.FC = () => {
 
   const cfg = terminalStatus?.config;
   const isServer = cfg?.terminal_mode === "SERVER";
+  const savedPrinterName = cfg?.printer.printer_name || VIRTUAL_PRINTER_NAME;
 
   // Printer state (Local Terminal)
-  const [printers, setPrinters] = useState<string[]>([]);
-  const [printerName, setPrinterName] = useState<string>(
-    cfg?.printer.printer_name || "Mudita Mart Virtual Thermal Printer (Simulasi)"
-  );
+  const [printerDetails, setPrinterDetails] = useState<LocalPrinterInfo[]>([]);
+  const [refreshingPrinters, setRefreshingPrinters] = useState<boolean>(false);
+  const [printerName, setPrinterName] = useState<string>(savedPrinterName);
   const [paperWidth, setPaperWidth] = useState<number>(
     cfg?.printer.paper_width || 58
   );
@@ -60,11 +79,53 @@ export const SettingsPage: React.FC = () => {
     message: string;
   } | null>(null);
 
-  const loadSettings = useCallback(async () => {
+  const refreshPrinterList = useCallback(async (showFeedback = false) => {
+    setRefreshingPrinters(true);
     try {
-      const sysPrinters = await ipc.listLocalPrinters();
-      setPrinters(sysPrinters);
+      const details = await ipc.listLocalPrinterDetails();
+      setPrinterDetails(details);
+      if (showFeedback) {
+        const onlineCount = details.filter(
+          (p) => !p.is_virtual && p.is_online
+        ).length;
+        setFeedback({
+          type: "success",
+          message: `Daftar printer diperbarui (${onlineCount} printer fisik berstatus Siap / Online).`,
+        });
+      }
+    } catch {
+      try {
+        const names = await ipc.listLocalPrinters();
+        setPrinterDetails(
+          names.map((name) => ({
+            name,
+            port_name: null,
+            driver_name: null,
+            is_online: true,
+            is_default: false,
+            is_virtual: name === VIRTUAL_PRINTER_NAME,
+            status_label:
+              name === VIRTUAL_PRINTER_NAME
+                ? "Mode Simulasi (Layar)"
+                : "Terdeteksi di Spooler",
+          }))
+        );
+      } catch (err) {
+        if (showFeedback) {
+          setFeedback({
+            type: "error",
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    } finally {
+      setRefreshingPrinters(false);
+    }
+  }, []);
 
+  const loadSettings = useCallback(async () => {
+    await refreshPrinterList(false);
+    try {
       const settings = await ipc.getStoreSettings();
       setStoreName(settings.store_name);
       setStoreAddress(settings.store_address);
@@ -77,7 +138,7 @@ export const SettingsPage: React.FC = () => {
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, []);
+  }, [refreshPrinterList]);
 
   useEffect(() => {
     void loadSettings();
@@ -267,6 +328,43 @@ export const SettingsPage: React.FC = () => {
 
   const lanIps = terminalStatus?.local_lan_ips || [];
 
+  const effectivePrinters: LocalPrinterInfo[] = React.useMemo(() => {
+    const list =
+      printerDetails.length > 0
+        ? [...printerDetails]
+        : [
+            {
+              name: VIRTUAL_PRINTER_NAME,
+              port_name: "VIRTUAL",
+              driver_name: "Mudita Mart ESC/POS Simulator",
+              is_online: true,
+              is_default: false,
+              is_virtual: true,
+              status_label: "Mode Simulasi (Layar)",
+            },
+          ];
+
+    for (const candidate of [savedPrinterName, printerName]) {
+      if (candidate && !list.some((p) => p.name === candidate)) {
+        list.unshift({
+          name: candidate,
+          port_name: null,
+          driver_name: null,
+          is_online: false,
+          is_default: false,
+          is_virtual: candidate === VIRTUAL_PRINTER_NAME,
+          status_label: "Tidak Terdeteksi di Spooler",
+        });
+      }
+    }
+    return list;
+  }, [printerDetails, savedPrinterName, printerName]);
+
+  const selectedPrinterInfo =
+    effectivePrinters.find((p) => p.name === printerName) ??
+    effectivePrinters[0];
+  const isSelectedSaved = printerName === savedPrinterName;
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-zinc-100/70 space-y-5">
       <div className="flex items-center justify-between">
@@ -330,20 +428,82 @@ export const SettingsPage: React.FC = () => {
             className="space-y-4 text-xs"
           >
             <div>
-              <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                Pilih Printer Thermal (Win32 Spooler / Simulasi)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block font-bold uppercase tracking-wider text-zinc-600">
+                  Pilih Printer Thermal (Win32 Spooler / Simulasi)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void refreshPrinterList(true)}
+                  disabled={refreshingPrinters}
+                  title="Pindai ulang daftar printer dan status Online/Offline di Windows Spooler"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`w-3 h-3 ${refreshingPrinters ? "animate-spin" : ""}`}
+                  />
+                  Segarkan Daftar
+                </button>
+              </div>
               <select
                 value={printerName}
                 onChange={(e) => setPrinterName(e.target.value)}
                 className="w-full px-3.5 py-2.5 border border-zinc-300 rounded-xl bg-white text-zinc-900 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               >
-                {printers.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {effectivePrinters.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {formatPrinterOptionLabel(p, savedPrinterName)}
                   </option>
                 ))}
               </select>
+
+              {selectedPrinterInfo && (
+                <div className="mt-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedPrinterInfo.is_virtual ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        <span>🖥️</span>
+                        {selectedPrinterInfo.status_label}
+                      </span>
+                    ) : selectedPrinterInfo.is_online ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        {selectedPrinterInfo.status_label}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold bg-zinc-200/70 text-zinc-700 border border-zinc-300">
+                        <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                        {selectedPrinterInfo.status_label}
+                      </span>
+                    )}
+
+                    {selectedPrinterInfo.port_name &&
+                      !selectedPrinterInfo.is_virtual && (
+                        <span className="px-2 py-0.5 rounded-md font-mono font-semibold bg-white text-zinc-700 border border-zinc-200">
+                          Port: {selectedPrinterInfo.port_name}
+                        </span>
+                      )}
+
+                    {selectedPrinterInfo.is_default && (
+                      <span className="px-2 py-0.5 rounded-md font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                        Default Windows
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    {isSelectedSaved ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                        ★ Sedang Digunakan
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                        Belum Disimpan — Klik &ldquo;Simpan Printer&rdquo;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

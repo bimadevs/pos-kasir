@@ -15,6 +15,7 @@ import type {
   HeldBill,
   ImportProductsResult,
   LocalConfig,
+  LocalPrinterInfo,
   LoginRequest,
   OpenShiftRequest,
   OpnameSessionDetail,
@@ -164,6 +165,8 @@ export const ipc = {
 
   // 7. Perangkat Keras Lokal & Database Backup
   listLocalPrinters: () => callCommand<string[]>("list_local_printers"),
+  listLocalPrinterDetails: () =>
+    callCommand<LocalPrinterInfo[]>("list_local_printer_details"),
   updatePrinterConfig: (printer: PrinterConfig) =>
     callCommand<LocalConfig>("update_printer_config", { printer }),
   printReceipt: (receipt: ReceiptData) =>

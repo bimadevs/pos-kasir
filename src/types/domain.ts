@@ -14,6 +14,16 @@ export interface PrinterConfig {
   preview_on_screen: boolean;
 }
 
+export interface LocalPrinterInfo {
+  name: string;
+  port_name: string | null;
+  driver_name: string | null;
+  is_online: boolean;
+  is_default: boolean;
+  is_virtual: boolean;
+  status_label: string;
+}
+
 export interface LocalConfig {
   terminal_mode: TerminalMode;
   terminal_name: string;
