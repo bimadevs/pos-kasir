@@ -18,9 +18,6 @@ const AppShell: React.FC = () => {
   const { terminalStatus, loadingTerminal } = useTerminal();
   const {
     user,
-    isCashier,
-    isStock,
-    isReporter,
     canAccessPos,
     canManageProducts,
     canAdjustStock,
@@ -30,27 +27,29 @@ const AppShell: React.FC = () => {
   } = useAuth();
   const [activeTab, setActiveTab] = useState<AppNavTab>("POS");
 
-  // Alihkan ke tab yang valid sesuai peran pengguna saat login
+  // Alihkan ke tab awal yang sesuai saat pengguna login atau peran berubah
+  const userRole = user?.role;
   useEffect(() => {
-    if (!user) return;
-    if (isCashier && activeTab !== "POS" && activeTab !== "SETTINGS") {
-      setActiveTab("POS");
-    } else if (
-      isStock &&
-      activeTab !== "PRODUCTS" &&
-      activeTab !== "STOCK" &&
-      activeTab !== "REPORTS" &&
-      activeTab !== "SETTINGS"
-    ) {
-      setActiveTab("PRODUCTS");
-    } else if (
-      isReporter &&
-      activeTab !== "REPORTS" &&
-      activeTab !== "SETTINGS"
-    ) {
-      setActiveTab("REPORTS");
+    if (!userRole) return;
+    if (userRole === "STOCK") {
+      setActiveTab((prev) =>
+        prev === "PRODUCTS" ||
+        prev === "STOCK" ||
+        prev === "REPORTS" ||
+        prev === "SETTINGS"
+          ? prev
+          : "PRODUCTS"
+      );
+    } else if (userRole === "REPORTER") {
+      setActiveTab((prev) =>
+        prev === "REPORTS" || prev === "SETTINGS" ? prev : "REPORTS"
+      );
+    } else if (userRole === "CASHIER") {
+      setActiveTab((prev) =>
+        prev === "POS" || prev === "SETTINGS" ? prev : "POS"
+      );
     }
-  }, [user, isCashier, isStock, isReporter, activeTab]);
+  }, [userRole]);
 
   if (loadingTerminal || loadingAuth) {
     return (
