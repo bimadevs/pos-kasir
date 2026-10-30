@@ -64,12 +64,25 @@ export const MassOpnameView: React.FC<MassOpnameViewProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const countingSessions = await ipc.listOpnameSessions("COUNTING");
-      if (countingSessions.length > 0) {
+      let activeSessions = await ipc.listOpnameSessions("COUNTING");
+      if (activeSessions.length === 0) {
+        activeSessions = await ipc.listOpnameSessions("REVIEW");
+      }
+      const activeSession = activeSessions.find(
+        (s) => s.status === "COUNTING" || s.status === "REVIEW"
+      );
+      if (activeSession) {
         const sessionDetail = await ipc.getOpnameSessionDetail(
-          countingSessions[0].id
+          activeSession.id
         );
-        setDetail(sessionDetail);
+        if (
+          sessionDetail.session.status === "COUNTING" ||
+          sessionDetail.session.status === "REVIEW"
+        ) {
+          setDetail(sessionDetail);
+        } else {
+          setDetail(null);
+        }
       } else {
         setDetail(null);
       }

@@ -1161,7 +1161,7 @@ impl BackendDispatcher {
         let sess = self.require_local_session()?;
         let cfg = self.get_config();
         match cfg.terminal_mode {
-            TerminalMode::SERVER => self.core.list_opname_sessions(),
+            TerminalMode::SERVER => self.core.list_opname_sessions(status),
             TerminalMode::CLIENT => {
                 self.remote_client(&cfg)
                     .list_opname_sessions(&sess.session_token, status)

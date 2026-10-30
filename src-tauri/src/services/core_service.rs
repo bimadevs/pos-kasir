@@ -4079,19 +4079,37 @@ impl CoreService {
         .map_err(|_| AppError::NotFound("Sesi stok opname tidak ditemukan.".to_string()))
     }
 
-    pub fn list_opname_sessions(&self) -> AppResult<Vec<StockOpnameSession>> {
+    pub fn list_opname_sessions(
+        &self,
+        status: Option<&str>,
+    ) -> AppResult<Vec<StockOpnameSession>> {
         let conn = self.db.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
-                    total_items_counted, total_discrepancy_qty, total_discrepancy_value,
-                    committed_by_user_id, committed_at, notes, created_at, updated_at
-             FROM stock_opname_sessions
-             ORDER BY created_at DESC",
-        )?;
-        let rows = stmt
-            .query_map([], Self::map_opname_session_row)?
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(rows)
+        if let Some(st) = status {
+            let mut stmt = conn.prepare(
+                "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
+                        total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                        committed_by_user_id, committed_at, notes, created_at, updated_at
+                 FROM stock_opname_sessions
+                 WHERE status = ?1
+                 ORDER BY created_at DESC",
+            )?;
+            let rows = stmt
+                .query_map(params![st], Self::map_opname_session_row)?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        } else {
+            let mut stmt = conn.prepare(
+                "SELECT id, session_name, creator_user_id, creator_name_snapshot, status,
+                        total_items_counted, total_discrepancy_qty, total_discrepancy_value,
+                        committed_by_user_id, committed_at, notes, created_at, updated_at
+                 FROM stock_opname_sessions
+                 ORDER BY created_at DESC",
+            )?;
+            let rows = stmt
+                .query_map([], Self::map_opname_session_row)?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        }
     }
 
     pub fn get_opname_session_detail(&self, session_id: &str) -> AppResult<OpnameSessionDetail> {
@@ -5240,6 +5258,37 @@ mod tests {
             .unwrap();
         assert_eq!(cancelled.status, "CANCELLED");
         assert!(cancelled.notes.as_deref().unwrap().contains("Toko mendadak ramai kasir"));
+
+        // 9. Verifikasi penyaringan status list_opname_sessions
+        let counting_after_cancel = service.list_opname_sessions(Some("COUNTING")).unwrap();
+        assert_eq!(counting_after_cancel.len(), 0);
+
+        let cancelled_sessions = service.list_opname_sessions(Some("CANCELLED")).unwrap();
+        assert_eq!(cancelled_sessions.len(), 1);
+        assert_eq!(cancelled_sessions[0].id, sess2.id);
+
+        let committed_sessions = service.list_opname_sessions(Some("COMMITTED")).unwrap();
+        assert_eq!(committed_sessions.len(), 1);
+        assert_eq!(committed_sessions[0].id, session.id);
+
+        let all_sessions = service.list_opname_sessions(None).unwrap();
+        assert_eq!(all_sessions.len(), 2);
+
+        // 10. Buka sesi baru setelah pembatalan harus langsung sukses (tidak boleh terganjal sesi aktif)
+        let sess3 = service
+            .create_opname_session(
+                &admin,
+                &CreateOpnameSessionRequest {
+                    session_name: Some("Opname Sesi Baru Pasca Batal".to_string()),
+                    notes: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(sess3.status, "COUNTING");
+
+        let counting_now = service.list_opname_sessions(Some("COUNTING")).unwrap();
+        assert_eq!(counting_now.len(), 1);
+        assert_eq!(counting_now[0].id, sess3.id);
     }
 
     #[test]

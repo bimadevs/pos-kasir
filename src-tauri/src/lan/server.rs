@@ -641,10 +641,10 @@ async fn handle_create_opname_session(
 async fn handle_list_opname_sessions(
     State(state): State<LanServerState>,
     headers: HeaderMap,
-    Query(_query): Query<OpnameQuery>,
+    Query(query): Query<OpnameQuery>,
 ) -> AppResult<Json<Vec<StockOpnameSession>>> {
     let _ = authenticate_request(&state.core, &headers)?;
-    let sessions = state.core.list_opname_sessions()?;
+    let sessions = state.core.list_opname_sessions(query.status.as_deref())?;
     Ok(Json(sessions))
 }
 
