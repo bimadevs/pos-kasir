@@ -230,6 +230,8 @@ export const ipc = {
     }),
   printShiftReport: (report: ShiftReportData) =>
     callCommand<PrintOutcome>("print_shift_report", { report }),
+  printThermalText: (text: string) =>
+    callCommand<PrintOutcome>("print_thermal_text", { text }),
 
   // 9. Alur Stok Opname Fisik Massal
   createOpnameSession: (req: CreateOpnameSessionRequest) =>

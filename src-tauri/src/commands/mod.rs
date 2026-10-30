@@ -3,6 +3,7 @@ use crate::error::AppResult;
 use crate::hardware::spooler::{
     kick_drawer_local, list_local_printer_details as enumerate_printer_details,
     list_local_printers as enumerate_printers, print_receipt_local, print_shift_report_local,
+    print_thermal_text_local,
 };
 use crate::models::{
     ApproveStockAdjustmentRequest, AuditLog, AuthSession, CashMovement, CashMovementRequest,
@@ -515,6 +516,15 @@ pub fn print_shift_report(
 ) -> AppResult<PrintOutcome> {
     let cfg = state.get_config();
     print_shift_report_local(state.app_data_dir(), &cfg.printer, &report)
+}
+
+#[tauri::command]
+pub fn print_thermal_text(
+    state: DispatcherState<'_>,
+    text: String,
+) -> AppResult<PrintOutcome> {
+    let cfg = state.get_config();
+    print_thermal_text_local(state.app_data_dir(), &cfg.printer, &text)
 }
 
 // ============================================================================

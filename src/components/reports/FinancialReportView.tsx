@@ -29,20 +29,27 @@ function getLocalDateStr(offsetDays: number = 0): string {
 function renderFinancialThermalText(
   report: FinancialReport,
   storeName: string,
-  cols = 32
+  totalCols = 32,
+  leftMarginChars = 0
 ): string {
-  const divider = "-".repeat(cols);
-  const doubleDivider = "=".repeat(cols);
+  const marginCount = Math.min(
+    Math.max(0, leftMarginChars),
+    Math.max(0, totalCols - 16)
+  );
+  const cols = Math.max(20, totalCols - marginCount);
+  const margin = " ".repeat(marginCount);
+  const divider = margin + "-".repeat(cols);
+  const doubleDivider = margin + "=".repeat(cols);
   const center = (text: string) => {
     const pad = Math.max(0, Math.floor((cols - text.length) / 2));
-    return " ".repeat(pad) + text;
+    return margin + " ".repeat(pad) + text;
   };
   const leftRight = (left: string, right: string) => {
-    if (right.length >= cols) return right.slice(0, cols);
+    if (right.length >= cols) return margin + right.slice(0, cols);
     const maxLeft = cols - right.length - 1;
     const truncatedLeft = left.slice(0, maxLeft);
     const space = Math.max(1, cols - truncatedLeft.length - right.length);
-    return truncatedLeft + " ".repeat(space) + right;
+    return margin + truncatedLeft + " ".repeat(space) + right;
   };
 
   const lines: string[] = [];
@@ -73,6 +80,14 @@ function renderFinancialThermalText(
 
 export const FinancialReportView: React.FC = () => {
   const { terminalStatus } = useTerminal();
+  const printerCfg = terminalStatus?.config.printer;
+  const paperWidth = printerCfg?.paper_width === 80 ? 80 : 58;
+  const leftMarginChars = printerCfg?.left_margin_chars ?? 0;
+  const printerName =
+    printerCfg?.printer_name ||
+    "Mudita Mart Virtual Thermal Printer (Simulasi)";
+  const cols = paperWidth === 80 ? 48 : 32;
+
   const todayStr = todayLocalIsoDate();
   const [startDate, setStartDate] = useState<string>(todayStr);
   const [endDate, setEndDate] = useState<string>(todayStr);
@@ -460,7 +475,15 @@ export const FinancialReportView: React.FC = () => {
       {showThermalModal && report && (
         <ReportThermalModal
           title={`Laporan Keuangan (${startDate} sd ${endDate})`}
-          reportText={renderFinancialThermalText(report, storeName)}
+          reportText={renderFinancialThermalText(
+            report,
+            storeName,
+            cols,
+            leftMarginChars
+          )}
+          paperWidth={paperWidth}
+          leftMarginChars={leftMarginChars}
+          printerName={printerName}
           onClose={() => setShowThermalModal(false)}
         />
       )}

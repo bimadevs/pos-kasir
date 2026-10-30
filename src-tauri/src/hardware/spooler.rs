@@ -4,7 +4,7 @@ use crate::error::AppError;
 use crate::error::AppResult;
 use crate::hardware::escpos::{
     build_drawer_kick_only_bytes, build_escpos_bytes, build_shift_report_escpos_bytes,
-    render_receipt_text, render_shift_report_text,
+    render_receipt_text, render_shift_report_text, ESC_INIT, GS_PARTIAL_CUT,
 };
 use crate::models::{LocalPrinterInfo, PrintOutcome, ReceiptData, ShiftReportData};
 use std::fs;
@@ -126,6 +126,53 @@ pub fn print_shift_report_local(
         drawer_kicked: is_z,
         bytes_written: raw_bytes.len(),
         rendered_text,
+        show_preview_modal: printer_cfg.preview_on_screen || simulated,
+    })
+}
+
+/// Mencetak teks laporan thermal (keuangan/laba/stok) langsung ke printer thermal via Win32 Raw Spooler.
+pub fn print_thermal_text_local(
+    app_data_dir: &Path,
+    printer_cfg: &PrinterConfig,
+    text: &str,
+) -> AppResult<PrintOutcome> {
+    let paper_width = if printer_cfg.paper_width == 58 { 58 } else { 80 };
+    let left_margin_chars = printer_cfg.left_margin_chars;
+    let mut raw_bytes = Vec::with_capacity(text.len() + 32);
+
+    raw_bytes.extend_from_slice(&ESC_INIT);
+    for line in text.lines() {
+        raw_bytes.extend_from_slice(line.as_bytes());
+        raw_bytes.push(b'\n');
+    }
+    raw_bytes.extend_from_slice(b"\n\n\n\n");
+    raw_bytes.extend_from_slice(&GS_PARTIAL_CUT);
+
+    let _ = fs::create_dir_all(app_data_dir);
+    let _ = fs::write(app_data_dir.join("last_thermal_report.bin"), &raw_bytes);
+    let _ = fs::write(app_data_dir.join("last_thermal_report.txt"), text);
+
+    let printer_name = printer_cfg.printer_name.trim();
+    let is_virtual = printer_name.is_empty() || printer_name == VIRTUAL_PRINTER_NAME;
+
+    let simulated = if is_virtual {
+        true
+    } else {
+        send_raw_bytes_os(printer_name, &raw_bytes)?
+    };
+
+    Ok(PrintOutcome {
+        printer_name: if printer_name.is_empty() {
+            VIRTUAL_PRINTER_NAME.to_string()
+        } else {
+            printer_name.to_string()
+        },
+        paper_width,
+        left_margin_chars,
+        simulated,
+        drawer_kicked: false,
+        bytes_written: raw_bytes.len(),
+        rendered_text: text.to_string(),
         show_preview_modal: printer_cfg.preview_on_screen || simulated,
     })
 }
@@ -474,4 +521,31 @@ fn send_raw_bytes_os(printer_name: &str, raw_bytes: &[u8]) -> AppResult<bool> {
     }
 
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_print_thermal_text_local_virtual() {
+        let dir = tempdir().unwrap();
+        let cfg = PrinterConfig {
+            printer_name: VIRTUAL_PRINTER_NAME.to_string(),
+            paper_width: 80,
+            left_margin_chars: 2,
+            auto_open_drawer: false,
+            preview_on_screen: true,
+        };
+        let text = "MUDITA MART\nLAPORAN KEUANGAN\nRp 1.000.000";
+        let outcome = print_thermal_text_local(dir.path(), &cfg, text).unwrap();
+        assert_eq!(outcome.paper_width, 80);
+        assert_eq!(outcome.left_margin_chars, 2);
+        assert!(outcome.simulated);
+        assert_eq!(outcome.rendered_text, text);
+        assert!(outcome.bytes_written > text.len());
+        assert!(dir.path().join("last_thermal_report.bin").exists());
+        assert!(dir.path().join("last_thermal_report.txt").exists());
+    }
 }

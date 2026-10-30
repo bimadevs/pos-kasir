@@ -5,6 +5,7 @@ import {
   FileText,
   Printer,
 } from "lucide-react";
+import { useTerminal } from "../../context/TerminalContext";
 import { ipc } from "../../services/ipc";
 import type { PrintOutcome, ShiftReportData } from "../../types/domain";
 import { formatDateTimeId, formatRupiah } from "../../utils/posCalculator";
@@ -17,24 +18,31 @@ interface ShiftReportPreviewModalProps {
 
 export function renderFallbackShiftReportText(
   report: ShiftReportData,
-  cols = 32
+  totalCols = 32,
+  leftMarginChars = 0
 ): string {
-  const divider = "-".repeat(cols);
-  const doubleDivider = "=".repeat(cols);
+  const marginCount = Math.min(
+    Math.max(0, leftMarginChars),
+    Math.max(0, totalCols - 16)
+  );
+  const cols = Math.max(20, totalCols - marginCount);
+  const margin = " ".repeat(marginCount);
+  const divider = margin + "-".repeat(cols);
+  const doubleDivider = margin + "=".repeat(cols);
   const isZ = report.shift.status === "CLOSED";
   const title = isZ ? "LAPORAN Z (TUTUP SHIFT)" : "LAPORAN X (SEMENTARA)";
 
   const center = (text: string) => {
     const pad = Math.max(0, Math.floor((cols - text.length) / 2));
-    return " ".repeat(pad) + text;
+    return margin + " ".repeat(pad) + text;
   };
 
   const leftRight = (left: string, right: string) => {
-    if (right.length >= cols) return right.slice(0, cols);
+    if (right.length >= cols) return margin + right.slice(0, cols);
     const maxLeft = cols - right.length - 1;
     const truncatedLeft = left.slice(0, maxLeft);
     const space = Math.max(1, cols - truncatedLeft.length - right.length);
-    return truncatedLeft + " ".repeat(space) + right;
+    return margin + truncatedLeft + " ".repeat(space) + right;
   };
 
   const lines: string[] = [];
@@ -94,6 +102,17 @@ export const ShiftReportPreviewModal: React.FC<ShiftReportPreviewModalProps> = (
   outcome,
   onClose,
 }) => {
+  const { terminalStatus } = useTerminal();
+  const printerCfg = terminalStatus?.config.printer;
+  const paperWidth = outcome?.paper_width ?? printerCfg?.paper_width ?? 58;
+  const leftMarginChars =
+    outcome?.left_margin_chars ?? printerCfg?.left_margin_chars ?? 0;
+  const cols = paperWidth === 80 ? 48 : 32;
+  const printerName =
+    outcome?.printer_name ??
+    printerCfg?.printer_name ??
+    "Mudita Mart Virtual Thermal Printer (Simulasi)";
+
   const [printing, setPrinting] = useState<boolean>(false);
   const [kickSuccess, setKickSuccess] = useState<boolean>(false);
 
@@ -112,7 +131,8 @@ export const ShiftReportPreviewModal: React.FC<ShiftReportPreviewModalProps> = (
 
   const isZ = report.shift.status === "CLOSED";
   const previewText =
-    outcome?.rendered_text ?? renderFallbackShiftReportText(report, 32);
+    outcome?.rendered_text ??
+    renderFallbackShiftReportText(report, cols, leftMarginChars);
 
   const handlePrintAgain = async () => {
     setPrinting(true);
@@ -167,21 +187,26 @@ export const ShiftReportPreviewModal: React.FC<ShiftReportPreviewModalProps> = (
         </div>
 
         {/* Status Badge */}
-        {outcome && (
-          <div className="px-6 py-2.5 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-xs text-zinc-600">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Printer: <strong>{outcome.printer_name}</strong></span>
+        <div className="px-6 py-2.5 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-xs text-zinc-600">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>
+              Printer: <strong>{printerName}</strong>
             </span>
-            <span className="font-mono text-[11px] text-zinc-500">
-              Lebar: {outcome.paper_width}mm
-            </span>
-          </div>
-        )}
+          </span>
+          <span className="font-mono text-[11px] text-zinc-500">
+            {paperWidth}mm • {cols} Kolom
+            {leftMarginChars > 0 ? ` • +${leftMarginChars} Spasi` : ""}
+          </span>
+        </div>
 
         {/* Paper Container */}
         <div className="p-6 overflow-y-auto flex-1 bg-zinc-200/50 flex justify-center">
-          <div className="w-full max-w-sm bg-white p-5 rounded-xl shadow-lg border border-zinc-300 font-mono text-xs leading-relaxed text-zinc-900 whitespace-pre selection:bg-teal-200">
+          <div
+            className={`w-full bg-white p-5 rounded-xl shadow-lg border border-zinc-300 font-mono text-xs leading-relaxed text-zinc-900 whitespace-pre selection:bg-teal-200 ${
+              paperWidth === 80 ? "max-w-[440px]" : "max-w-[340px]"
+            }`}
+          >
             {previewText}
           </div>
         </div>

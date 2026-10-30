@@ -21,20 +21,27 @@ import { ReportThermalModal } from "./ReportThermalModal";
 function renderStockThermalText(
   report: StockReport,
   storeName: string,
-  cols = 32
+  totalCols = 32,
+  leftMarginChars = 0
 ): string {
-  const divider = "-".repeat(cols);
-  const doubleDivider = "=".repeat(cols);
+  const marginCount = Math.min(
+    Math.max(0, leftMarginChars),
+    Math.max(0, totalCols - 16)
+  );
+  const cols = Math.max(20, totalCols - marginCount);
+  const margin = " ".repeat(marginCount);
+  const divider = margin + "-".repeat(cols);
+  const doubleDivider = margin + "=".repeat(cols);
   const center = (text: string) => {
     const pad = Math.max(0, Math.floor((cols - text.length) / 2));
-    return " ".repeat(pad) + text;
+    return margin + " ".repeat(pad) + text;
   };
   const leftRight = (left: string, right: string) => {
-    if (right.length >= cols) return right.slice(0, cols);
+    if (right.length >= cols) return margin + right.slice(0, cols);
     const maxLeft = cols - right.length - 1;
     const truncatedLeft = left.slice(0, maxLeft);
     const space = Math.max(1, cols - truncatedLeft.length - right.length);
-    return truncatedLeft + " ".repeat(space) + right;
+    return margin + truncatedLeft + " ".repeat(space) + right;
   };
 
   const lines: string[] = [];
@@ -85,6 +92,14 @@ function renderStockThermalText(
 
 export const StockReportView: React.FC = () => {
   const { terminalStatus } = useTerminal();
+  const printerCfg = terminalStatus?.config.printer;
+  const paperWidth = printerCfg?.paper_width === 80 ? 80 : 58;
+  const leftMarginChars = printerCfg?.left_margin_chars ?? 0;
+  const printerName =
+    printerCfg?.printer_name ||
+    "Mudita Mart Virtual Thermal Printer (Simulasi)";
+  const cols = paperWidth === 80 ? 48 : 32;
+
   const [report, setReport] = useState<StockReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -495,7 +510,15 @@ export const StockReportView: React.FC = () => {
       {showThermalModal && report && (
         <ReportThermalModal
           title="Laporan Valuasi Inventaris & Stok"
-          reportText={renderStockThermalText(report, storeName)}
+          reportText={renderStockThermalText(
+            report,
+            storeName,
+            cols,
+            leftMarginChars
+          )}
+          paperWidth={paperWidth}
+          leftMarginChars={leftMarginChars}
+          printerName={printerName}
           onClose={() => setShowThermalModal(false)}
         />
       )}

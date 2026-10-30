@@ -184,6 +184,7 @@ pub fn run() {
             commands::close_shift,
             commands::list_shifts,
             commands::print_shift_report,
+            commands::print_thermal_text,
             commands::create_opname_session,
             commands::list_opname_sessions,
             commands::get_opname_session_detail,
