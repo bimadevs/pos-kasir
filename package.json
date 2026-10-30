@@ -1,7 +1,7 @@
 {
   "name": "mudita-mart",
   "private": true,
-  "version": "1.1.5",
+  "version": "1.2.0",
   "author": "BimaDev",
   "type": "module",
   "scripts": {

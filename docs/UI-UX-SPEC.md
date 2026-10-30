@@ -102,21 +102,29 @@ Saat **Cashier** (atau **Admin**) memilih tombol **Void** pada salah satu transa
 - Input wajib: **PIN Admin (4–6 digit)** bertipe `password` (`******`).
 - Tombol **Konfirmasi Void & Kembalikan Stok**.
 
-### 4.5. Navigasi & Halaman Khusus `Admin`
-Jika pengguna yang login memiliki peran `ADMIN`, bilah navigasi menampilkan tab untuk berpindah instan dalam 1 klik:
-1. **🛒 Kasir (POS)**: Layar kasir utama.
+### 4.5. Navigasi & Hak Akses Layar Berdasarkan 4 Peran
+Bilah navigasi (`TopBar`) secara otomatis menyesuaikan tab yang tampil berdasarkan peran pengguna yang login:
+- **`ADMIN`**: Akses penuh ke seluruh tab (🛒 Kasir POS, 📦 Katalog Produk, 📋 Penyesuaian Stok, 📊 Laporan, 👥 Pengguna, ⚙️ Pengaturan).
+- **`CASHIER`**: 🛒 Kasir (POS), Riwayat Transaksi Hari Ini, dan ⚙️ Pengaturan (khusus tab Printer Lokal).
+- **`STOCK` (Petugas Stok)**: 📦 Katalog Produk (harga jual/diskon dikunci), 📋 Penyesuaian Stok & Opname (beserta tab Persetujuan Tertunda), 📊 Laporan Stok Inventaris, dan ⚙️ Pengaturan (tab Printer Lokal). Dilarang mengakses tab Kasir (POS).
+- **`REPORTER` (Petugas Laporan)**: 📊 Laporan Lengkap (Penjualan, Shift, Keuangan/Arus Kas, Laba Kotor, dan Inventaris Stok) dan ⚙️ Pengaturan (tab Printer Lokal). Dilarang mengakses tab Kasir (POS) maupun modifikasi data.
+
+Rincian Halaman:
+1. **🛒 Kasir (POS)**: Layar kasir utama (hanya untuk `ADMIN` dan `CASHIER`).
 2. **📦 Produk (`ProductsPage`)**:
    - Tabel pencarian & filter kategori, indikator warna merah pada baris dengan `Stok = 0` dan kuning untuk `Stok <= 5`.
-   - Tombol **+ Tambah Produk** (mendukung scan barcode langsung ke kolom Barcode), **Import CSV**, dan **Export CSV**.
+   - Tombol **+ Tambah Produk**, **Import Excel**, dan **Export Excel**.
+   - Untuk peran `STOCK`, input harga jual (`selling_price`), diskon, dan harga grosir otomatis dinonaktifkan (read-only).
 3. **📋 Stok Masuk / Koreksi (`StockAdjustmentPage`)**:
-   - Form tambah mutasi stok (`RESTOCK` Barang Masuk, `DAMAGE` Barang Rusak, `LOSS` Barang Hilang, `CORRECTION` Penyesuaian Opname) dan tabel riwayat mutasi stok.
-4. **📊 Laporan & Laba (`ReportsPage`)**:
-   - Kartu KPI: `Omzet Bersih`, `Total HPP (Modal)`, `Laba Kotor`, `Jumlah Transaksi Sukses`, dan `Jumlah Void`.
-   - Filter periode tanggal, filter per **Cashier**, dan filter per Terminal.
-   - Tabel rincian transaksi (klik untuk lihat detail atau cetak ulang struk), daftar produk terlaris, dan tombol **Export CSV Laporan**.
+   - Form tambah mutasi stok (`RESTOCK`, `DAMAGE`, `LOSS`, `CORRECTION`), Stock Opname massal, dan riwayat mutasi.
+   - Tab / Banner **Antrean Persetujuan Stok**: menampilkan pengajuan tertunda (`PENDING`) yang melewati ambang batas nominal/persen, dengan tombol Setujui (meminta PIN Admin) dan Tolak.
+4. **📊 Laporan (`ReportsPage`)**:
+   - Tab navigasi internal: **Penjualan**, **Shift Kasir**, **Keuangan / Arus Kas**, **Laba Kotor**, dan **Inventaris Stok**.
+   - Tombol aksi: **Ekspor Excel (.xlsx)**, **Simpan ke Folder**, dan **Cetak Laporan** (A4/PDF dan Ringkasan Thermal).
 5. **👥 Pengguna (`UsersPage`)**:
-   - Daftar akun **Admin** dan **Cashier**, tambah pengguna baru, ubah password, ubah **PIN Admin**, serta aktifkan/nonaktifkan akun.
+   - Daftar akun dengan filter 4 peran: `ADMIN`, `CASHIER`, `STOCK`, `REPORTER`.
+   - Modal tambah/edit pengguna dengan dropdown peran, badge warna indikator, dan validasi PIN (hanya wajib dan dapat diisi jika peran = `ADMIN`).
 6. **⚙️ Pengaturan (`SettingsPage`)**:
-   - **Tab Printer Lokal (Tersedia untuk Cashier & Admin)**: Pilih Printer Windows, Lebar Kertas (`58mm` / `80mm`), toggle Buka Laci Otomatis, toggle Pratinjau Struk di Layar, tombol **Test Print**, dan **Test Buka Laci**.
-   - **Tab Toko & Jaringan LAN (Khusus Admin)**: Ubah Nama/Alamat/Telepon/Footer Toko, lihat daftar IP LAN **Server Terminal** & **Pairing Code** (beserta tombol *Regenerate Pairing Code*).
+   - **Tab Printer Lokal (Tersedia untuk Seluruh Peran)**: Pilih Printer Windows, Lebar Kertas (`58mm` / `80mm`), toggle Buka Laci Otomatis, toggle Pratinjau Struk di Layar, tombol **Test Print**, dan **Test Buka Laci**.
+   - **Tab Toko & Jaringan LAN (Khusus Admin)**: Ubah Identitas Toko, Ambang Batas Persetujuan Stok (Nominal Rupiah & Persentase), serta Pengaturan LAN / Pairing Code.
    - **Tab Database & Backup (Khusus Admin di Server Terminal)**: Tombol **Backup Database ke File (`.db`)** dan **Restore Database**.

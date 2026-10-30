@@ -1,12 +1,15 @@
 import ExcelJS from "exceljs";
 import type {
   DiscountType,
+  FinancialReport,
   ParsedImportRow,
   ParsedImportSummary,
   Product,
+  ProfitReport,
   SalesReport,
   StockOpnameItem,
   StockOpnameSession,
+  StockReport,
 } from "../types/domain";
 
 // Palet Warna & Styling Tema Profesional Mudita Mart POS (Forest Green & Warm Gold)
@@ -512,6 +515,584 @@ export function buildSalesReportExportWorkbook(
 
   detailSheet.autoFilter = "A1:Q1";
 
+  return wb;
+}
+
+/**
+ * Membangun lembar kerja ekspor Laporan Keuangan & Arus Kas (2-sheet):
+ * - Sheet 1: 'Ringkasan Keuangan' (KPI arus kas, total diskon, void, kas masuk/keluar)
+ * - Sheet 2: 'Rekap Harian' (Tabel detail arus kas harian)
+ */
+export function buildFinancialReportWorkbook(
+  report: FinancialReport,
+  storeName: string
+): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
+  wb.created = new Date();
+  wb.modified = new Date();
+
+  // --------------------------------------------------------------------------
+  // SHEET 1: RINGKASAN KEUANGAN
+  // --------------------------------------------------------------------------
+  const summarySheet = wb.addWorksheet("Ringkasan Keuangan");
+  summarySheet.columns = [
+    { width: 4 },
+    { width: 34 },
+    { width: 24 },
+  ];
+
+  // Header Banner
+  summarySheet.mergeCells("B2:C2");
+  const titleCell = summarySheet.getCell("B2");
+  titleCell.value = `LAPORAN ARUS KAS & KEUANGAN — ${storeName.toUpperCase()}`;
+  titleCell.font = { bold: true, size: 16, color: { argb: THEME_PRIMARY_NAVY } };
+
+  summarySheet.mergeCells("B3:C3");
+  const subtitleCell = summarySheet.getCell("B3");
+  subtitleCell.value = `Periode: ${report.start_date} s/d ${report.end_date} | Dicetak: ${new Date().toLocaleString("id-ID")}`;
+  subtitleCell.font = { italic: true, size: 10, color: { argb: "FF64748B" } };
+
+  summarySheet.getCell("B5").value = "RINGKASAN ARUS KAS & OMZET";
+  summarySheet.getCell("B5").font = { bold: true, size: 12, color: { argb: THEME_PRIMARY_NAVY } };
+
+  const metrics: [string, number, string][] = [
+    ["Penjualan Kotor (Gross Sales)", report.gross_sales, '"Rp" #,##0'],
+    ["Total Potongan Diskon", report.total_discount, '"Rp" #,##0'],
+    ["Penjualan Bersih (Net Sales)", report.net_sales, '"Rp" #,##0'],
+    ["Total Transaksi Dibatalkan (Void)", report.total_void_amount, '"Rp" #,##0'],
+    ["Penerimaan Kas dari Penjualan", report.cash_sales, '"Rp" #,##0'],
+    ["Kas Masuk Operasional (Cash-In)", report.cash_in_amount, '"Rp" #,##0'],
+    ["Kas Keluar Operasional (Cash-Out)", report.cash_out_amount, '"Rp" #,##0'],
+    ["Total Selisih Kas Shift (Discrepancy)", report.total_shift_discrepancy, '"Rp" #,##0'],
+    ["Arus Kas Bersih (Net Cash Flow)", report.net_cash_flow, '"Rp" #,##0'],
+    ["Jumlah Transaksi Berhasil", report.completed_sales_count, "#,##0"],
+    ["Jumlah Transaksi Dibatalkan", report.voided_sales_count, "#,##0"],
+  ];
+
+  metrics.forEach(([label, value, fmt], idx) => {
+    const rowNum = 6 + idx;
+    const labelCell = summarySheet.getCell(`B${rowNum}`);
+    const valCell = summarySheet.getCell(`C${rowNum}`);
+
+    labelCell.value = label;
+    labelCell.font = { size: 10 };
+    labelCell.border = thinBorder;
+
+    valCell.value = value;
+    valCell.font = { bold: true, size: 10 };
+    valCell.numFmt = fmt;
+    valCell.alignment = { horizontal: "right" };
+    valCell.border = thinBorder;
+
+    if (label.includes("Arus Kas Bersih") || label.includes("Penjualan Bersih")) {
+      labelCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.font = { bold: true, size: 11, color: { argb: THEME_PRIMARY_NAVY } };
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // SHEET 2: REKAP HARIAN
+  // --------------------------------------------------------------------------
+  const dailySheet = wb.addWorksheet("Rekap Harian", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  dailySheet.columns = [
+    { header: "Tanggal", key: "date", width: 14 },
+    { header: "Tx Sukses", key: "completed_count", width: 12 },
+    { header: "Tx Batal", key: "voided_count", width: 12 },
+    { header: "Penjualan Kotor", key: "gross_sales", width: 18 },
+    { header: "Total Diskon", key: "total_discount", width: 16 },
+    { header: "Penjualan Bersih", key: "net_sales", width: 18 },
+    { header: "Kas Masuk Laci", key: "cash_sales", width: 18 },
+    { header: "Kas Masuk Ops", key: "cash_in", width: 16 },
+    { header: "Kas Keluar Ops", key: "cash_out", width: 16 },
+    { header: "Selisih Shift", key: "shift_discrepancy", width: 16 },
+    { header: "Arus Kas Bersih", key: "net_cash", width: 18 },
+  ];
+
+  const dailyHeaderRow = dailySheet.getRow(1);
+  dailyHeaderRow.height = 28;
+  dailyHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 11 };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: THEME_PRIMARY_NAVY },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = thinBorder;
+  });
+
+  report.daily_summaries.forEach((d, index) => {
+    const row = dailySheet.addRow({
+      date: d.date,
+      completed_count: d.completed_count,
+      voided_count: d.voided_count,
+      gross_sales: d.gross_sales,
+      total_discount: d.total_discount,
+      net_sales: d.net_sales,
+      cash_sales: d.cash_sales,
+      cash_in: d.cash_in,
+      cash_out: d.cash_out,
+      shift_discrepancy: d.shift_discrepancy,
+      net_cash: d.net_cash,
+    });
+
+    row.getCell("date").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("completed_count").numFmt = "#,##0";
+    row.getCell("voided_count").numFmt = "#,##0";
+    row.getCell("gross_sales").numFmt = '"Rp" #,##0';
+    row.getCell("total_discount").numFmt = '"Rp" #,##0';
+    row.getCell("net_sales").numFmt = '"Rp" #,##0';
+    row.getCell("cash_sales").numFmt = '"Rp" #,##0';
+    row.getCell("cash_in").numFmt = '"Rp" #,##0';
+    row.getCell("cash_out").numFmt = '"Rp" #,##0';
+    row.getCell("shift_discrepancy").numFmt = '"Rp" #,##0';
+    row.getCell("net_cash").numFmt = '"Rp" #,##0';
+
+    row.eachCell((cell) => {
+      cell.border = thinBorder;
+      if (index % 2 === 1) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: THEME_ZEBRA_ROW },
+        };
+      }
+    });
+  });
+
+  dailySheet.autoFilter = "A1:K1";
+  return wb;
+}
+
+/**
+ * Membangun lembar kerja ekspor Laporan Laba Kotor (2-sheet):
+ * - Sheet 1: 'Laba per Kategori' (Ringkasan margin laba per kelompok produk)
+ * - Sheet 2: 'Produk Terlaris & Profit' (Top 50 produk penyumbang keuntungan terbesar)
+ */
+export function buildProfitReportWorkbook(
+  report: ProfitReport,
+  storeName: string
+): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
+  wb.created = new Date();
+  wb.modified = new Date();
+
+  // --------------------------------------------------------------------------
+  // SHEET 1: RINGKASAN & KATEGORI
+  // --------------------------------------------------------------------------
+  const summarySheet = wb.addWorksheet("Laba per Kategori");
+  summarySheet.columns = [
+    { width: 4 },
+    { width: 28 },
+    { width: 16 },
+    { width: 20 },
+    { width: 20 },
+    { width: 20 },
+    { width: 16 },
+  ];
+
+  // Header Banner
+  summarySheet.mergeCells("B2:G2");
+  const titleCell = summarySheet.getCell("B2");
+  titleCell.value = `LAPORAN LABA KOTOR (GROSS PROFIT) — ${storeName.toUpperCase()}`;
+  titleCell.font = { bold: true, size: 16, color: { argb: THEME_PRIMARY_NAVY } };
+
+  summarySheet.mergeCells("B3:G3");
+  const subtitleCell = summarySheet.getCell("B3");
+  subtitleCell.value = `Periode: ${report.start_date} s/d ${report.end_date} | Dicetak: ${new Date().toLocaleString("id-ID")}`;
+  subtitleCell.font = { italic: true, size: 10, color: { argb: "FF64748B" } };
+
+  summarySheet.getCell("B5").value = "METRIK LABA KOTOR UTAMA";
+  summarySheet.getCell("B5").font = { bold: true, size: 12, color: { argb: THEME_PRIMARY_NAVY } };
+
+  const metrics: [string, number, string][] = [
+    ["Penjualan Kotor (Gross Sales)", report.gross_sales, '"Rp" #,##0'],
+    ["Total Potongan Diskon", report.total_discount, '"Rp" #,##0'],
+    ["Penjualan Bersih (Net Sales)", report.net_sales, '"Rp" #,##0'],
+    ["Total HPP / Modal Barang (COGS)", report.total_cogs, '"Rp" #,##0'],
+    ["Laba Kotor (Gross Profit)", report.gross_profit, '"Rp" #,##0'],
+    ["Persentase Margin Laba (%)", report.profit_margin_pct, '0.00"%"'],
+  ];
+
+  metrics.forEach(([label, value, fmt], idx) => {
+    const rowNum = 6 + idx;
+    const labelCell = summarySheet.getCell(`B${rowNum}`);
+    const valCell = summarySheet.getCell(`C${rowNum}`);
+
+    labelCell.value = label;
+    labelCell.font = { size: 10 };
+    labelCell.border = thinBorder;
+
+    valCell.value = value;
+    valCell.font = { bold: true, size: 10 };
+    valCell.numFmt = fmt;
+    valCell.alignment = { horizontal: "right" };
+    valCell.border = thinBorder;
+
+    if (label.includes("Laba Kotor") || label.includes("Margin")) {
+      labelCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.font = { bold: true, size: 11, color: { argb: THEME_ACCENT_GREEN } };
+    }
+  });
+
+  // Tabel Kategori
+  const tableHeaderRowIndex = 14;
+  summarySheet.getCell(`B${tableHeaderRowIndex}`).value = "RINCIAN LABA PER KATEGORI PRODUK";
+  summarySheet.getCell(`B${tableHeaderRowIndex}`).font = { bold: true, size: 11, color: { argb: THEME_PRIMARY_NAVY } };
+
+  const catHeaders = [
+    "Kategori Produk",
+    "Qty Terjual",
+    "Penjualan Bersih",
+    "Total Modal (HPP)",
+    "Laba Kotor",
+    "Margin Laba",
+  ];
+
+  const catHeaderRow = summarySheet.getRow(tableHeaderRowIndex + 1);
+  catHeaderRow.height = 24;
+  catHeaders.forEach((h, i) => {
+    const colLetter = String.fromCharCode(66 + i); // B..G
+    const cell = summarySheet.getCell(`${colLetter}${tableHeaderRowIndex + 1}`);
+    cell.value = h;
+    cell.font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 10 };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: THEME_PRIMARY_NAVY },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = thinBorder;
+  });
+
+  report.category_profits.forEach((cat, idx) => {
+    const rowNum = tableHeaderRowIndex + 2 + idx;
+
+    const b = summarySheet.getCell(`B${rowNum}`);
+    const c = summarySheet.getCell(`C${rowNum}`);
+    const d = summarySheet.getCell(`D${rowNum}`);
+    const e = summarySheet.getCell(`E${rowNum}`);
+    const f = summarySheet.getCell(`F${rowNum}`);
+    const g = summarySheet.getCell(`G${rowNum}`);
+
+    b.value = cat.category_name;
+    c.value = cat.total_qty_sold;
+    c.numFmt = "#,##0";
+    d.value = cat.net_revenue;
+    d.numFmt = '"Rp" #,##0';
+    e.value = cat.total_cogs;
+    e.numFmt = '"Rp" #,##0';
+    f.value = cat.gross_profit;
+    f.numFmt = '"Rp" #,##0';
+    g.value = cat.profit_margin_pct;
+    g.numFmt = '0.00"%"';
+
+    [b, c, d, e, f, g].forEach((cell) => {
+      cell.border = thinBorder;
+      if (idx % 2 === 1) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: THEME_ZEBRA_ROW },
+        };
+      }
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // SHEET 2: TOP PRODUK BERBASIS PROFIT
+  // --------------------------------------------------------------------------
+  const prodSheet = wb.addWorksheet("Produk Paling Untung", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  prodSheet.columns = [
+    { header: "Kode SKU", key: "sku", width: 18 },
+    { header: "Nama Produk", key: "product_name", width: 34 },
+    { header: "Satuan", key: "unit", width: 10 },
+    { header: "Qty Terjual", key: "total_qty_sold", width: 14 },
+    { header: "Penjualan Bersih", key: "net_revenue", width: 20 },
+    { header: "Total HPP (Modal)", key: "total_cost", width: 20 },
+    { header: "Laba Kotor", key: "gross_profit", width: 20 },
+  ];
+
+  const prodHeaderRow = prodSheet.getRow(1);
+  prodHeaderRow.height = 28;
+  prodHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 11 };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: THEME_PRIMARY_NAVY },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = thinBorder;
+  });
+
+  report.product_profits.forEach((p, idx) => {
+    const row = prodSheet.addRow({
+      sku: p.sku,
+      product_name: p.product_name,
+      unit: p.unit,
+      total_qty_sold: p.total_qty_sold,
+      net_revenue: p.net_revenue,
+      total_cost: p.total_cost,
+      gross_profit: p.gross_profit,
+    });
+
+    row.getCell("sku").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("unit").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("total_qty_sold").numFmt = "#,##0";
+    row.getCell("net_revenue").numFmt = '"Rp" #,##0';
+    row.getCell("total_cost").numFmt = '"Rp" #,##0';
+    row.getCell("gross_profit").numFmt = '"Rp" #,##0';
+
+    row.eachCell((cell) => {
+      cell.border = thinBorder;
+      if (idx % 2 === 1) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: THEME_ZEBRA_ROW },
+        };
+      }
+    });
+  });
+
+  prodSheet.autoFilter = "A1:G1";
+  return wb;
+}
+
+/**
+ * Membangun lembar kerja ekspor Laporan Inventaris & Nilai Stok (2-sheet):
+ * - Sheet 1: 'Ringkasan Inventaris' (Valuasi HPP vs Retail, Mutasi Stok)
+ * - Sheet 2: 'Daftar Nilai Stok' (Tabel detail seluruh produk dengan HPP, Retail, dan Potensi Laba)
+ */
+export function buildStockReportWorkbook(
+  report: StockReport,
+  storeName: string
+): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mudita Mart POS";
+  wb.lastModifiedBy = "Mudita Mart POS";
+  wb.created = new Date();
+  wb.modified = new Date();
+
+  // --------------------------------------------------------------------------
+  // SHEET 1: RINGKASAN INVENTARIS
+  // --------------------------------------------------------------------------
+  const summarySheet = wb.addWorksheet("Ringkasan Inventaris");
+  summarySheet.columns = [
+    { width: 4 },
+    { width: 34 },
+    { width: 24 },
+    { width: 4 },
+    { width: 32 },
+    { width: 20 },
+  ];
+
+  // Header Banner
+  summarySheet.mergeCells("B2:F2");
+  const titleCell = summarySheet.getCell("B2");
+  titleCell.value = `LAPORAN INVENTARIS & VALUASI STOK — ${storeName.toUpperCase()}`;
+  titleCell.font = { bold: true, size: 16, color: { argb: THEME_PRIMARY_NAVY } };
+
+  summarySheet.mergeCells("B3:F3");
+  const subtitleCell = summarySheet.getCell("B3");
+  subtitleCell.value = `Dicetak: ${new Date().toLocaleString("id-ID")}`;
+  subtitleCell.font = { italic: true, size: 10, color: { argb: "FF64748B" } };
+
+  // Metrik Valuasi
+  summarySheet.getCell("B5").value = "VALUASI & STATUS STOK GUDANG";
+  summarySheet.getCell("B5").font = { bold: true, size: 12, color: { argb: THEME_PRIMARY_NAVY } };
+
+  const valuationMetrics: [string, number, string][] = [
+    ["Total Jenis Produk", report.total_products, "#,##0"],
+    ["Produk Berstatus Aktif", report.active_products, "#,##0"],
+    ["Total Kuantitas Fisik Stok", report.total_stock_qty, "#,##0"],
+    ["Nilai Inventaris Modal (HPP)", report.total_cost_valuation, '"Rp" #,##0'],
+    ["Nilai Inventaris Retail (Harga Jual)", report.total_retail_valuation, '"Rp" #,##0'],
+    ["Potensi Laba Kotor Stok", report.potential_profit, '"Rp" #,##0'],
+    ["Jumlah Produk Stok Kritis (<= 5)", report.low_stock_count, "#,##0"],
+    ["Jumlah Produk Habis (Stok 0)", report.out_of_stock_count, "#,##0"],
+  ];
+
+  valuationMetrics.forEach(([label, value, fmt], idx) => {
+    const rowNum = 6 + idx;
+    const labelCell = summarySheet.getCell(`B${rowNum}`);
+    const valCell = summarySheet.getCell(`C${rowNum}`);
+
+    labelCell.value = label;
+    labelCell.font = { size: 10 };
+    labelCell.border = thinBorder;
+
+    valCell.value = value;
+    valCell.font = { bold: true, size: 10 };
+    valCell.numFmt = fmt;
+    valCell.alignment = { horizontal: "right" };
+    valCell.border = thinBorder;
+
+    if (label.includes("Modal (HPP)") || label.includes("Potensi Laba")) {
+      labelCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFECFDF5" },
+      };
+      valCell.font = { bold: true, size: 11, color: { argb: THEME_PRIMARY_NAVY } };
+    }
+  });
+
+  // Mutasi Stok (Kolom E-F)
+  summarySheet.getCell("E5").value = "REKAP MUTASI STOK";
+  summarySheet.getCell("E5").font = { bold: true, size: 12, color: { argb: THEME_PRIMARY_NAVY } };
+
+  const movementMetrics: [string, number][] = [
+    ["Penambahan Stok (Restock)", report.movements.restock_qty],
+    ["Barang Terjual (Sales)", report.movements.sold_qty],
+    ["Barang Rusak (Damage)", report.movements.damage_qty],
+    ["Barang Hilang (Loss)", report.movements.loss_qty],
+    ["Koreksi Fisik Bersih (Correction)", report.movements.correction_delta],
+  ];
+
+  movementMetrics.forEach(([label, value], idx) => {
+    const rowNum = 6 + idx;
+    const labelCell = summarySheet.getCell(`E${rowNum}`);
+    const valCell = summarySheet.getCell(`F${rowNum}`);
+
+    labelCell.value = label;
+    labelCell.font = { size: 10 };
+    labelCell.border = thinBorder;
+
+    valCell.value = value;
+    valCell.font = { bold: true, size: 10 };
+    valCell.numFmt = "#,##0";
+    valCell.alignment = { horizontal: "right" };
+    valCell.border = thinBorder;
+  });
+
+  // --------------------------------------------------------------------------
+  // SHEET 2: DAFTAR NILAI STOK PRODUK
+  // --------------------------------------------------------------------------
+  const itemSheet = wb.addWorksheet("Daftar Nilai Stok", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  itemSheet.columns = [
+    { header: "Kode SKU", key: "sku", width: 16 },
+    { header: "Barcode", key: "barcode", width: 18 },
+    { header: "Nama Produk", key: "product_name", width: 34 },
+    { header: "Kategori", key: "category_name", width: 18 },
+    { header: "Satuan", key: "unit", width: 10 },
+    { header: "Stok Fisik", key: "stock", width: 12 },
+    { header: "Min. Stok", key: "min_stock", width: 12 },
+    { header: "Status Stok", key: "stock_status", width: 14 },
+    { header: "Harga Modal (HPP)", key: "cost_price", width: 18 },
+    { header: "Harga Jual", key: "selling_price", width: 18 },
+    { header: "Valuasi HPP", key: "total_cost_valuation", width: 18 },
+    { header: "Valuasi Retail", key: "total_retail_valuation", width: 18 },
+    { header: "Potensi Laba", key: "potential_profit", width: 18 },
+  ];
+
+  const itemHeaderRow = itemSheet.getRow(1);
+  itemHeaderRow.height = 28;
+  itemHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: THEME_HEADER_TEXT }, size: 11 };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: THEME_PRIMARY_NAVY },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = thinBorder;
+  });
+
+  report.items.forEach((it, idx) => {
+    const statusText =
+      it.stock <= 0 ? "Habis" : it.stock <= it.min_stock ? "Kritis" : "Aman";
+
+    const row = itemSheet.addRow({
+      sku: it.sku,
+      barcode: it.barcode || "-",
+      product_name: it.product_name,
+      category_name: it.category_name,
+      unit: it.unit,
+      stock: it.stock,
+      min_stock: it.min_stock,
+      stock_status: statusText,
+      cost_price: it.cost_price,
+      selling_price: it.selling_price,
+      total_cost_valuation: it.total_cost_valuation,
+      total_retail_valuation: it.total_retail_valuation,
+      potential_profit: it.potential_profit,
+    });
+
+    row.getCell("sku").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("barcode").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("unit").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("stock_status").alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell("stock").numFmt = "#,##0";
+    row.getCell("min_stock").numFmt = "#,##0";
+    row.getCell("cost_price").numFmt = '"Rp" #,##0';
+    row.getCell("selling_price").numFmt = '"Rp" #,##0';
+    row.getCell("total_cost_valuation").numFmt = '"Rp" #,##0';
+    row.getCell("total_retail_valuation").numFmt = '"Rp" #,##0';
+    row.getCell("potential_profit").numFmt = '"Rp" #,##0';
+
+    row.eachCell((cell) => {
+      cell.border = thinBorder;
+      if (it.stock <= 0) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFFEE2E2" },
+        };
+      } else if (it.is_low_stock) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFFEF3C7" },
+        };
+      } else if (idx % 2 === 1) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: THEME_ZEBRA_ROW },
+        };
+      }
+    });
+  });
+
+  itemSheet.autoFilter = "A1:M1";
   return wb;
 }
 

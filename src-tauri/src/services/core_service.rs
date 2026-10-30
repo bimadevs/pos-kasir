@@ -1,17 +1,21 @@
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
+use crate::services::permissions::{require_permission, role_has, Permission};
 use crate::models::{
     calculate_effective_unit_price, calculate_line_item_with_tiers, calculate_unit_discount,
-    AdjustmentType, AuthSession, CashMovement, CashMovementRequest, CashierShift,
-    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
-    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, DiscountType,
+    AdjustmentType, ApproveStockAdjustmentRequest, AuditLog, AuthSession, CashMovement,
+    CashMovementRequest, CashierShift, CategoryProfitRow, CloseShiftRequest,
+    CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
+    CreateStockAdjustmentRequest, DailyFinancialSummary, DiscountType, FinancialReport,
     HealthCheckResponse, HeldBill, HeldBillItemDetail, LoginRequest, LowStockProductRow,
-    OpnameSessionDetail, OpenShiftRequest, Product, ProductFilter, ProductPriceTier,
-    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus,
-    SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest, SetupServerRequest,
-    ShiftReportData, StockAdjustment, StockOpnameItem, StockOpnameSession, StoreSettings,
-    TopProductRow, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
-    UpsertUserRequest, User, UserRole, VoidSaleRequest,
+    OpnameSessionDetail, OpenShiftRequest, Product, ProductFilter, ProductPriceTier, ProfitReport,
+    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, RejectStockAdjustmentRequest, Sale,
+    SaleLineItem, SaleStatus, SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest,
+    SetupServerRequest, ShiftReportData, StockAdjustment, StockAdjustmentRequest,
+    StockAdjustmentResult, StockMovementSummary, StockOpnameItem, StockOpnameSession, StockReport,
+    StockValuationItem, StoreSettings, TopProductRow, UpdateOpnameItemQtyRequest,
+    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, UserRole,
+    VoidSaleRequest,
 };
 use crate::services::auth_service::{
     generate_pairing_code, hash_secret, now_unix_ts, verify_secret, SessionStore,
@@ -103,8 +107,8 @@ impl CoreService {
 
         let default_footer = "Terima kasih atas kunjungan Anda. Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.";
         tx.execute(
-            "INSERT INTO store_settings (id, store_name, store_address, store_phone, receipt_footer, pairing_code, updated_at)
-             VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO store_settings (id, store_name, store_address, store_phone, receipt_footer, pairing_code, stock_approval_amount_threshold, stock_approval_percent_threshold, updated_at)
+             VALUES (1, ?1, ?2, ?3, ?4, ?5, 100000, 10, ?6)",
             params![
                 store_name,
                 req.store_address.trim(),
@@ -382,7 +386,8 @@ impl CoreService {
     pub fn get_store_settings(&self) -> AppResult<StoreSettings> {
         let conn = self.db.lock_conn()?;
         conn.query_row(
-            "SELECT store_name, store_address, store_phone, receipt_footer, pairing_code, updated_at
+            "SELECT store_name, store_address, store_phone, receipt_footer, pairing_code,
+                    stock_approval_amount_threshold, stock_approval_percent_threshold, updated_at
              FROM store_settings WHERE id = 1",
             [],
             |r| {
@@ -392,7 +397,9 @@ impl CoreService {
                     store_phone: r.get(2)?,
                     receipt_footer: r.get(3)?,
                     pairing_code: r.get(4)?,
-                    updated_at: r.get(5)?,
+                    stock_approval_amount_threshold: r.get(5)?,
+                    stock_approval_percent_threshold: r.get(6)?,
+                    updated_at: r.get(7)?,
                 })
             },
         )
@@ -408,10 +415,29 @@ impl CoreService {
         actor: &User,
         req: &UpdateStoreSettingsRequest,
     ) -> AppResult<StoreSettings> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageStoreSettings)?;
         let store_name = req.store_name.trim();
         if store_name.is_empty() {
             return Err(AppError::Validation("Nama toko wajib diisi.".to_string()));
+        }
+
+        let current = self.get_store_settings()?;
+        let thresh_amt = req
+            .stock_approval_amount_threshold
+            .unwrap_or(current.stock_approval_amount_threshold);
+        if thresh_amt < 0 {
+            return Err(AppError::Validation(
+                "Ambang batas nominal persetujuan stok tidak boleh negatif.".to_string(),
+            ));
+        }
+
+        let thresh_pct = req
+            .stock_approval_percent_threshold
+            .unwrap_or(current.stock_approval_percent_threshold);
+        if thresh_pct < 0 || thresh_pct > 100 {
+            return Err(AppError::Validation(
+                "Ambang batas persentase persetujuan stok harus antara 0% dan 100%.".to_string(),
+            ));
         }
 
         let now = Self::now_iso();
@@ -421,7 +447,8 @@ impl CoreService {
             conn.execute(
                 "UPDATE store_settings
                  SET store_name = ?1, store_address = ?2, store_phone = ?3, receipt_footer = ?4,
-                     pairing_code = ?5, updated_at = ?6
+                     pairing_code = ?5, stock_approval_amount_threshold = ?6,
+                     stock_approval_percent_threshold = ?7, updated_at = ?8
                  WHERE id = 1",
                 params![
                     store_name,
@@ -429,6 +456,8 @@ impl CoreService {
                     req.store_phone.trim(),
                     req.receipt_footer.trim(),
                     new_code,
+                    thresh_amt,
+                    thresh_pct,
                     now
                 ],
             )?;
@@ -436,13 +465,16 @@ impl CoreService {
             conn.execute(
                 "UPDATE store_settings
                  SET store_name = ?1, store_address = ?2, store_phone = ?3, receipt_footer = ?4,
-                     updated_at = ?5
+                     stock_approval_amount_threshold = ?5, stock_approval_percent_threshold = ?6,
+                     updated_at = ?7
                  WHERE id = 1",
                 params![
                     store_name,
                     req.store_address.trim(),
                     req.store_phone.trim(),
                     req.receipt_footer.trim(),
+                    thresh_amt,
+                    thresh_pct,
                     now
                 ],
             )?;
@@ -754,7 +786,7 @@ impl CoreService {
     }
 
     pub fn list_users(&self, actor: &User) -> AppResult<Vec<User>> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageUsers)?;
         let conn = self.db.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, username, full_name, pin_hash, role, is_active, created_at, updated_at
@@ -780,7 +812,7 @@ impl CoreService {
     }
 
     pub fn upsert_user(&self, actor: &User, req: &UpsertUserRequest) -> AppResult<User> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageUsers)?;
         let username = req.username.trim();
         let full_name = req.full_name.trim();
         if username.len() < 3 {
@@ -939,8 +971,8 @@ impl CoreService {
             calculate_unit_discount(selling_price, discount_type, discount_value).unwrap_or(0);
         let effective_unit_price = selling_price - unit_discount_amount;
 
-        // Sensor cost_price untuk peran CASHIER sesuai FR-AUTH-02 & SYSTEM-DESIGN Tabel 4.1
-        let cost_price = if actor_role == UserRole::ADMIN {
+        // Sensor cost_price untuk peran selain yang berhak (hanya ADMIN, STOCK, REPORTER yang boleh lihat)
+        let cost_price = if role_has(actor_role, Permission::ViewCostPrice) {
             cost_price_raw
         } else {
             0
@@ -1037,7 +1069,7 @@ impl CoreService {
         terminal_name: &str,
         req: &UpsertProductRequest,
     ) -> AppResult<Product> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageProducts)?;
         let sku = req.sku.trim();
         let name = req.name.trim();
         if sku.is_empty() {
@@ -1076,6 +1108,25 @@ impl CoreService {
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
         let product_id = if let Some(existing_id) = &req.id {
+            // Jika aktor tidak memiliki izin ManageProductPrices (misal STOCK), pertahankan harga jual & diskon yang ada
+            let (effective_selling_price, effective_disc_type, effective_disc_val) =
+                if !role_has(actor.role, Permission::ManageProductPrices) {
+                    tx.query_row(
+                        "SELECT selling_price, discount_type, discount_value FROM products WHERE id = ?1",
+                        params![existing_id],
+                        |r| {
+                            let dt_str: String = r.get(1)?;
+                            Ok((
+                                r.get::<_, i64>(0)?,
+                                dt_str,
+                                r.get::<_, i64>(2)?,
+                            ))
+                        },
+                    )?
+                } else {
+                    (req.selling_price, req.discount_type.as_str().to_string(), req.discount_value)
+                };
+
             tx.execute(
                 "UPDATE products
                  SET sku = ?1, barcode = ?2, name = ?3, category_name = ?4, unit = ?5,
@@ -1089,9 +1140,9 @@ impl CoreService {
                     category_name,
                     unit,
                     req.cost_price,
-                    req.selling_price,
-                    req.discount_type.as_str(),
-                    req.discount_value,
+                    effective_selling_price,
+                    effective_disc_type,
+                    effective_disc_val,
                     if is_active { 1 } else { 0 },
                     now,
                     existing_id
@@ -1243,7 +1294,7 @@ impl CoreService {
         actor: &User,
         req: &SetPriceTiersRequest,
     ) -> AppResult<Vec<ProductPriceTier>> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageProductPrices)?;
         let now = Self::now_iso();
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1321,7 +1372,7 @@ impl CoreService {
     }
 
     pub fn deactivate_product(&self, actor: &User, product_id: &str) -> AppResult<()> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageProducts)?;
         let now = Self::now_iso();
         let conn = self.db.lock_conn()?;
         let affected = conn.execute(
@@ -1335,25 +1386,57 @@ impl CoreService {
     }
 
     // ========================================================================
-    // 4. Penyesuaian Stok (`Stock Adjustment` — FR-INV-01..03)
+    // 4. Penyesuaian Stok (`Stock Adjustment` — FR-INV-01..05) & Audit Log
     // ========================================================================
+
+    pub fn record_audit_log_conn(
+        conn: &Connection,
+        actor_id: &str,
+        action: &str,
+        entity_name: &str,
+        entity_id: Option<&str>,
+        old_value_json: Option<&str>,
+        new_value_json: Option<&str>,
+        notes: Option<&str>,
+        created_at: &str,
+    ) -> rusqlite::Result<()> {
+        let id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO audit_logs (
+                id, actor_id, action, entity_name, entity_id,
+                old_value_json, new_value_json, notes, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                id,
+                actor_id,
+                action,
+                entity_name,
+                entity_id,
+                old_value_json,
+                new_value_json,
+                notes,
+                created_at
+            ],
+        )?;
+        Ok(())
+    }
 
     pub fn create_stock_adjustment(
         &self,
         actor: &User,
         terminal_name: &str,
         req: &CreateStockAdjustmentRequest,
-    ) -> AppResult<StockAdjustment> {
-        Self::require_admin(actor)?;
+    ) -> AppResult<StockAdjustmentResult> {
+        require_permission(actor, Permission::AdjustStock)?;
 
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
-        let (product_sku, product_name, stock_before): (String, String, i64) = tx
+        let (product_sku, product_name, stock_before, cost_price): (String, String, i64, i64) = tx
             .query_row(
-                "SELECT sku, name, stock FROM products WHERE id = ?1",
+                "SELECT sku, name, stock, cost_price FROM products WHERE id = ?1",
                 params![req.product_id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .map_err(|_| AppError::NotFound("Produk tidak ditemukan.".to_string()))?;
 
@@ -1392,13 +1475,98 @@ impl CoreService {
         };
 
         let now = Self::now_iso();
+        let note = req.note.trim().to_string();
+
+        // Evaluasi ambang batas persetujuan jika diinput oleh Petugas Stok (STOCK) sesuai FR-INV-04
+        let is_stock_keeper = actor.role == UserRole::STOCK;
+        let discrepancy_qty = quantity_delta.abs();
+        let total_estimated_value = discrepancy_qty * cost_price;
+        let discrepancy_percent = if stock_before > 0 {
+            (discrepancy_qty * 100) / stock_before
+        } else {
+            100
+        };
+
+        let (threshold_amt, threshold_pct): (i64, i64) = tx
+            .query_row(
+                "SELECT stock_approval_amount_threshold, stock_approval_percent_threshold FROM store_settings WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap_or((100_000, 10));
+
+        let requires_approval = is_stock_keeper
+            && (total_estimated_value >= threshold_amt || discrepancy_percent >= threshold_pct);
+
+        if requires_approval {
+            let req_id = Uuid::new_v4().to_string();
+            tx.execute(
+                "INSERT INTO stock_adjustment_requests (
+                    id, product_id, adjustment_type, quantity_delta, cost_price_at_request,
+                    reason, status, requested_by, terminal_name, created_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'PENDING', ?7, ?8, ?9)",
+                params![
+                    req_id,
+                    req.product_id,
+                    req.adjustment_type.as_str(),
+                    quantity_delta,
+                    cost_price,
+                    note,
+                    actor.id,
+                    terminal_name,
+                    now
+                ],
+            )?;
+
+            Self::record_audit_log_conn(
+                &tx,
+                &actor.id,
+                "STOCK_ADJUSTMENT_REQUESTED",
+                "products",
+                Some(&req.product_id),
+                None,
+                Some(&format!(
+                    "{{\"quantity_delta\": {}, \"cost_price\": {}, \"total_value\": {}, \"discrepancy_percent\": {}}}",
+                    quantity_delta, cost_price, total_estimated_value, discrepancy_percent
+                )),
+                Some(&note),
+                &now,
+            )?;
+
+            tx.commit()?;
+
+            return Ok(StockAdjustmentResult::PendingApproval {
+                request: StockAdjustmentRequest {
+                    id: req_id,
+                    product_id: req.product_id.clone(),
+                    product_sku,
+                    product_name,
+                    adjustment_type: req.adjustment_type,
+                    quantity_delta,
+                    cost_price_at_request: cost_price,
+                    total_estimated_value,
+                    discrepancy_percent,
+                    reason: note,
+                    status: "PENDING".to_string(),
+                    requested_by: actor.id.clone(),
+                    requested_by_name: actor.full_name.clone(),
+                    terminal_name: terminal_name.to_string(),
+                    approved_by: None,
+                    approved_by_name: None,
+                    rejection_reason: None,
+                    created_at: now,
+                    resolved_at: None,
+                },
+            });
+        }
+
+        // Eksekusi langsung jika Admin atau di bawah ambang batas
         tx.execute(
             "UPDATE products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
             params![stock_after, now, req.product_id],
         )?;
 
         let adj_id = Uuid::new_v4().to_string();
-        let note = req.note.trim().to_string();
         tx.execute(
             "INSERT INTO stock_adjustments (
                 id, product_id, user_id, terminal_name, adjustment_type,
@@ -1418,23 +1586,306 @@ impl CoreService {
             ],
         )?;
 
+        Self::record_audit_log_conn(
+            &tx,
+            &actor.id,
+            "STOCK_ADJUSTMENT_EXECUTED",
+            "products",
+            Some(&req.product_id),
+            Some(&format!("{{\"stock_before\": {stock_before}}}")),
+            Some(&format!(
+                "{{\"stock_after\": {stock_after}, \"delta\": {quantity_delta}}}"
+            )),
+            Some(&note),
+            &now,
+        )?;
+
+        tx.commit()?;
+
+        Ok(StockAdjustmentResult::Executed {
+            adjustment: StockAdjustment {
+                id: adj_id,
+                product_id: req.product_id.clone(),
+                product_sku,
+                product_name,
+                user_id: actor.id.clone(),
+                user_name: actor.full_name.clone(),
+                terminal_name: terminal_name.to_string(),
+                adjustment_type: req.adjustment_type,
+                stock_before,
+                quantity_delta,
+                stock_after,
+                note,
+                created_at: now,
+            },
+        })
+    }
+
+    pub fn list_stock_adjustment_requests(
+        &self,
+        actor: &User,
+        status_filter: Option<&str>,
+    ) -> AppResult<Vec<StockAdjustmentRequest>> {
+        require_permission(actor, Permission::AdjustStock)?;
+        let conn = self.db.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT sar.id, sar.product_id, p.sku, p.name, sar.adjustment_type,
+                    sar.quantity_delta, sar.cost_price_at_request, sar.reason, sar.status,
+                    sar.requested_by, u_req.full_name, sar.terminal_name,
+                    sar.approved_by, u_app.full_name, sar.rejection_reason,
+                    sar.created_at, sar.resolved_at, p.stock
+             FROM stock_adjustment_requests sar
+             JOIN products p ON p.id = sar.product_id
+             JOIN users u_req ON u_req.id = sar.requested_by
+             LEFT JOIN users u_app ON u_app.id = sar.approved_by
+             WHERE (?1 IS NULL OR sar.status = ?1)
+             ORDER BY sar.created_at DESC, sar.rowid DESC",
+        )?;
+
+        let rows = stmt
+            .query_map(params![status_filter], |r| {
+                let adj_type_str: String = r.get(4)?;
+                let qty_delta: i64 = r.get(5)?;
+                let cost_price: i64 = r.get(6)?;
+                let current_stock: i64 = r.get(17)?;
+                let disc_qty = qty_delta.abs();
+                let total_estimated_value = disc_qty * cost_price;
+                let discrepancy_percent = if current_stock > 0 {
+                    (disc_qty * 100) / current_stock
+                } else {
+                    100
+                };
+
+                Ok(StockAdjustmentRequest {
+                    id: r.get(0)?,
+                    product_id: r.get(1)?,
+                    product_sku: r.get(2)?,
+                    product_name: r.get(3)?,
+                    adjustment_type: AdjustmentType::from_str(&adj_type_str)
+                        .unwrap_or(AdjustmentType::CORRECTION),
+                    quantity_delta: qty_delta,
+                    cost_price_at_request: cost_price,
+                    total_estimated_value,
+                    discrepancy_percent,
+                    reason: r.get(7)?,
+                    status: r.get(8)?,
+                    requested_by: r.get(9)?,
+                    requested_by_name: r.get(10)?,
+                    terminal_name: r.get(11)?,
+                    approved_by: r.get(12)?,
+                    approved_by_name: r.get(13)?,
+                    rejection_reason: r.get(14)?,
+                    created_at: r.get(15)?,
+                    resolved_at: r.get(16)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
+    }
+
+    pub fn approve_stock_adjustment_request(
+        &self,
+        actor: &User,
+        req: &ApproveStockAdjustmentRequest,
+    ) -> AppResult<StockAdjustment> {
+        require_permission(actor, Permission::ApproveStockAdjustment)?;
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let admin_user = Self::find_admin_by_pin_conn(&tx, &req.admin_pin)?;
+        let now = Self::now_iso();
+
+        let (product_id, adj_type_str, qty_delta, reason, status, terminal_name): (
+            String, String, i64, String, String, String,
+        ) = tx
+            .query_row(
+                "SELECT product_id, adjustment_type, quantity_delta, reason, status, terminal_name
+                 FROM stock_adjustment_requests WHERE id = ?1",
+                params![req.request_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
+            )
+            .map_err(|_| AppError::NotFound("Pengajuan penyesuaian stok tidak ditemukan.".to_string()))?;
+
+        if status != "PENDING" {
+            return Err(AppError::Conflict(format!(
+                "Pengajuan penyesuaian stok ini tidak berstatus PENDING (status saat ini: {status})."
+            )));
+        }
+
+        let (product_sku, product_name, stock_before): (String, String, i64) = tx
+            .query_row(
+                "SELECT sku, name, stock FROM products WHERE id = ?1",
+                params![product_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )?;
+
+        let stock_after = stock_before + qty_delta;
+        if stock_after < 0 {
+            return Err(AppError::Validation(format!(
+                "Persetujuan ditolak karena menghasilkan stok minus (stok saat ini: {stock_before}, perubahan: {qty_delta})."
+            )));
+        }
+
+        tx.execute(
+            "UPDATE products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
+            params![stock_after, now, product_id],
+        )?;
+
+        let adj_id = Uuid::new_v4().to_string();
+        let adj_type = AdjustmentType::from_str(&adj_type_str).unwrap_or(AdjustmentType::CORRECTION);
+        tx.execute(
+            "INSERT INTO stock_adjustments (
+                id, product_id, user_id, terminal_name, adjustment_type,
+                stock_before, quantity_delta, stock_after, note, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                adj_id,
+                product_id,
+                actor.id,
+                terminal_name,
+                adj_type.as_str(),
+                stock_before,
+                qty_delta,
+                stock_after,
+                format!("(Disetujui Admin: {}) {}", admin_user.username, reason),
+                now
+            ],
+        )?;
+
+        tx.execute(
+            "UPDATE stock_adjustment_requests
+             SET status = 'APPROVED', approved_by = ?1, resolved_at = ?2
+             WHERE id = ?3",
+            params![admin_user.id, now, req.request_id],
+        )?;
+
+        Self::record_audit_log_conn(
+            &tx,
+            &admin_user.id,
+            "STOCK_ADJUSTMENT_APPROVED",
+            "stock_adjustment_requests",
+            Some(&req.request_id),
+            Some("PENDING"),
+            Some("APPROVED"),
+            Some(&format!("Disetujui oleh admin @{}", admin_user.username)),
+            &now,
+        )?;
+
         tx.commit()?;
 
         Ok(StockAdjustment {
             id: adj_id,
-            product_id: req.product_id.clone(),
+            product_id,
             product_sku,
             product_name,
-            user_id: actor.id.clone(),
-            user_name: actor.full_name.clone(),
-            terminal_name: terminal_name.to_string(),
-            adjustment_type: req.adjustment_type,
+            user_id: admin_user.id,
+            user_name: admin_user.full_name,
+            terminal_name,
+            adjustment_type: adj_type,
             stock_before,
-            quantity_delta,
+            quantity_delta: qty_delta,
             stock_after,
-            note,
+            note: reason,
             created_at: now,
         })
+    }
+
+    pub fn reject_stock_adjustment_request(
+        &self,
+        actor: &User,
+        req: &RejectStockAdjustmentRequest,
+    ) -> AppResult<()> {
+        require_permission(actor, Permission::ApproveStockAdjustment)?;
+
+        let rejection_reason = req.rejection_reason.trim();
+        if rejection_reason.is_empty() {
+            return Err(AppError::Validation(
+                "Alasan penolakan pengajuan stok wajib diisi.".to_string(),
+            ));
+        }
+
+        let mut conn = self.db.lock_conn()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+        let admin_user = Self::find_admin_by_pin_conn(&tx, &req.admin_pin)?;
+        let now = Self::now_iso();
+
+        let status: String = tx
+            .query_row(
+                "SELECT status FROM stock_adjustment_requests WHERE id = ?1",
+                params![req.request_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| AppError::NotFound("Pengajuan penyesuaian stok tidak ditemukan.".to_string()))?;
+
+        if status != "PENDING" {
+            return Err(AppError::Conflict(format!(
+                "Pengajuan penyesuaian stok ini tidak berstatus PENDING (status saat ini: {status})."
+            )));
+        }
+
+        tx.execute(
+            "UPDATE stock_adjustment_requests
+             SET status = 'REJECTED', approved_by = ?1, rejection_reason = ?2, resolved_at = ?3
+             WHERE id = ?4",
+            params![admin_user.id, rejection_reason, now, req.request_id],
+        )?;
+
+        Self::record_audit_log_conn(
+            &tx,
+            &admin_user.id,
+            "STOCK_ADJUSTMENT_REJECTED",
+            "stock_adjustment_requests",
+            Some(&req.request_id),
+            Some("PENDING"),
+            Some("REJECTED"),
+            Some(rejection_reason),
+            &now,
+        )?;
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn list_audit_logs(
+        &self,
+        actor: &User,
+        entity_name: Option<&str>,
+        limit: Option<i64>,
+    ) -> AppResult<Vec<AuditLog>> {
+        require_permission(actor, Permission::ManageStoreSettings)?;
+        let conn = self.db.lock_conn()?;
+        let limit_val = limit.unwrap_or(100).clamp(1, 1000);
+        let mut stmt = conn.prepare(
+            "SELECT a.id, a.actor_id, u.full_name, a.action, a.entity_name,
+                    a.entity_id, a.old_value_json, a.new_value_json, a.notes, a.created_at
+             FROM audit_logs a
+             JOIN users u ON u.id = a.actor_id
+             WHERE (?1 IS NULL OR a.entity_name = ?1)
+             ORDER BY a.created_at DESC, a.rowid DESC
+             LIMIT ?2",
+        )?;
+
+        let rows = stmt
+            .query_map(params![entity_name, limit_val], |r| {
+                Ok(AuditLog {
+                    id: r.get(0)?,
+                    actor_id: r.get(1)?,
+                    actor_name: r.get(2)?,
+                    action: r.get(3)?,
+                    entity_name: r.get(4)?,
+                    entity_id: r.get(5)?,
+                    old_value_json: r.get(6)?,
+                    new_value_json: r.get(7)?,
+                    notes: r.get(8)?,
+                    created_at: r.get(9)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
     }
 
     pub fn list_stock_adjustments(
@@ -1442,7 +1893,7 @@ impl CoreService {
         actor: &User,
         product_id: Option<&str>,
     ) -> AppResult<Vec<StockAdjustment>> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ViewStockReport)?;
         let conn = self.db.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT sa.id, sa.product_id, p.sku, p.name, sa.user_id, u.full_name,
@@ -1491,6 +1942,7 @@ impl CoreService {
         terminal_name: &str,
         req: &CreateSaleRequest,
     ) -> AppResult<ReceiptData> {
+        require_permission(actor, Permission::AccessPos)?;
         if req.items.is_empty() {
             return Err(AppError::Validation(
                 "Keranjang belanja masih kosong.".to_string(),
@@ -1867,7 +2319,7 @@ impl CoreService {
                     product_name_snapshot: r.get(5)?,
                     unit_snapshot: r.get(6)?,
                     quantity: r.get(7)?,
-                    cost_price_snapshot: if actor_role == UserRole::ADMIN {
+                    cost_price_snapshot: if role_has(actor_role, Permission::ViewCostPrice) {
                         raw_cost
                     } else {
                         0
@@ -1957,6 +2409,7 @@ impl CoreService {
 
     /// Algoritma 5.2 SYSTEM-DESIGN: Pembatalan transaksi (`Void`) hari ini dengan verifikasi PIN Admin.
     pub fn void_sale(&self, actor: &User, req: &VoidSaleRequest) -> AppResult<SaleWithItems> {
+        require_permission(actor, Permission::AccessPos)?;
         let reason = req.void_reason.trim();
         if reason.is_empty() {
             return Err(AppError::Validation(
@@ -2062,6 +2515,7 @@ impl CoreService {
         terminal_name: &str,
         req: &CreateHeldBillRequest,
     ) -> AppResult<HeldBill> {
+        require_permission(actor, Permission::AccessPos)?;
         if req.items.is_empty() {
             return Err(AppError::Validation(
                 "Keranjang yang akan ditahan harus memiliki minimal 1 barang.".to_string(),
@@ -2302,7 +2756,7 @@ impl CoreService {
         actor: &User,
         filter: &SalesReportFilter,
     ) -> AppResult<SalesReport> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ViewSalesReport)?;
 
         let start_date = if filter.start_date.trim().is_empty() {
             Self::today_date_str()
@@ -2464,12 +2918,472 @@ impl CoreService {
         })
     }
 
+    pub fn get_financial_report(
+        &self,
+        actor: &User,
+        filter: &SalesReportFilter,
+    ) -> AppResult<FinancialReport> {
+        require_permission(actor, Permission::ViewFinancialReport)?;
+
+        let start_date = if filter.start_date.trim().is_empty() {
+            Self::today_date_str()
+        } else {
+            filter.start_date.trim().to_string()
+        };
+        let end_date = if filter.end_date.trim().is_empty() {
+            Self::today_date_str()
+        } else {
+            filter.end_date.trim().to_string()
+        };
+        let cashier_filter = filter
+            .cashier_id
+            .as_ref()
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty() && !c.eq_ignore_ascii_case("ALL"));
+        let terminal_filter = filter
+            .terminal_name
+            .as_ref()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty() && !t.eq_ignore_ascii_case("ALL"));
+
+        let conn = self.db.lock_conn()?;
+
+        // 1. Hitung transaksi penjualan dari tabel sales
+        let (completed_sales_count, voided_sales_count, cash_sales, total_void_amount): (
+            i64, i64, i64, i64,
+        ) = conn.query_row(
+            "SELECT
+                COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN status = 'VOIDED' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN total_amount ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN status = 'VOIDED' THEN total_amount ELSE 0 END), 0)
+             FROM sales
+             WHERE transaction_date >= ?1 AND transaction_date <= ?2
+               AND (?3 IS NULL OR cashier_id = ?3)
+               AND (?4 IS NULL OR terminal_name = ?4)",
+            params![start_date, end_date, cashier_filter, terminal_filter],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+
+        // 2. Hitung Omzet Kotor, Diskon, dan Omzet Bersih dari sale_line_items
+        let (gross_sales, total_discount, net_sales): (i64, i64, i64) = conn.query_row(
+            "SELECT
+                COALESCE(SUM(sli.selling_price_snapshot * sli.quantity), 0),
+                COALESCE(SUM(sli.unit_discount_amount * sli.quantity), 0),
+                COALESCE(SUM(sli.subtotal), 0)
+             FROM sale_line_items sli
+             JOIN sales s ON s.id = sli.sale_id
+             WHERE s.status = 'COMPLETED'
+               AND s.transaction_date >= ?1 AND s.transaction_date <= ?2
+               AND (?3 IS NULL OR s.cashier_id = ?3)
+               AND (?4 IS NULL OR s.terminal_name = ?4)",
+            params![start_date, end_date, cashier_filter, terminal_filter],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+
+        // 3. Hitung Kas Masuk, Kas Keluar, dan Selisih Shift dari cashier_shifts
+        let (total_opening_float, total_cash_in, total_cash_out, total_shift_discrepancy): (
+            i64, i64, i64, i64,
+        ) = conn.query_row(
+            "SELECT
+                COALESCE(SUM(opening_float), 0),
+                COALESCE(SUM(cash_in_total), 0),
+                COALESCE(SUM(cash_out_total), 0),
+                COALESCE(SUM(CASE WHEN status = 'CLOSED' THEN cash_discrepancy ELSE 0 END), 0)
+             FROM cashier_shifts
+             WHERE substr(opened_at, 1, 10) >= ?1 AND substr(opened_at, 1, 10) <= ?2
+               AND (?3 IS NULL OR cashier_id = ?3)
+               AND (?4 IS NULL OR terminal_name = ?4)",
+            params![start_date, end_date, cashier_filter, terminal_filter],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+
+        let cash_in_amount = total_opening_float + total_cash_in;
+        let cash_out_amount = total_cash_out;
+        let net_cash_flow = cash_sales + cash_in_amount - cash_out_amount + total_shift_discrepancy;
+
+        // 4. Rekapitulasi per hari (daily_summaries)
+        let mut dates_stmt = conn.prepare(
+            "SELECT DISTINCT d FROM (
+                SELECT transaction_date AS d FROM sales
+                WHERE transaction_date >= ?1 AND transaction_date <= ?2
+                UNION
+                SELECT substr(opened_at, 1, 10) AS d FROM cashier_shifts
+                WHERE substr(opened_at, 1, 10) >= ?1 AND substr(opened_at, 1, 10) <= ?2
+             ) ORDER BY d ASC",
+        )?;
+
+        let date_rows = dates_stmt
+            .query_map(params![start_date, end_date], |r| r.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut daily_summaries = Vec::with_capacity(date_rows.len());
+        for d in date_rows {
+            let (d_comp, d_void, d_cash_sales): (i64, i64, i64) = conn.query_row(
+                "SELECT
+                    COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN status = 'VOIDED' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN total_amount ELSE 0 END), 0)
+                 FROM sales
+                 WHERE transaction_date = ?1
+                   AND (?2 IS NULL OR cashier_id = ?2)
+                   AND (?3 IS NULL OR terminal_name = ?3)",
+                params![d, cashier_filter, terminal_filter],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )?;
+
+            let (d_gross, d_disc, d_net): (i64, i64, i64) = conn.query_row(
+                "SELECT
+                    COALESCE(SUM(sli.selling_price_snapshot * sli.quantity), 0),
+                    COALESCE(SUM(sli.unit_discount_amount * sli.quantity), 0),
+                    COALESCE(SUM(sli.subtotal), 0)
+                 FROM sale_line_items sli
+                 JOIN sales s ON s.id = sli.sale_id
+                 WHERE s.status = 'COMPLETED' AND s.transaction_date = ?1
+                   AND (?2 IS NULL OR s.cashier_id = ?2)
+                   AND (?3 IS NULL OR s.terminal_name = ?3)",
+                params![d, cashier_filter, terminal_filter],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )?;
+
+            let (d_float, d_in, d_out, d_disc_shift): (i64, i64, i64, i64) = conn.query_row(
+                "SELECT
+                    COALESCE(SUM(opening_float), 0),
+                    COALESCE(SUM(cash_in_total), 0),
+                    COALESCE(SUM(cash_out_total), 0),
+                    COALESCE(SUM(CASE WHEN status = 'CLOSED' THEN cash_discrepancy ELSE 0 END), 0)
+                 FROM cashier_shifts
+                 WHERE substr(opened_at, 1, 10) = ?1
+                   AND (?2 IS NULL OR cashier_id = ?2)
+                   AND (?3 IS NULL OR terminal_name = ?3)",
+                params![d, cashier_filter, terminal_filter],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )?;
+
+            let d_cash_in = d_float + d_in;
+            let d_net_cash = d_cash_sales + d_cash_in - d_out + d_disc_shift;
+
+            daily_summaries.push(DailyFinancialSummary {
+                date: d,
+                completed_count: d_comp,
+                voided_count: d_void,
+                gross_sales: d_gross,
+                total_discount: d_disc,
+                net_sales: d_net,
+                cash_sales: d_cash_sales,
+                cash_in: d_cash_in,
+                cash_out: d_out,
+                shift_discrepancy: d_disc_shift,
+                net_cash: d_net_cash,
+            });
+        }
+
+        Ok(FinancialReport {
+            start_date,
+            end_date,
+            completed_sales_count,
+            voided_sales_count,
+            gross_sales,
+            total_discount,
+            net_sales,
+            total_void_amount,
+            cash_sales,
+            cash_in_amount,
+            cash_out_amount,
+            total_shift_discrepancy,
+            net_cash_flow,
+            daily_summaries,
+        })
+    }
+
+    pub fn get_profit_report(
+        &self,
+        actor: &User,
+        filter: &SalesReportFilter,
+    ) -> AppResult<ProfitReport> {
+        require_permission(actor, Permission::ViewProfitReport)?;
+
+        let start_date = if filter.start_date.trim().is_empty() {
+            Self::today_date_str()
+        } else {
+            filter.start_date.trim().to_string()
+        };
+        let end_date = if filter.end_date.trim().is_empty() {
+            Self::today_date_str()
+        } else {
+            filter.end_date.trim().to_string()
+        };
+        let cashier_filter = filter
+            .cashier_id
+            .as_ref()
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty() && !c.eq_ignore_ascii_case("ALL"));
+        let terminal_filter = filter
+            .terminal_name
+            .as_ref()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty() && !t.eq_ignore_ascii_case("ALL"));
+
+        let conn = self.db.lock_conn()?;
+
+        // 1. Total ringkasan laba kotor toko
+        let (gross_sales, total_discount, net_sales, total_cogs): (i64, i64, i64, i64) = conn.query_row(
+            "SELECT
+                COALESCE(SUM(sli.selling_price_snapshot * sli.quantity), 0),
+                COALESCE(SUM(sli.unit_discount_amount * sli.quantity), 0),
+                COALESCE(SUM(sli.subtotal), 0),
+                COALESCE(SUM(sli.cost_price_snapshot * sli.quantity), 0)
+             FROM sale_line_items sli
+             JOIN sales s ON s.id = sli.sale_id
+             WHERE s.status = 'COMPLETED'
+               AND s.transaction_date >= ?1 AND s.transaction_date <= ?2
+               AND (?3 IS NULL OR s.cashier_id = ?3)
+               AND (?4 IS NULL OR s.terminal_name = ?4)",
+            params![start_date, end_date, cashier_filter, terminal_filter],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+
+        let gross_profit = net_sales - total_cogs;
+        let profit_margin_pct = if net_sales > 0 {
+            ((gross_profit as f64) / (net_sales as f64) * 10000.0).round() / 100.0
+        } else {
+            0.0
+        };
+
+        // 2. Laba per kategori barang
+        let mut cat_stmt = conn.prepare(
+            "SELECT
+                COALESCE(p.category_name, 'Umum') AS cat_name,
+                COALESCE(SUM(sli.quantity), 0),
+                COALESCE(SUM(sli.subtotal), 0),
+                COALESCE(SUM(sli.cost_price_snapshot * sli.quantity), 0)
+             FROM sale_line_items sli
+             JOIN sales s ON s.id = sli.sale_id
+             LEFT JOIN products p ON p.id = sli.product_id
+             WHERE s.status = 'COMPLETED'
+               AND s.transaction_date >= ?1 AND s.transaction_date <= ?2
+               AND (?3 IS NULL OR s.cashier_id = ?3)
+               AND (?4 IS NULL OR s.terminal_name = ?4)
+             GROUP BY COALESCE(p.category_name, 'Umum')
+             ORDER BY (SUM(sli.subtotal) - SUM(sli.cost_price_snapshot * sli.quantity)) DESC",
+        )?;
+
+        let category_profits = cat_stmt
+            .query_map(
+                params![start_date, end_date, cashier_filter, terminal_filter],
+                |r| {
+                    let total_qty_sold: i64 = r.get(1)?;
+                    let net_revenue: i64 = r.get(2)?;
+                    let cogs: i64 = r.get(3)?;
+                    let cat_profit = net_revenue - cogs;
+                    let margin = if net_revenue > 0 {
+                        ((cat_profit as f64) / (net_revenue as f64) * 10000.0).round() / 100.0
+                    } else {
+                        0.0
+                    };
+                    Ok(CategoryProfitRow {
+                        category_name: r.get(0)?,
+                        total_qty_sold,
+                        net_revenue,
+                        total_cogs: cogs,
+                        gross_profit: cat_profit,
+                        profit_margin_pct: margin,
+                    })
+                },
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // 3. Laba per item produk (Top products)
+        let mut top_stmt = conn.prepare(
+            "SELECT
+                sli.product_id,
+                sli.sku_snapshot,
+                sli.product_name_snapshot,
+                sli.unit_snapshot,
+                SUM(sli.quantity) as total_qty,
+                SUM(sli.subtotal) as net_rev,
+                SUM(sli.cost_price_snapshot * sli.quantity) as total_cost
+             FROM sale_line_items sli
+             JOIN sales s ON s.id = sli.sale_id
+             WHERE s.status = 'COMPLETED'
+               AND s.transaction_date >= ?1 AND s.transaction_date <= ?2
+               AND (?3 IS NULL OR s.cashier_id = ?3)
+               AND (?4 IS NULL OR s.terminal_name = ?4)
+             GROUP BY sli.product_id, sli.sku_snapshot, sli.product_name_snapshot, sli.unit_snapshot
+             ORDER BY (SUM(sli.subtotal) - SUM(sli.cost_price_snapshot * sli.quantity)) DESC
+             LIMIT 50",
+        )?;
+
+        let product_profits = top_stmt
+            .query_map(
+                params![start_date, end_date, cashier_filter, terminal_filter],
+                |r| {
+                    let net_rev: i64 = r.get(5)?;
+                    let cost: i64 = r.get(6)?;
+                    Ok(TopProductRow {
+                        product_id: r.get(0)?,
+                        sku: r.get(1)?,
+                        product_name: r.get(2)?,
+                        unit: r.get(3)?,
+                        total_qty_sold: r.get(4)?,
+                        net_revenue: net_rev,
+                        total_cost: cost,
+                        gross_profit: net_rev - cost,
+                    })
+                },
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ProfitReport {
+            start_date,
+            end_date,
+            gross_sales,
+            total_discount,
+            net_sales,
+            total_cogs,
+            gross_profit,
+            profit_margin_pct,
+            category_profits,
+            product_profits,
+        })
+    }
+
+    pub fn get_stock_report(
+        &self,
+        actor: &User,
+        category_filter: Option<&str>,
+        search_filter: Option<&str>,
+    ) -> AppResult<StockReport> {
+        require_permission(actor, Permission::ViewStockReport)?;
+        let can_view_cost = role_has(actor.role, Permission::ViewCostPrice);
+
+        let cat_filter = category_filter
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty() && !c.eq_ignore_ascii_case("ALL"));
+        let search_pattern = search_filter
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(|s| format!("%{s}%"));
+
+        let conn = self.db.lock_conn()?;
+
+        // 1. Ringkasan total produk dan valuasi
+        let (total_products, active_products, total_stock_qty, total_cost_raw, total_retail_valuation, low_stock_count, out_of_stock_count): (
+            i64, i64, i64, i64, i64, i64, i64,
+        ) = conn.query_row(
+            "SELECT
+                COUNT(*),
+                COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(stock), 0),
+                COALESCE(SUM(stock * cost_price), 0),
+                COALESCE(SUM(stock * selling_price), 0),
+                COALESCE(SUM(CASE WHEN stock <= 5 AND stock > 0 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN stock <= 0 THEN 1 ELSE 0 END), 0)
+             FROM products",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?)),
+        )?;
+
+        let total_cost_valuation = if can_view_cost { total_cost_raw } else { 0 };
+        let potential_profit = if can_view_cost {
+            total_retail_valuation - total_cost_valuation
+        } else {
+            0
+        };
+
+        // 2. Ringkasan mutasi stok dari stock_adjustments dan penjualan
+        let (restock_qty, damage_qty, loss_qty, correction_delta): (i64, i64, i64, i64) = conn.query_row(
+            "SELECT
+                COALESCE(SUM(CASE WHEN adjustment_type = 'RESTOCK' THEN quantity_delta ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN adjustment_type = 'DAMAGE' THEN ABS(quantity_delta) ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN adjustment_type = 'LOSS' THEN ABS(quantity_delta) ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN adjustment_type = 'CORRECTION' THEN quantity_delta ELSE 0 END), 0)
+             FROM stock_adjustments",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+
+        let sold_qty: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(sli.quantity), 0)
+             FROM sale_line_items sli
+             JOIN sales s ON s.id = sli.sale_id
+             WHERE s.status = 'COMPLETED'",
+            [],
+            |r| r.get(0),
+        )?;
+
+        let movements = StockMovementSummary {
+            restock_qty,
+            damage_qty,
+            loss_qty,
+            correction_delta,
+            sold_qty,
+        };
+
+        // 3. Rincian valuasi per item produk
+        let mut items_stmt = conn.prepare(
+            "SELECT id, sku, barcode, name, category_name, unit, stock, cost_price, selling_price
+             FROM products
+             WHERE (?1 IS NULL OR category_name = ?1)
+               AND (?2 IS NULL OR name LIKE ?2 OR sku LIKE ?2 OR barcode LIKE ?2)
+             ORDER BY is_active DESC, stock ASC, name COLLATE NOCASE ASC",
+        )?;
+
+        let items = items_stmt
+            .query_map(params![cat_filter, search_pattern], |r| {
+                let stock: i64 = r.get(6)?;
+                let min_stock: i64 = 5;
+                let cost_price_raw: i64 = r.get(7)?;
+                let selling_price: i64 = r.get(8)?;
+
+                let cost_price = if can_view_cost { cost_price_raw } else { 0 };
+                let total_cost_val = stock * cost_price;
+                let total_ret_val = stock * selling_price;
+                let pot_profit = if can_view_cost {
+                    total_ret_val - total_cost_val
+                } else {
+                    0
+                };
+
+                Ok(StockValuationItem {
+                    product_id: r.get(0)?,
+                    sku: r.get(1)?,
+                    barcode: r.get(2)?,
+                    product_name: r.get(3)?,
+                    category_name: r.get(4)?,
+                    unit: r.get(5)?,
+                    stock,
+                    min_stock,
+                    cost_price,
+                    selling_price,
+                    total_cost_valuation: total_cost_val,
+                    total_retail_valuation: total_ret_val,
+                    potential_profit: pot_profit,
+                    is_low_stock: stock <= min_stock,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(StockReport {
+            total_products,
+            active_products,
+            total_stock_qty,
+            total_cost_valuation,
+            total_retail_valuation,
+            potential_profit,
+            movements,
+            low_stock_count,
+            out_of_stock_count,
+            items,
+        })
+    }
+
     // ========================================================================
     // 8. Backup (`VACUUM INTO`) & Restore Database SQLite (`FR-SYS-01`)
     // ========================================================================
 
     pub fn backup_database(&self, actor: &User, target_path: &Path) -> AppResult<String> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageStoreSettings)?;
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -2483,7 +3397,7 @@ impl CoreService {
     }
 
     pub fn restore_database(&self, actor: &User, source_path: &Path) -> AppResult<()> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::ManageStoreSettings)?;
         if !source_path.exists() {
             return Err(AppError::NotFound(
                 "File cadangan database tidak ditemukan.".to_string(),
@@ -2603,6 +3517,7 @@ impl CoreService {
         terminal_name: &str,
         req: &OpenShiftRequest,
     ) -> AppResult<CashierShift> {
+        require_permission(actor, Permission::AccessPos)?;
         if req.opening_float < 0 {
             return Err(AppError::Validation(
                 "Modal awal kasir (Opening Float) tidak boleh bernilai negatif.".to_string(),
@@ -2760,9 +3675,10 @@ impl CoreService {
 
     pub fn record_cash_movement(
         &self,
-        _actor: &User,
+        actor: &User,
         req: &CashMovementRequest,
     ) -> AppResult<CashMovement> {
+        require_permission(actor, Permission::AccessPos)?;
         if req.amount <= 0 {
             return Err(AppError::Validation(
                 "Nominal mutasi kas harus lebih besar dari 0.".to_string(),
@@ -2939,7 +3855,8 @@ impl CoreService {
         })
     }
 
-    pub fn close_shift(&self, _actor: &User, req: &CloseShiftRequest) -> AppResult<CashierShift> {
+    pub fn close_shift(&self, actor: &User, req: &CloseShiftRequest) -> AppResult<CashierShift> {
+        require_permission(actor, Permission::AccessPos)?;
         let shift = self.get_shift_by_id(&req.shift_id)?;
         if shift.status != "OPEN" {
             if shift.status == "CLOSED" {
@@ -3083,6 +4000,7 @@ impl CoreService {
         actor: &User,
         req: &CreateOpnameSessionRequest,
     ) -> AppResult<StockOpnameSession> {
+        require_permission(actor, Permission::AdjustStock)?;
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
@@ -3197,9 +4115,10 @@ impl CoreService {
 
     pub fn record_opname_scan(
         &self,
-        _actor: &User,
+        actor: &User,
         req: &RecordOpnameScanRequest,
     ) -> AppResult<StockOpnameItem> {
+        require_permission(actor, Permission::AdjustStock)?;
         let session = self.get_opname_session_by_id(&req.session_id)?;
         if session.status != "COUNTING" && session.status != "REVIEW" {
             return Err(AppError::Validation(
@@ -3334,9 +4253,10 @@ impl CoreService {
 
     pub fn update_opname_item_qty(
         &self,
-        _actor: &User,
+        actor: &User,
         req: &UpdateOpnameItemQtyRequest,
     ) -> AppResult<StockOpnameItem> {
+        require_permission(actor, Permission::AdjustStock)?;
         if req.physical_count < 0 {
             return Err(AppError::Validation(
                 "Kuantitas fisik stok tidak boleh bernilai negatif.".to_string(),
@@ -3426,9 +4346,10 @@ impl CoreService {
 
     pub fn commit_opname_session(
         &self,
-        _actor: &User,
+        actor: &User,
         req: &CommitOpnameSessionRequest,
     ) -> AppResult<StockOpnameSession> {
+        require_permission(actor, Permission::AdjustStock)?;
         let mut conn = self.db.lock_conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
@@ -3514,7 +4435,7 @@ impl CoreService {
         session_id: &str,
         reason: &str,
     ) -> AppResult<StockOpnameSession> {
-        Self::require_admin(actor)?;
+        require_permission(actor, Permission::AdjustStock)?;
         let session = self.get_opname_session_by_id(session_id)?;
         if session.status != "COUNTING" && session.status != "REVIEW" {
             return Err(AppError::Conflict(format!(
@@ -3945,7 +4866,7 @@ mod tests {
             .unwrap();
 
         // 1. RESTOCK +15 -> stok menjadi 25
-        let restock = service
+        let restock_res = service
             .create_stock_adjustment(
                 &admin,
                 "Kasir 1",
@@ -3957,6 +4878,10 @@ mod tests {
                 },
             )
             .unwrap();
+        let restock = match restock_res {
+            StockAdjustmentResult::Executed { adjustment } => adjustment,
+            _ => panic!("Expected Executed result for admin"),
+        };
         assert_eq!(restock.stock_before, 10);
         assert_eq!(restock.quantity_delta, 15);
         assert_eq!(restock.stock_after, 25);
@@ -3975,7 +4900,7 @@ mod tests {
         assert!(invalid_damage.is_err());
 
         // 3. DAMAGE -5 -> stok menjadi 20
-        let valid_damage = service
+        let valid_damage_res = service
             .create_stock_adjustment(
                 &admin,
                 "Kasir 1",
@@ -3987,10 +4912,14 @@ mod tests {
                 },
             )
             .unwrap();
+        let valid_damage = match valid_damage_res {
+            StockAdjustmentResult::Executed { adjustment } => adjustment,
+            _ => panic!("Expected Executed result for admin"),
+        };
         assert_eq!(valid_damage.stock_after, 20);
 
         // 4. CORRECTION ke 18 -> quantity_delta = -2, stock_after = 18
-        let correction = service
+        let correction_res = service
             .create_stock_adjustment(
                 &admin,
                 "Kasir 1",
@@ -4002,6 +4931,10 @@ mod tests {
                 },
             )
             .unwrap();
+        let correction = match correction_res {
+            StockAdjustmentResult::Executed { adjustment } => adjustment,
+            _ => panic!("Expected Executed result for admin"),
+        };
         assert_eq!(correction.quantity_delta, -2);
         assert_eq!(correction.stock_after, 18);
 
@@ -4431,5 +5364,428 @@ mod tests {
         assert_eq!(receipt_tiered.items[0].applied_tier_min_qty, Some(5));
         assert_eq!(receipt_tiered.items[0].applied_tier_price, Some(4_000));
         assert_eq!(receipt_tiered.items[0].subtotal, 24_000);
+    }
+
+    #[test]
+    fn test_stock_keeper_approval_threshold_and_admin_pin_flow() {
+        let (service, admin) = create_test_service();
+
+        // 1. Buat user Petugas Stok
+        let stock_keeper = service
+            .upsert_user(
+                &admin,
+                &UpsertUserRequest {
+                    id: None,
+                    username: "petugas_stok".to_string(),
+                    full_name: "Budi Petugas Gudang".to_string(),
+                    role: UserRole::STOCK,
+                    password: Some("password123".to_string()),
+                    pin: None,
+                    is_active: true,
+                },
+            )
+            .unwrap();
+
+        // 2. Tambah produk: Beras Rojolele 5kg (cost: 50.000, stock: 100)
+        let beras = service
+            .upsert_product(
+                &admin,
+                "Terminal Server",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "BRS-5KG".to_string(),
+                    barcode: Some("899123450001".to_string()),
+                    name: "Beras Rojolele 5kg".to_string(),
+                    category_name: "Sembako".to_string(),
+                    unit: "sak".to_string(),
+                    cost_price: 50_000,
+                    selling_price: 65_000,
+                    discount_type: DiscountType::NONE,
+                    discount_value: 0,
+                    initial_stock: Some(100),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        // 3. Penyesuaian di bawah ambang batas (1 sak = Rp 50.000 < 100.000, 1% < 10%)
+        // Langsung dieksekusi tanpa persetujuan
+        let adj_below = service
+            .create_stock_adjustment(
+                &stock_keeper,
+                "Terminal Gudang",
+                &CreateStockAdjustmentRequest {
+                    product_id: beras.id.clone(),
+                    adjustment_type: AdjustmentType::DAMAGE,
+                    quantity: 1,
+                    note: "Karung robek sedikit".to_string(),
+                },
+            )
+            .unwrap();
+
+        match adj_below {
+            StockAdjustmentResult::Executed { adjustment } => {
+                assert_eq!(adjustment.stock_after, 99);
+            }
+            _ => panic!("Expected Executed result for below-threshold adjustment"),
+        }
+
+        // Verifikasi stok di DB telah berkurang menjadi 99
+        let beras_updated = service.find_product_by_code(&stock_keeper, "BRS-5KG").unwrap();
+        assert_eq!(beras_updated.stock, 99);
+
+        // 4. Penyesuaian melebihi ambang nominal (3 sak * 50.000 = Rp 150.000 >= 100.000)
+        // Wajib berstatus PendingApproval dan stok TIDAK berkurang!
+        let adj_above_amount = service
+            .create_stock_adjustment(
+                &stock_keeper,
+                "Terminal Gudang",
+                &CreateStockAdjustmentRequest {
+                    product_id: beras.id.clone(),
+                    adjustment_type: AdjustmentType::DAMAGE,
+                    quantity: 3,
+                    note: "Kena rembesan hujan di gudang".to_string(),
+                },
+            )
+            .unwrap();
+
+        let req_id = match adj_above_amount {
+            StockAdjustmentResult::PendingApproval { request } => {
+                assert_eq!(request.status, "PENDING");
+                assert_eq!(request.quantity_delta, -3);
+                assert_eq!(request.total_estimated_value, 150_000);
+                assert_eq!(request.requested_by, stock_keeper.id);
+                request.id
+            }
+            _ => panic!("Expected PendingApproval result for above-threshold adjustment"),
+        };
+
+        // Stok produk tetap 99
+        let beras_pending = service.find_product_by_code(&stock_keeper, "BRS-5KG").unwrap();
+        assert_eq!(beras_pending.stock, 99);
+
+        // 5. Admin menolak permohonan dengan PIN valid
+        // Verifikasi PIN salah terlebih dahulu
+        let reject_wrong_pin = service.reject_stock_adjustment_request(
+            &admin,
+            &RejectStockAdjustmentRequest {
+                request_id: req_id.clone(),
+                admin_pin: "999999".to_string(),
+                rejection_reason: "PIN salah test".to_string(),
+            },
+        );
+        assert!(reject_wrong_pin.is_err());
+
+        // Tolak dengan PIN benar ("123456")
+        service
+            .reject_stock_adjustment_request(
+                &admin,
+                &RejectStockAdjustmentRequest {
+                    request_id: req_id.clone(),
+                    admin_pin: "123456".to_string(),
+                    rejection_reason: "Setelah dicek karung masih layak jual".to_string(),
+                },
+            )
+            .unwrap();
+
+        // Stok tetap 99
+        let beras_after_reject = service.find_product_by_code(&stock_keeper, "BRS-5KG").unwrap();
+        assert_eq!(beras_after_reject.stock, 99);
+
+        // 6. Produk kedua: Lolipop (cost: 1.000, stock: 20)
+        // Penyesuaian 3 pcs (Rp 3.000 < 100.000, TAPI 3/20 = 15% >= 10%)
+        let lolipop = service
+            .upsert_product(
+                &admin,
+                "Terminal Server",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "LOL-001".to_string(),
+                    barcode: Some("899123450002".to_string()),
+                    name: "Permen Lolipop".to_string(),
+                    category_name: "Makanan".to_string(),
+                    unit: "pcs".to_string(),
+                    cost_price: 1_000,
+                    selling_price: 2_000,
+                    discount_type: DiscountType::NONE,
+                    discount_value: 0,
+                    initial_stock: Some(20),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        let adj_above_percent = service
+            .create_stock_adjustment(
+                &stock_keeper,
+                "Terminal Gudang",
+                &CreateStockAdjustmentRequest {
+                    product_id: lolipop.id.clone(),
+                    adjustment_type: AdjustmentType::LOSS,
+                    quantity: 3,
+                    note: "Hilang saat display toko".to_string(),
+                },
+            )
+            .unwrap();
+
+        let lolipop_req_id = match adj_above_percent {
+            StockAdjustmentResult::PendingApproval { request } => {
+                assert_eq!(request.status, "PENDING");
+                assert_eq!(request.discrepancy_percent, 15);
+                request.id
+            }
+            _ => panic!("Expected PendingApproval due to 15% discrepancy >= 10% threshold"),
+        };
+
+        // 7. Admin menyetujui permohonan dengan PIN valid
+        // Coba approve oleh Petugas Stok (bukan admin) -> wajib ditolak (Forbidden)
+        let approve_by_stock_keeper = service.approve_stock_adjustment_request(
+            &stock_keeper,
+            &ApproveStockAdjustmentRequest {
+                request_id: lolipop_req_id.clone(),
+                admin_pin: "123456".to_string(),
+            },
+        );
+        assert!(approve_by_stock_keeper.is_err());
+
+        // Approve oleh Admin dengan PIN benar
+        let approved_adj = service
+            .approve_stock_adjustment_request(
+                &admin,
+                &ApproveStockAdjustmentRequest {
+                    request_id: lolipop_req_id.clone(),
+                    admin_pin: "123456".to_string(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(approved_adj.stock_after, 17);
+
+        // Verifikasi stok produk lolipop di DB berkurang menjadi 17
+        let lolipop_final = service.find_product_by_code(&admin, "LOL-001").unwrap();
+        assert_eq!(lolipop_final.stock, 17);
+
+        // 8. Verifikasi Audit Log tercatat lengkap
+        let audit_logs = service.list_audit_logs(&admin, None, Some(10)).unwrap();
+        let actions = audit_logs.iter().map(|l| l.action.as_str()).collect::<Vec<_>>();
+        assert!(actions.contains(&"STOCK_ADJUSTMENT_APPROVED"));
+        assert!(actions.contains(&"STOCK_ADJUSTMENT_REJECTED"));
+    }
+
+    #[test]
+    fn test_comprehensive_financial_profit_and_stock_reports() {
+        let (service, admin) = create_test_service();
+
+        // 1. Buat user Petugas Laporan & Petugas Stok
+        let reporter = service
+            .upsert_user(
+                &admin,
+                &UpsertUserRequest {
+                    id: None,
+                    username: "petugas_laporan".to_string(),
+                    full_name: "Siti Petugas Laporan".to_string(),
+                    role: UserRole::REPORTER,
+                    password: Some("password123".to_string()),
+                    pin: None,
+                    is_active: true,
+                },
+            )
+            .unwrap();
+
+        let stock_keeper = service
+            .upsert_user(
+                &admin,
+                &UpsertUserRequest {
+                    id: None,
+                    username: "petugas_stok2".to_string(),
+                    full_name: "Anto Petugas Stok".to_string(),
+                    role: UserRole::STOCK,
+                    password: Some("password123".to_string()),
+                    pin: None,
+                    is_active: true,
+                },
+            )
+            .unwrap();
+
+        // 2. Tambah 2 produk dengan kategori berbeda
+        let minyak = service
+            .upsert_product(
+                &admin,
+                "Terminal Server",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "MYK-2L".to_string(),
+                    barcode: Some("899111111111".to_string()),
+                    name: "Minyak Goreng 2L".to_string(),
+                    category_name: "Sembako".to_string(),
+                    unit: "pouch".to_string(),
+                    cost_price: 28_000,
+                    selling_price: 35_000,
+                    discount_type: DiscountType::NONE,
+                    discount_value: 0,
+                    initial_stock: Some(50),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        let sabun = service
+            .upsert_product(
+                &admin,
+                "Terminal Server",
+                &UpsertProductRequest {
+                    id: None,
+                    sku: "SBN-100G".to_string(),
+                    barcode: Some("899222222222".to_string()),
+                    name: "Sabun Mandi 100g".to_string(),
+                    category_name: "Kebutuhan Rumah".to_string(),
+                    unit: "pcs".to_string(),
+                    cost_price: 3_000,
+                    selling_price: 5_000,
+                    discount_type: DiscountType::NOMINAL,
+                    discount_value: 500, // effective selling price = 4.500
+                    initial_stock: Some(100),
+                    is_active: Some(true),
+                    price_tiers: None,
+                },
+            )
+            .unwrap();
+
+        // 3. Buka shift kasir dengan modal Rp 100.000
+        let shift = service
+            .open_shift(
+                &admin,
+                "Terminal Server",
+                &OpenShiftRequest {
+                    opening_float: 100_000,
+                    terminal_name: Some("Terminal Server".to_string()),
+                    notes: Some("Shift Pagi".to_string()),
+                },
+            )
+            .unwrap();
+
+        // 4. Buat transaksi penjualan:
+        // - 2 pouch Minyak Goreng: 2 * 35.000 = 70.000
+        // - 4 pcs Sabun Mandi: 4 * 4.500 = 18.000 (diskon 4 * 500 = 2.000, gross 20.000)
+        // Total Omzet Kotor = 90.000, Total Diskon = 2.000, Net Sales = 88.000
+        use crate::models::SaleItemInput;
+        let sale_res = service
+            .create_sale(
+                &admin,
+                "Terminal Server",
+                &CreateSaleRequest {
+                    items: vec![
+                        SaleItemInput {
+                            product_id: minyak.id.clone(),
+                            quantity: 2,
+                        },
+                        SaleItemInput {
+                            product_id: sabun.id.clone(),
+                            quantity: 4,
+                        },
+                    ],
+                    cash_received: 100_000,
+                },
+            )
+            .unwrap();
+        assert_eq!(sale_res.sale.total_amount, 88_000);
+
+        // 5. Mutasi kas kasir: IN 20.000 dan OUT 15.000
+        service
+            .record_cash_movement(
+                &admin,
+                &CashMovementRequest {
+                    shift_id: shift.id.clone(),
+                    movement_type: "IN".to_string(),
+                    amount: 20_000,
+                    reason: "Pecahan uang kembalian".to_string(),
+                },
+            )
+            .unwrap();
+
+        service
+            .record_cash_movement(
+                &admin,
+                &CashMovementRequest {
+                    shift_id: shift.id.clone(),
+                    movement_type: "OUT".to_string(),
+                    amount: 15_000,
+                    reason: "Beli air galon".to_string(),
+                },
+            )
+            .unwrap();
+
+        // 6. Tutup shift kasir (expected = 100.000 + 88.000 + 20.000 - 15.000 = 193.000)
+        service
+            .close_shift(
+                &admin,
+                &CloseShiftRequest {
+                    shift_id: shift.id.clone(),
+                    actual_closing_cash: 193_000,
+                    notes: Some("Tutup shift klop".to_string()),
+                },
+            )
+            .unwrap();
+
+        let today = CoreService::today_date_str();
+        let filter = SalesReportFilter {
+            start_date: today.clone(),
+            end_date: today.clone(),
+            cashier_id: None,
+            terminal_name: None,
+        };
+
+        // 7. Pengujian Laporan Keuangan (Financial Report)
+        // Reporter berhak melihat laporan keuangan
+        let fin_rep = service.get_financial_report(&reporter, &filter).unwrap();
+        assert_eq!(fin_rep.completed_sales_count, 1);
+        assert_eq!(fin_rep.voided_sales_count, 0);
+        assert_eq!(fin_rep.gross_sales, 90_000);
+        assert_eq!(fin_rep.total_discount, 2_000);
+        assert_eq!(fin_rep.net_sales, 88_000);
+        assert_eq!(fin_rep.cash_sales, 88_000);
+        assert_eq!(fin_rep.cash_in_amount, 120_000); // 100.000 float + 20.000 in
+        assert_eq!(fin_rep.cash_out_amount, 15_000);
+        assert_eq!(fin_rep.total_shift_discrepancy, 0);
+        assert_eq!(fin_rep.net_cash_flow, 193_000);
+        assert!(!fin_rep.daily_summaries.is_empty());
+
+        // Petugas Stok DILARANG mengakses laporan keuangan
+        let fin_rep_forbidden = service.get_financial_report(&stock_keeper, &filter);
+        assert!(fin_rep_forbidden.is_err());
+
+        // 8. Pengujian Laporan Laba Kotor (Profit Report)
+        // Reporter berhak melihat laporan laba
+        let prof_rep = service.get_profit_report(&reporter, &filter).unwrap();
+        assert_eq!(prof_rep.net_sales, 88_000);
+        // COGS: 2 * 28.000 + 4 * 3.000 = 56.000 + 12.000 = 68.000
+        assert_eq!(prof_rep.total_cogs, 68_000);
+        // Gross Profit: 88.000 - 68.000 = 20.000
+        assert_eq!(prof_rep.gross_profit, 20_000);
+        // Margin: 20.000 / 88.000 * 100 = 22.73%
+        assert_eq!(prof_rep.profit_margin_pct, 22.73);
+        assert_eq!(prof_rep.category_profits.len(), 2);
+
+        // Petugas Stok DILARANG mengakses laporan laba
+        let prof_rep_forbidden = service.get_profit_report(&stock_keeper, &filter);
+        assert!(prof_rep_forbidden.is_err());
+
+        // 9. Pengujian Laporan Inventaris & Nilai Stok (Stock Report)
+        // Petugas Stok BERHAK mengakses laporan inventaris stok
+        let stock_rep = service.get_stock_report(&stock_keeper, None, None).unwrap();
+        assert_eq!(stock_rep.total_products, 2);
+        assert_eq!(stock_rep.active_products, 2);
+        // Stok tersisa: Minyak (50 - 2 = 48), Sabun (100 - 4 = 96) -> Total 144
+        assert_eq!(stock_rep.total_stock_qty, 144);
+        // Valuasi HPP: 48 * 28.000 + 96 * 3.000 = 1.344.000 + 288.000 = 1.632.000
+        assert_eq!(stock_rep.total_cost_valuation, 1_632_000);
+        // Valuasi Jual: 48 * 35.000 + 96 * 5.000 = 1.680.000 + 480.000 = 2.160.000
+        assert_eq!(stock_rep.total_retail_valuation, 2_160_000);
+        assert_eq!(stock_rep.potential_profit, 528_000);
+        assert_eq!(stock_rep.movements.sold_qty, 6);
+        assert_eq!(stock_rep.items.len(), 2);
     }
 }

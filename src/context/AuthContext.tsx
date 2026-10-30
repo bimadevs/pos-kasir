@@ -12,6 +12,17 @@ interface AuthContextValue {
   session: AuthSession | null;
   user: User | null;
   isAdmin: boolean;
+  isCashier: boolean;
+  isStock: boolean;
+  isReporter: boolean;
+  canAccessPos: boolean;
+  canManageProducts: boolean;
+  canManageProductPrices: boolean;
+  canViewCostPrice: boolean;
+  canAdjustStock: boolean;
+  canViewReports: boolean;
+  canManageUsers: boolean;
+  canManageSettings: boolean;
   loadingAuth: boolean;
   login: (req: LoginRequest) => Promise<AuthSession>;
   logout: () => Promise<void>;
@@ -78,7 +89,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const user = session?.user ?? null;
-  const isAdmin = user?.role === "ADMIN";
+  const role = user?.role;
+  const isAdmin = role === "ADMIN";
+  const isCashier = role === "CASHIER";
+  const isStock = role === "STOCK";
+  const isReporter = role === "REPORTER";
+
+  const canAccessPos = isAdmin || isCashier;
+  const canManageProducts = isAdmin || isStock;
+  const canManageProductPrices = isAdmin;
+  const canViewCostPrice = isAdmin || isStock || isReporter;
+  const canAdjustStock = isAdmin || isStock;
+  const canViewReports = isAdmin || isReporter || isStock;
+  const canManageUsers = isAdmin;
+  const canManageSettings = isAdmin;
 
   return (
     <AuthContext.Provider
@@ -86,6 +110,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         session,
         user,
         isAdmin,
+        isCashier,
+        isStock,
+        isReporter,
+        canAccessPos,
+        canManageProducts,
+        canManageProductPrices,
+        canViewCostPrice,
+        canAdjustStock,
+        canViewReports,
+        canManageUsers,
+        canManageSettings,
         loadingAuth,
         login,
         logout,

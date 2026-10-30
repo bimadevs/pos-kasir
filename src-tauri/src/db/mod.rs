@@ -101,6 +101,92 @@ impl Database {
             )?;
         }
 
+        // 3. Migrasi kolom ambang batas persetujuan stok pada store_settings
+        let (has_thresh_amt, has_thresh_pct): (bool, bool) = {
+            let mut stmt = conn.prepare("PRAGMA table_info(store_settings)")?;
+            let mut rows = stmt.query([])?;
+            let mut found_amt = false;
+            let mut found_pct = false;
+            while let Some(row) = rows.next()? {
+                let name: String = row.get(1)?;
+                if name == "stock_approval_amount_threshold" {
+                    found_amt = true;
+                }
+                if name == "stock_approval_percent_threshold" {
+                    found_pct = true;
+                }
+            }
+            (found_amt, found_pct)
+        };
+
+        if !has_thresh_amt {
+            conn.execute(
+                "ALTER TABLE store_settings ADD COLUMN stock_approval_amount_threshold INTEGER NOT NULL DEFAULT 100000",
+                [],
+            )?;
+        }
+        if !has_thresh_pct {
+            conn.execute(
+                "ALTER TABLE store_settings ADD COLUMN stock_approval_percent_threshold INTEGER NOT NULL DEFAULT 10",
+                [],
+            )?;
+        }
+
+        // 4. Migrasi CHECK constraint tabel users untuk peran baru (STOCK, REPORTER)
+        let users_sql: Option<String> = {
+            let mut stmt = conn.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'")?;
+            let mut rows = stmt.query([])?;
+            if let Some(row) = rows.next()? {
+                row.get(0)?
+            } else {
+                None
+            }
+        };
+
+        if let Some(sql) = users_sql {
+            if !sql.contains("STOCK") {
+                let (has_full_name, has_pin_hash): (bool, bool) = {
+                    let mut stmt = conn.prepare("PRAGMA table_info(users)")?;
+                    let mut rows = stmt.query([])?;
+                    let mut found_fn = false;
+                    let mut found_ph = false;
+                    while let Some(row) = rows.next()? {
+                        let col: String = row.get(1)?;
+                        if col == "full_name" {
+                            found_fn = true;
+                        }
+                        if col == "pin_hash" {
+                            found_ph = true;
+                        }
+                    }
+                    (found_fn, found_ph)
+                };
+                let fn_col = if has_full_name { "full_name" } else { "name" };
+                let pin_col = if has_pin_hash { "pin_hash" } else { "admin_pin_hash" };
+
+                let migration_sql = format!(
+                    "PRAGMA foreign_keys = OFF;
+                     CREATE TABLE users_migrated (
+                         id TEXT PRIMARY KEY,
+                         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                         full_name TEXT NOT NULL,
+                         password_hash TEXT NOT NULL,
+                         pin_hash TEXT,
+                         role TEXT NOT NULL CHECK (role IN ('ADMIN', 'CASHIER', 'STOCK', 'REPORTER')),
+                         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+                         created_at TEXT NOT NULL,
+                         updated_at TEXT NOT NULL
+                     );
+                     INSERT INTO users_migrated (id, username, full_name, password_hash, pin_hash, role, is_active, created_at, updated_at)
+                         SELECT id, username, {fn_col}, password_hash, {pin_col}, role, is_active, created_at, updated_at FROM users;
+                     DROP TABLE users;
+                     ALTER TABLE users_migrated RENAME TO users;
+                     PRAGMA foreign_keys = ON;"
+                );
+                conn.execute_batch(&migration_sql)?;
+            }
+        }
+
         // Pastikan indeks shift pada sales terpasang
         conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_sales_shift_id ON sales(shift_id);")?;
 
@@ -295,6 +381,8 @@ mod tests {
             "stock_opname_sessions",
             "stock_opname_items",
             "product_price_tiers",
+            "audit_logs",
+            "stock_adjustment_requests",
         ] {
             let mut stmt_t = conn
                 .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1")

@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertCircle,
   AlertTriangle,
+  BarChart3,
   CheckCircle2,
   Edit3,
   Eye,
   EyeOff,
   KeyRound,
   Loader2,
+  Package,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -57,7 +59,7 @@ export const UsersPage: React.FC = () => {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "CASHIER">("ALL");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "CASHIER" | "STOCK" | "REPORTER">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
   // Modal State
@@ -282,6 +284,8 @@ export const UsersPage: React.FC = () => {
   // Summary Metrics
   const totalCount = users.length;
   const cashierCount = users.filter((u) => u.role === "CASHIER").length;
+  const stockCount = users.filter((u) => u.role === "STOCK").length;
+  const reporterCount = users.filter((u) => u.role === "REPORTER").length;
   const adminCount = users.filter((u) => u.role === "ADMIN").length;
   const adminWithPinCount = users.filter((u) => u.role === "ADMIN" && u.has_pin).length;
 
@@ -296,10 +300,10 @@ export const UsersPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
-                Manajemen Akun Kasir &amp; Admin
+                Manajemen Pengguna &amp; Peran
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
-                Kelola hak akses peran (Admin vs Cashier), reset kata sandi, dan atur PIN Otorisasi Void (4–6 digit).
+                Kelola hak akses 4 peran (Admin, Kasir, Petugas Stok, Petugas Laporan), reset kata sandi, dan atur PIN Admin (4–6 digit).
               </p>
             </div>
           </div>
@@ -357,7 +361,7 @@ export const UsersPage: React.FC = () => {
       )}
 
       {/* Quick Stats Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
@@ -371,14 +375,14 @@ export const UsersPage: React.FC = () => {
             {totalCount}
           </div>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Akun terdaftar di database
+            Akun terdaftar
           </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-              Kasir Operasional
+              Kasir
             </span>
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
               <UserIcon className="w-4 h-4" />
@@ -388,41 +392,58 @@ export const UsersPage: React.FC = () => {
             {cashierCount}
           </div>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Hak akses terminal kasir POS
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700">
-              Admin &amp; Manajer
-            </span>
-            <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 border border-teal-100">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-black text-zinc-900 tracking-tight">
-            {adminCount}
-          </div>
-          <p className="text-[11px] text-zinc-500 mt-0.5">
-            Hak akses manajemen &amp; laporan
+            Terminal kasir POS
           </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
-              PIN Void Terkonfigurasi
+              Petugas Stok
             </span>
             <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
-              <KeyRound className="w-4 h-4" />
+              <Package className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-zinc-900 tracking-tight">
-            {adminWithPinCount} <span className="text-xs font-semibold text-zinc-400">/ {adminCount}</span>
+            {stockCount}
           </div>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Admin dengan otorisasi void aktif
+            Katalog &amp; fisik gudang
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+              Petugas Laporan
+            </span>
+            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <BarChart3 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-black text-zinc-900 tracking-tight">
+            {reporterCount}
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-0.5">
+            Analisis keuangan &amp; laba
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 shadow-2xs col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700">
+              Admin &amp; PIN
+            </span>
+            <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 border border-teal-100">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-black text-zinc-900 tracking-tight">
+            {adminCount} <span className="text-xs font-semibold text-zinc-400">({adminWithPinCount} PIN)</span>
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-0.5">
+            Akses penuh &amp; otorisasi
           </p>
         </div>
       </div>
@@ -463,7 +484,7 @@ export const UsersPage: React.FC = () => {
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
               >
-                Semua Peran
+                Semua
               </button>
               <button
                 type="button"
@@ -486,6 +507,28 @@ export const UsersPage: React.FC = () => {
                 }`}
               >
                 Kasir
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("STOCK")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  roleFilter === "STOCK"
+                    ? "bg-white text-amber-700 shadow-2xs font-bold"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Petugas Stok
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("REPORTER")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  roleFilter === "REPORTER"
+                    ? "bg-white text-indigo-700 shadow-2xs font-bold"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Petugas Laporan
               </button>
             </div>
 
@@ -593,15 +636,29 @@ export const UsersPage: React.FC = () => {
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
                             u.role === "ADMIN"
                               ? "bg-teal-50 text-teal-700 border-teal-200/80"
-                              : "bg-zinc-100 text-zinc-700 border-zinc-200/80"
+                              : u.role === "STOCK"
+                              ? "bg-amber-50 text-amber-700 border-amber-200/80"
+                              : u.role === "REPORTER"
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200/80"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200/80"
                           }`}
                         >
                           {u.role === "ADMIN" ? (
                             <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                          ) : u.role === "STOCK" ? (
+                            <Package className="w-3.5 h-3.5 text-amber-600" />
+                          ) : u.role === "REPORTER" ? (
+                            <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
                           ) : (
-                            <UserIcon className="w-3.5 h-3.5 text-zinc-600" />
+                            <UserIcon className="w-3.5 h-3.5 text-emerald-600" />
                           )}
-                          {u.role === "ADMIN" ? "ADMIN" : "KASIR"}
+                          {u.role === "ADMIN"
+                            ? "ADMIN"
+                            : u.role === "STOCK"
+                            ? "PETUGAS STOK"
+                            : u.role === "REPORTER"
+                            ? "PETUGAS LAPORAN"
+                            : "KASIR"}
                         </span>
                       </td>
 
@@ -813,7 +870,7 @@ export const UsersPage: React.FC = () => {
                 <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Hak Akses Peran (Role) <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -826,10 +883,10 @@ export const UsersPage: React.FC = () => {
                         : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100/70"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="font-extrabold text-xs text-zinc-900 flex items-center gap-1.5">
                         <UserIcon className="w-4 h-4 text-emerald-600" />
-                        CASHIER
+                        KASIR
                       </span>
                       <span
                         className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
@@ -844,7 +901,75 @@ export const UsersPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-500 leading-tight">
-                      Akses operasional POS kasir harian, transaksi penjualan, dan cetak struk nota.
+                      Akses kasir POS, transaksi tunai, cetak struk, dan buka/tutup shift kasir.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole("STOCK");
+                      if (modalError) setModalError(null);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      role === "STOCK"
+                        ? "bg-amber-50/60 border-amber-500 ring-2 ring-amber-500/20"
+                        : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100/70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-extrabold text-xs text-zinc-900 flex items-center gap-1.5">
+                        <Package className="w-4 h-4 text-amber-600" />
+                        PETUGAS STOK
+                      </span>
+                      <span
+                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                          role === "STOCK"
+                            ? "border-amber-600 bg-amber-600"
+                            : "border-zinc-300 bg-white"
+                        }`}
+                      >
+                        {role === "STOCK" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-tight">
+                      Kelola master produk, harga modal, barang masuk, dan penyesuaian stok fisik.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole("REPORTER");
+                      if (modalError) setModalError(null);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      role === "REPORTER"
+                        ? "bg-indigo-50/60 border-indigo-500 ring-2 ring-indigo-500/20"
+                        : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100/70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-extrabold text-xs text-zinc-900 flex items-center gap-1.5">
+                        <BarChart3 className="w-4 h-4 text-indigo-600" />
+                        PETUGAS LAPORAN
+                      </span>
+                      <span
+                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                          role === "REPORTER"
+                            ? "border-indigo-600 bg-indigo-600"
+                            : "border-zinc-300 bg-white"
+                        }`}
+                      >
+                        {role === "REPORTER" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-tight">
+                      Read-only laporan omzet, shift, keuangan arus kas, laba kotor, dan inventaris.
                     </p>
                   </button>
 
@@ -860,7 +985,7 @@ export const UsersPage: React.FC = () => {
                         : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100/70"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="font-extrabold text-xs text-zinc-900 flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-teal-600" />
                         ADMIN
@@ -878,7 +1003,7 @@ export const UsersPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-500 leading-tight">
-                      Akses penuh manajemen katalog, stok opname, laporan laba, &amp; otorisasi void via PIN.
+                      Akses penuh seluruh modul, otorisasi PIN untuk void &amp; persetujuan penyesuaian stok.
                     </p>
                   </button>
                 </div>

@@ -25,11 +25,20 @@ interface NavItem {
   id: AppNavTab;
   label: string;
   icon: React.ReactNode;
-  adminOnly: boolean;
+  visible: boolean;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
-  const { user, isAdmin, logout } = useAuth();
+  const {
+    user,
+    isAdmin,
+    canAccessPos,
+    canManageProducts,
+    canAdjustStock,
+    canViewReports,
+    canManageUsers,
+    logout,
+  } = useAuth();
   const { terminalStatus, activeShift } = useTerminal();
   const [clock, setClock] = useState<string>("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -93,42 +102,42 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
       id: "POS",
       label: "Kasir",
       icon: <ShoppingCart className="w-4 h-4 shrink-0" />,
-      adminOnly: false,
+      visible: canAccessPos,
     },
     {
       id: "PRODUCTS",
       label: "Produk",
       icon: <Package className="w-4 h-4 shrink-0" />,
-      adminOnly: true,
+      visible: canManageProducts,
     },
     {
       id: "STOCK",
       label: "Stok",
       icon: <ClipboardList className="w-4 h-4 shrink-0" />,
-      adminOnly: true,
+      visible: canAdjustStock,
     },
     {
       id: "REPORTS",
       label: "Laporan",
       icon: <BarChart3 className="w-4 h-4 shrink-0" />,
-      adminOnly: true,
+      visible: canViewReports,
     },
     {
       id: "USERS",
       label: "Pengguna",
       icon: <Users className="w-4 h-4 shrink-0" />,
-      adminOnly: true,
+      visible: canManageUsers,
     },
     {
       id: "SETTINGS",
       label: isAdmin ? "Pengaturan" : "Printer",
       icon: <Settings className="w-4 h-4 shrink-0" />,
-      adminOnly: false,
+      visible: true,
     },
   ];
 
   // Tab yang diizinkan untuk peran saat ini
-  const visibleTabs = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleTabs = navItems.filter((item) => item.visible);
   const secondaryAdminTabs = visibleTabs.filter((item) => item.id !== "POS");
   const activeSecondaryTab = secondaryAdminTabs.find((item) => item.id === activeTab);
 
@@ -358,7 +367,13 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
               {user?.full_name || user?.username}
             </div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-              {user?.role}
+              {user?.role === "ADMIN"
+                ? "ADMIN"
+                : user?.role === "STOCK"
+                ? "PETUGAS STOK"
+                : user?.role === "REPORTER"
+                ? "PETUGAS LAPORAN"
+                : "KASIR"}
             </div>
           </div>
 

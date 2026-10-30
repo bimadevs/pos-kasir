@@ -16,15 +16,41 @@ import type { AppNavTab } from "./types/domain";
 
 const AppShell: React.FC = () => {
   const { terminalStatus, loadingTerminal } = useTerminal();
-  const { user, isAdmin, loadingAuth } = useAuth();
+  const {
+    user,
+    isCashier,
+    isStock,
+    isReporter,
+    canAccessPos,
+    canManageProducts,
+    canAdjustStock,
+    canViewReports,
+    canManageUsers,
+    loadingAuth,
+  } = useAuth();
   const [activeTab, setActiveTab] = useState<AppNavTab>("POS");
 
-  // Reset to POS tab when a non-admin logs in
+  // Alihkan ke tab yang valid sesuai peran pengguna saat login
   useEffect(() => {
-    if (user && !isAdmin && activeTab !== "POS" && activeTab !== "SETTINGS") {
+    if (!user) return;
+    if (isCashier && activeTab !== "POS" && activeTab !== "SETTINGS") {
       setActiveTab("POS");
+    } else if (
+      isStock &&
+      activeTab !== "PRODUCTS" &&
+      activeTab !== "STOCK" &&
+      activeTab !== "REPORTS" &&
+      activeTab !== "SETTINGS"
+    ) {
+      setActiveTab("PRODUCTS");
+    } else if (
+      isReporter &&
+      activeTab !== "REPORTS" &&
+      activeTab !== "SETTINGS"
+    ) {
+      setActiveTab("REPORTS");
     }
-  }, [user, isAdmin, activeTab]);
+  }, [user, isCashier, isStock, isReporter, activeTab]);
 
   if (loadingTerminal || loadingAuth) {
     return (
@@ -56,11 +82,11 @@ const AppShell: React.FC = () => {
       <TopBar activeTab={activeTab} onSelectTab={setActiveTab} />
 
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {activeTab === "POS" && <PosRegisterPage />}
-        {activeTab === "PRODUCTS" && isAdmin && <ProductsPage />}
-        {activeTab === "STOCK" && isAdmin && <StockAdjustmentPage />}
-        {activeTab === "REPORTS" && isAdmin && <ReportsPage />}
-        {activeTab === "USERS" && isAdmin && <UsersPage />}
+        {activeTab === "POS" && canAccessPos && <PosRegisterPage />}
+        {activeTab === "PRODUCTS" && canManageProducts && <ProductsPage />}
+        {activeTab === "STOCK" && canAdjustStock && <StockAdjustmentPage />}
+        {activeTab === "REPORTS" && canViewReports && <ReportsPage />}
+        {activeTab === "USERS" && canManageUsers && <UsersPage />}
         {activeTab === "SETTINGS" && <SettingsPage />}
       </main>
 

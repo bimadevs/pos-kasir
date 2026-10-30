@@ -2,15 +2,17 @@ use crate::error::{AppError, AppResult};
 use crate::lan::middleware::{HEADER_PAIRING_CODE, HEADER_SESSION_TOKEN, HEADER_TERMINAL_NAME};
 use crate::lan::server::{CsvPayload, ImportProductsPayload};
 use crate::models::{
-    AuthSession, CancelOpnameSessionRequest, CashMovement, CashMovementRequest, CashierShift,
-    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
-    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
-    HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, OpenShiftRequest,
-    OpnameSessionDetail, Product, ProductFilter, ProductImportRow, ProductPriceTier,
-    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, SaleWithItems, SalesReport,
-    SalesReportFilter, SetPriceTiersRequest, ShiftReportData, StockAdjustment, StockOpnameItem,
-    StockOpnameSession, StoreSettings, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest,
-    UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    ApproveStockAdjustmentRequest, AuditLog, AuthSession, CancelOpnameSessionRequest, CashMovement,
+    CashMovementRequest, CashierShift, CloseShiftRequest, CommitOpnameSessionRequest,
+    CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
+    CreateStockAdjustmentRequest, CsvImportResult, FinancialReport, HealthCheckResponse, HeldBill,
+    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameSessionDetail, Product,
+    ProductFilter, ProductImportRow, ProductPriceTier, ProfitReport, RecalledHeldBill,
+    ReceiptData, RecordOpnameScanRequest, RejectStockAdjustmentRequest, SaleWithItems, SalesReport,
+    SalesReportFilter, SetPriceTiersRequest, ShiftReportData, StockAdjustment,
+    StockAdjustmentRequest, StockAdjustmentResult, StockOpnameItem, StockOpnameSession, StockReport,
+    StoreSettings, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
+    UpsertUserRequest, User, VoidSaleRequest,
 };
 use reqwest::{Client, Method, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -256,12 +258,76 @@ impl RemoteHttpClient {
         &self,
         token: &str,
         req: &CreateStockAdjustmentRequest,
-    ) -> AppResult<StockAdjustment> {
+    ) -> AppResult<StockAdjustmentResult> {
         let resp = self
             .request(Method::POST, "/api/v1/stock-adjustments", Some(token))
             .json(req)
             .send()
             .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_stock_adjustment_requests(
+        &self,
+        token: &str,
+        status: Option<&str>,
+    ) -> AppResult<Vec<StockAdjustmentRequest>> {
+        let mut req = self.request(Method::GET, "/api/v1/stock-adjustments/requests", Some(token));
+        if let Some(s) = status {
+            req = req.query(&[("status", s)]);
+        }
+        let resp = req.send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn approve_stock_adjustment_request(
+        &self,
+        token: &str,
+        req: &ApproveStockAdjustmentRequest,
+    ) -> AppResult<StockAdjustment> {
+        let resp = self
+            .request(
+                Method::POST,
+                "/api/v1/stock-adjustments/requests/approve",
+                Some(token),
+            )
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn reject_stock_adjustment_request(
+        &self,
+        token: &str,
+        req: &RejectStockAdjustmentRequest,
+    ) -> AppResult<()> {
+        let resp = self
+            .request(
+                Method::POST,
+                "/api/v1/stock-adjustments/requests/reject",
+                Some(token),
+            )
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_audit_logs(
+        &self,
+        token: &str,
+        entity_name: Option<&str>,
+        limit: Option<i64>,
+    ) -> AppResult<Vec<AuditLog>> {
+        let mut req = self.request(Method::GET, "/api/v1/audit-logs", Some(token));
+        if let Some(e) = entity_name {
+            req = req.query(&[("entity_name", e)]);
+        }
+        if let Some(l) = limit {
+            req = req.query(&[("limit", l.to_string())]);
+        }
+        let resp = req.send().await?;
         Self::parse_response(resp).await
     }
 
@@ -397,6 +463,49 @@ impl RemoteHttpClient {
             .await?;
         let payload: CsvPayload = Self::parse_response(resp).await?;
         Ok(payload.csv_content)
+    }
+
+    pub async fn get_financial_report(
+        &self,
+        token: &str,
+        filter: &SalesReportFilter,
+    ) -> AppResult<FinancialReport> {
+        let resp = self
+            .request(Method::GET, "/api/v1/reports/financial", Some(token))
+            .query(filter)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn get_profit_report(
+        &self,
+        token: &str,
+        filter: &SalesReportFilter,
+    ) -> AppResult<ProfitReport> {
+        let resp = self
+            .request(Method::GET, "/api/v1/reports/profit", Some(token))
+            .query(filter)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn get_stock_report(
+        &self,
+        token: &str,
+        category: Option<&str>,
+        search: Option<&str>,
+    ) -> AppResult<StockReport> {
+        let mut req = self.request(Method::GET, "/api/v1/reports/stock", Some(token));
+        if let Some(c) = category {
+            req = req.query(&[("category", c)]);
+        }
+        if let Some(s) = search {
+            req = req.query(&[("search", s)]);
+        }
+        let resp = req.send().await?;
+        Self::parse_response(resp).await
     }
 
     pub async fn list_users(&self, token: &str) -> AppResult<Vec<User>> {

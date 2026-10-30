@@ -36,8 +36,10 @@ import {
   calculateUnitDiscount,
   formatRupiah,
 } from "../utils/posCalculator";
+import { useAuth } from "../context/AuthContext";
 
 export const ProductsPage: React.FC = () => {
+  const { canManageProductPrices, canViewCostPrice } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>("");
@@ -677,7 +679,9 @@ export const ProductsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-zinc-600 tabular-nums">
-                      {formatRupiah(product.cost_price)}
+                      {canViewCostPrice
+                        ? formatRupiah(product.cost_price)
+                        : "•••"}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-semibold text-zinc-800 tabular-nums">
                       {formatRupiah(product.selling_price)}
@@ -1067,31 +1071,47 @@ export const ProductsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                        Harga Jual Normal (Rp) *
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block font-bold uppercase tracking-wider text-zinc-600">
+                          Harga Jual Normal (Rp) *
+                        </label>
+                        {!canManageProductPrices && (
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            Dikelola Admin
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="number"
                         min={0}
-                        required
+                        required={canManageProductPrices}
+                        disabled={!canManageProductPrices}
                         value={formSellingPrice}
                         onChange={(e) => setFormSellingPrice(e.target.value)}
-                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 disabled:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-bold uppercase tracking-wider text-zinc-600 mb-1">
-                        Tipe Diskon Produk
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block font-bold uppercase tracking-wider text-zinc-600">
+                          Tipe Diskon Produk
+                        </label>
+                        {!canManageProductPrices && (
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            Dikelola Admin
+                          </span>
+                        )}
+                      </div>
                       <select
+                        disabled={!canManageProductPrices}
                         value={formDiscountType}
                         onChange={(e) =>
                           setFormDiscountType(e.target.value as DiscountType)
                         }
-                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-xl bg-white disabled:bg-zinc-100 disabled:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                       >
                         <option value="NONE">Tanpa Diskon (NONE)</option>
                         <option value="NOMINAL">
@@ -1110,12 +1130,12 @@ export const ProductsPage: React.FC = () => {
                         type="number"
                         min={0}
                         max={formDiscountType === "PERCENT" ? 100 : undefined}
-                        disabled={formDiscountType === "NONE"}
+                        disabled={!canManageProductPrices || formDiscountType === "NONE"}
                         value={
                           formDiscountType === "NONE" ? "0" : formDiscountValue
                         }
                         onChange={(e) => setFormDiscountValue(e.target.value)}
-                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                        className="w-full px-3 py-2 font-mono font-bold border border-zinc-300 rounded-xl disabled:bg-zinc-100 disabled:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                       />
                     </div>
                   </div>

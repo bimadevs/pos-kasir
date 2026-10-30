@@ -68,9 +68,11 @@ Untuk satu transaksi **Sale**:
 | ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
 | :--- | :--- | :--- |
 | `FR-AUTH-01` | Login Pengguna | Pengguna masuk menggunakan `Username` dan `Password`. Akun dengan `is_active == false` wajib ditolak dengan pesan akun dinonaktifkan. |
-| `FR-AUTH-02` | Pembatasan Navigasi Berdasarkan Peran | Pengguna dengan peran **Cashier** hanya dapat melihat dan mengakses menu **Kasir (POS)**, **Riwayat Transaksi Hari Ini**, dan **Pengaturan Printer Lokal**. Endpoint API khusus **Admin** wajib mengembalikan HTTP `403 Forbidden` jika diakses dengan sesi **Cashier**. |
-| `FR-AUTH-03` | Perpindahan Mode **Admin** $\leftrightarrow$ **Cashier** | Pengguna dengan peran **Admin** memiliki bilah navigasi penuh untuk berpindah langsung antara layar **Kasir (POS)** dan seluruh halaman manajemen **Admin** tanpa perlu logout. |
-| `FR-AUTH-04` | Verifikasi PIN **Admin** untuk Otorisasi | Sistem menyediakan mekanisme verifikasi `PIN 4–6 digit` milik **Admin** aktif mana pun untuk mengotorisasi aksi terbatas (seperti **Void**) langsung dari layar **Cashier** tanpa mengganti sesi login **Cashier** tersebut. |
+| `FR-AUTH-02` | Pembatasan Navigasi Berdasarkan Peran | Pengguna diarahkan ke modul sesuai perannya: **Cashier** hanya melihat Layar Kasir, Riwayat Hari Ini, dan Pengaturan Printer; **Stock Keeper** melihat Katalog Produk, Penyesuaian Stok, dan Laporan Stok; **Reporter** melihat seluruh Laporan; **Admin** melihat seluruh modul. Akses ke endpoint terlarang wajib menghasilkan HTTP `403 Forbidden`. |
+| `FR-AUTH-03` | Hak Akses Modul Kasir Terbatas | Hanya peran **Admin** dan **Cashier** yang berhak mengakses Layar Kasir (POS), menahan/memanggil **Held Bill**, dan membuka shift kasir. Peran **Stock Keeper** dan **Reporter** murni back-office dan diblokir dari seluruh aktivitas penjualan kasir. |
+| `FR-AUTH-04` | Verifikasi PIN **Admin** untuk Otorisasi | Sistem menyediakan mekanisme verifikasi `PIN 4–6 digit` milik **Admin** aktif mana pun untuk mengotorisasi aksi terbatas (seperti **Void** dan persetujuan stok berlebih) langsung tanpa mengganti sesi login pengguna bersangkutan. |
+| `FR-AUTH-05` | Manajemen 4 Peran Pengguna Diskret | **Admin** dapat membuat, mengubah, dan menonaktifkan pengguna dengan tepat satu dari 4 peran: `ADMIN`, `CASHIER`, `STOCK`, atau `REPORTER`. PIN 4–6 digit hanya wajib disetel untuk akun dengan peran `ADMIN`. |
+| `FR-AUTH-06` | Kerahasiaan Harga Modal | Nilai harga beli/modal (`cost_price`) hanya diekspos kepada peran `ADMIN`, `STOCK` (saat penerimaan barang), dan `REPORTER` (agregat laba). Peran `CASHIER` tidak boleh menerima nilai `cost_price` sama sekali di endpoint katalog produk maupun baris transaksi. |
 
 ### 2.3. Katalog Produk & CSV (`FR-PROD`)
 
@@ -80,14 +82,17 @@ Untuk satu transaksi **Sale**:
 | `FR-PROD-02` | *Soft Delete* Produk | Jika **Admin** menghapus/menonaktifkan **Product** yang sudah pernah tercatat di `sale_line_items` atau `stock_adjustments`, sistem melakukan *soft delete* (`is_active = false`). Produk nonaktif tidak muncul di pencarian kasir, namun riwayat laporan masa lalu tetap utuh. |
 | `FR-PROD-03` | Validasi Perubahan Harga | Ketika **Admin** mengubah `cost_price`, `selling_price`, atau `discount_value` suatu **Product**, perubahan langsung berlaku untuk transaksi baru di seluruh terminal, namun sama sekali tidak mengubah nilai pada transaksi **Sale** yang sudah tersimpan sebelumnya. |
 | `FR-PROD-04` | Import & Export Excel (.xlsx) Produk | **Admin** dapat mengekspor seluruh katalog **Product** ke file Excel (`.xlsx`) 2-sheet (Data Produk & Petunjuk) dan mengimpor file `.xlsx` dengan modal pratinjau validasi baris atomik (jika `sku` sudah ada maka perbarui data produk, jika belum ada maka buat produk baru; kolom barcode terlindungi sebagai format teks). |
+| `FR-PROD-05` | Batasan Master Produk untuk Petugas Stok | Pengguna dengan peran **Stock Keeper** dapat menambah dan mengedit informasi dasar produk (`sku`, `barcode`, `name`, `category_name`, `unit`) serta menginput/memperbarui harga modal (`cost_price`), namun input harga jual (`selling_price`), diskon produk (`discount_*`), dan tier harga grosir wajib dikunci/dinonaktifkan (hanya dapat diatur oleh **Admin**). |
 
 ### 2.4. Penyesuaian Stok (`FR-INV`)
 
 | ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
 | :--- | :--- | :--- |
-| `FR-INV-01` | Pencatatan **Stock Adjustment** | Perubahan stok di luar penjualan wajib melalui form **Stock Adjustment** oleh **Admin** dengan memilih produk, jenis penyesuaian (`RESTOCK` menambah stok, `DAMAGE` / `LOSS` mengurangi stok, `CORRECTION` menetapkan stok fisik aktual), jumlah bulat, dan catatan alasan. |
-| `FR-INV-02` | Pencegahan Stok Minus saat Koreksi | Jika **Admin** menginput pengurangan stok (`DAMAGE` / `LOSS`) yang membuat hasil akhir `stock < 0`, sistem wajib menolak penyimpanan. |
-| `FR-INV-03` | Audit Log Stok | Setiap **Stock Adjustment** menyimpan `stock_before`, `quantity_delta`, `stock_after`, `user_id` **Admin** pelaksana, `terminal_name`, dan waktu kejadian (`created_at`). |
+| `FR-INV-01` | Pencatatan **Stock Adjustment** | Perubahan stok di luar penjualan wajib melalui form **Stock Adjustment** oleh **Admin** atau **Stock Keeper** dengan memilih produk, jenis penyesuaian (`RESTOCK` menambah stok, `DAMAGE` / `LOSS` mengurangi stok, `CORRECTION` menetapkan stok fisik aktual), jumlah bulat, dan catatan alasan. |
+| `FR-INV-02` | Pencegahan Stok Minus saat Koreksi | Jika pengguna menginput pengurangan stok (`DAMAGE` / `LOSS`) yang membuat hasil akhir `stock < 0`, sistem wajib menolak penyimpanan. |
+| `FR-INV-03` | Audit Log Stok & Mutasi | Setiap perubahan master produk, penyesuaian stok, dan opname terekam di tabel `audit_logs` memuat `actor_id`, `action`, `entity_name`, `entity_id`, nilai sebelum/sesudah, dan waktu kejadian. |
+| `FR-INV-04` | Ambang Batas Persetujuan Stok | Penyesuaian stok atau selisih opname fisik oleh **Stock Keeper** dengan nilai nominal $\ge \text{Rp } 100.000$ ($\text{delta} \times \text{cost\_price}$) ATAU selisih kuantitas $\ge 10\%$ dari stok sistem otomatis berstatus `PENDING` (`stock_adjustment_requests`) dan stok fisik belum berubah sebelum disetujui. Ambang batas ini dapat diatur oleh **Admin** di Pengaturan Toko. |
+| `FR-INV-05` | Antrean Persetujuan Stok & Verifikasi PIN Admin | **Admin** dapat melihat daftar pengajuan penyesuaian stok tertunda (`PENDING`), meninjau alasan dan dampak nilai rupiah, lalu menyetujui (*Approve*) atau menolak (*Reject*) dengan verifikasi PIN Admin. Saat disetujui, stok produk diperbarui seketika dalam transaksi atomik. |
 
 ### 2.5. Transaksi Kasir / POS Register (`FR-POS`)
 
@@ -117,9 +122,13 @@ Untuk satu transaksi **Sale**:
 
 | ID | Kebutuhan | Kriteria Penerimaan (Acceptance Criteria) |
 | :--- | :--- | :--- |
-| `FR-REP-01` | Ringkasan Omzet & Laba Kotor (**Admin**) | **Admin** dapat melihat laporan berdasarkan rentang tanggal (Hari Ini, Kemarin, 7 Hari Terakhir, Bulan Ini, atau Tanggal Kustom) serta filter per **Cashier** dan per Terminal. Laporan menghitung dari transaksi `COMPLETED` (mengecualikan `VOIDED`): `Jumlah Transaksi Sukses`, `Jumlah Transaksi Void`, `Total Penjualan Kotor`, `Total Diskon`, `Omzet Bersih (Net Sales)`, `Total HPP (Cost Price Snapshot)`, dan `Laba Kotor (Gross Profit)`. |
-| `FR-REP-02` | Laporan Produk Terlaris & Stok Menipis | **Admin** dapat melihat daftar produk terlaris berdasarkan kuantitas terjual / laba, serta daftar peringatan produk yang stoknya habis (`stock == 0`) atau menipis (`stock <= 5`). |
-| `FR-REP-03` | Ekspor Laporan ke Excel (.xlsx) | **Admin** dapat mengekspor laporan transaksi dan rincian penjualan pada periode terpilih ke file Excel (`.xlsx`) 2-sheet (Sheet 1: Ringkasan Metrik Laba & Rekap Metode Bayar, Sheet 2: Rincian Penjualan per Item dengan format Rupiah rapi). |
+| `FR-REP-01` | Ringkasan Omzet & Laba Kotor (**Admin** & **Reporter**) | Pengguna berhak dapat melihat laporan berdasarkan rentang tanggal (Hari Ini, Kemarin, 7 Hari Terakhir, Bulan Ini, atau Tanggal Kustom) serta filter per **Cashier** dan per Terminal. Laporan menghitung dari transaksi `COMPLETED` (mengecualikan `VOIDED`): `Jumlah Transaksi Sukses`, `Jumlah Transaksi Void`, `Total Penjualan Kotor`, `Total Diskon`, `Omzet Bersih (Net Sales)`, `Total HPP (Cost Price Snapshot)`, dan `Laba Kotor (Gross Profit)`. |
+| `FR-REP-02` | Laporan Produk Terlaris & Stok Menipis | Pengguna berhak dapat melihat daftar produk terlaris berdasarkan kuantitas terjual / laba, serta daftar peringatan produk yang stoknya habis (`stock == 0`) atau menipis (`stock <= 5`). |
+| `FR-REP-03` | Ekspor Laporan ke Excel (.xlsx) | Pengguna berhak dapat mengekspor laporan transaksi dan rincian penjualan pada periode terpilih ke file Excel (`.xlsx`) 2-sheet (Sheet 1: Ringkasan Metrik Laba & Rekap Metode Bayar, Sheet 2: Rincian Penjualan per Item dengan format Rupiah rapi). |
+| `FR-REP-04` | Laporan Arus Kas / Ringkasan Keuangan | Menyajikan ringkasan pergerakan kas toko: penerimaan penjualan tunai, pemotongan diskon, transaksi void, mutasi kas laci masuk (`IN`) dan keluar (`OUT`), selisih kas fisik shift kasir (`discrepancy`), serta rekapitulasi harian dan bulanan. |
+| `FR-REP-05` | Laporan Laba Kotor Komprehensif | Menyajikan analisis keuntungan kotor mendalam: rincian omzet, HPP modal snapshot, laba rupiah, dan margin laba (%) per item produk, per kategori barang, dan tren berkala. |
+| `FR-REP-06` | Laporan Inventaris & Nilai Stok | Menyajikan status stok terkini: kuantitas fisik, valuasi modal persediaan ($\sum \text{stok} \times \text{cost\_price}$), mutasi masuk/keluar pada rentang tanggal, riwayat stock opname, dan daftar barang tidak bergerak (*slow-moving*). Pengguna **Stock Keeper** memiliki hak akses khusus ke laporan ini. |
+| `FR-REP-07` | Simpan Manual ke Folder & Cetak Laporan | Pengguna dapat menyimpan laporan terpilih ke file Excel langsung ke folder lokal/jaringan yang ditentukan pengguna melalui tombol "Simpan ke Folder", serta mencetak laporan ke format A4/PDF (via dialog cetak Windows) dan ringkasan harian ke printer thermal 58mm/80mm lokal. |
 
 ### 2.9. Perangkat Keras Kasir & Backup (`FR-HW` & `FR-SYS`)
 

@@ -2,16 +2,23 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   Ban,
+  Boxes,
   Calendar,
   Clock,
   Download,
   Eye,
+  PieChart,
   Printer,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { VoidPinModal } from "../components/pos/VoidPinModal";
 import { ShiftReportPreviewModal } from "../components/receipt/ShiftReportPreviewModal";
+import { FinancialReportView } from "../components/reports/FinancialReportView";
+import { ProfitReportView } from "../components/reports/ProfitReportView";
 import { ShiftHistoryView } from "../components/reports/ShiftHistoryView";
+import { StockReportView } from "../components/reports/StockReportView";
+import { useAuth } from "../context/AuthContext";
 import { useTerminal } from "../context/TerminalContext";
 import { ipc } from "../services/ipc";
 import type { Sale, SalesReport, User } from "../types/domain";
@@ -24,6 +31,8 @@ import {
   formatRupiah,
   todayLocalIsoDate,
 } from "../utils/posCalculator";
+
+export type ReportTab = "SALES" | "SHIFTS" | "FINANCIAL" | "PROFIT" | "STOCK";
 
 function getLocalDateStr(offsetDays: number = 0): string {
   const d = new Date();
@@ -43,9 +52,18 @@ export const ReportsPage: React.FC = () => {
     terminalStatus,
   } = useTerminal();
 
-  const [activeReportTab, setActiveReportTab] = useState<"SALES" | "SHIFTS">(
-    "SALES"
+  const { user } = useAuth();
+  const isStockOnly = user?.role === "STOCK";
+
+  const [activeReportTab, setActiveReportTab] = useState<ReportTab>(
+    isStockOnly ? "STOCK" : "SALES"
   );
+
+  useEffect(() => {
+    if (isStockOnly && activeReportTab !== "STOCK") {
+      setActiveReportTab("STOCK");
+    }
+  }, [isStockOnly, activeReportTab]);
 
   const todayStr = todayLocalIsoDate();
   const [startDate, setStartDate] = useState<string>(todayStr);
@@ -90,8 +108,10 @@ export const ReportsPage: React.FC = () => {
   }, [startDate, endDate, cashierId, terminalName]);
 
   useEffect(() => {
-    void loadReport();
-  }, [loadReport]);
+    if (activeReportTab === "SALES") {
+      void loadReport();
+    }
+  }, [loadReport, activeReportTab]);
 
   const applyPreset = (preset: "TODAY" | "YESTERDAY" | "7DAYS" | "MONTH") => {
     const today = getLocalDateStr(0);
@@ -151,20 +171,47 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
+  const getHeaderInfo = () => {
+    switch (activeReportTab) {
+      case "SALES":
+        return {
+          title: "Laporan Penjualan & Riwayat Struk Transaksi",
+          desc: "Audit transaksi kasir, rincian diskon, pencetakan ulang struk, dan pembatalan transaksi (Void).",
+        };
+      case "SHIFTS":
+        return {
+          title: "Riwayat Shift Kasir & Rekap Kas Laci (Laporan X & Z)",
+          desc: "Audit rekap kas, saldo modal awal (float), mutasi kas masuk/keluar, dan selisih kas fisik laci (cash discrepancy).",
+        };
+      case "FINANCIAL":
+        return {
+          title: "Laporan Arus Kas & Keuangan Komprehensif",
+          desc: "Rekap omzet kotor, diskon, void, penerimaan tunai, mutasi kas operasional, dan arus kas bersih harian.",
+        };
+      case "PROFIT":
+        return {
+          title: "Laporan Laba Kotor & Analisis Margin Kategori",
+          desc: "Perhitungan historis laba kotor akurat berdasarkan snapshot modal (HPP/COGS) saat transaksi terjadi (BR-03).",
+        };
+      case "STOCK":
+        return {
+          title: "Laporan Inventaris & Valuasi Nilai Stok",
+          desc: "Valuasi total modal (HPP) vs harga retail, potensi laba inventaris toko, serta rekap mutasi barang.",
+        };
+    }
+  };
+  const headerInfo = getHeaderInfo();
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-zinc-100/70 space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
-            {activeReportTab === "SALES"
-              ? "Laporan Penjualan & Laba Kotor (Gross Profit)"
-              : "Riwayat Shift Kasir & Rekap Kas Laci (Laporan X & Z)"}
+            {headerInfo.title}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {activeReportTab === "SALES"
-              ? "Perhitungan historis akurat berdasarkan snapshot harga jual, diskon, dan HPP saat transaksi terjadi (BR-03)."
-              : "Audit rekap kas, saldo modal awal (float), mutasi kas masuk/keluar, dan selisih kas fisik laci (cash discrepancy)."}
+            {headerInfo.desc}
           </p>
         </div>
 
@@ -183,36 +230,79 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Subtab Switcher */}
-      <div className="flex border-b border-zinc-200 gap-1">
+      <div className="flex border-b border-zinc-200 gap-1 overflow-x-auto print:hidden">
+        {!isStockOnly && (
+          <>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("SALES")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "SALES"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Penjualan &amp; Struk
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("SHIFTS")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "SHIFTS"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Rekap Shift &amp; Kas Laci
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("FINANCIAL")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "FINANCIAL"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              Arus Kas &amp; Keuangan
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("PROFIT")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "PROFIT"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <PieChart className="w-4 h-4" />
+              Laba Kotor (Gross Profit)
+            </button>
+          </>
+        )}
         <button
           type="button"
-          onClick={() => setActiveReportTab("SALES")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-            activeReportTab === "SALES"
+          onClick={() => setActiveReportTab("STOCK")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeReportTab === "STOCK"
               ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
               : "border-transparent text-zinc-500 hover:text-zinc-800"
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
-          Penjualan &amp; Laba Kotor
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveReportTab("SHIFTS")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-            activeReportTab === "SHIFTS"
-              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
-              : "border-transparent text-zinc-500 hover:text-zinc-800"
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          Rekap Shift &amp; Kas Laci
+          <Boxes className="w-4 h-4" />
+          Inventaris &amp; Nilai Stok
         </button>
       </div>
 
-      {activeReportTab === "SHIFTS" ? (
-        <ShiftHistoryView />
-      ) : (
+      {activeReportTab === "SHIFTS" && <ShiftHistoryView />}
+      {activeReportTab === "FINANCIAL" && <FinancialReportView />}
+      {activeReportTab === "PROFIT" && <ProfitReportView />}
+      {activeReportTab === "STOCK" && <StockReportView />}
+
+      {activeReportTab === "SALES" && (
         <>
           {feedback && (
             <div

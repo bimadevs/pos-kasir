@@ -7,19 +7,19 @@ Dokumen ini adalah titik orientasi utama bagi AI Agent sebelum dan selama menuli
 ## 1. Indeks Dokumen SDD (Single Source of Truth)
 
 Sebelum mengubah atau menambah fitur, baca dokumen yang relevan:
-1. **[GLOSSARY.md](file:///home/bimadev/project/antigravity/pos-kasir/GLOSSARY.md)**: Kosakata baku domain (`User`, `Cashier`, `Admin`, `Product`, `Cost Price`, `Selling Price`, `Product Discount`, `Stock Adjustment`, `Sale`, `Line Item`, `Held Bill`, `Void`, `Receipt`, `Server Terminal`, `Client Terminal`, `Pairing Code`, `Cash Drawer`). Gunakan istilah ini secara konsisten di nama struct Rust, interface TypeScript, dan tabel database.
+1. **[GLOSSARY.md](file:///home/bimadev/project/antigravity/pos-kasir/GLOSSARY.md)**: Kosakata baku domain (`User`, `Cashier`, `Admin`, `Stock Keeper`, `Reporter`, `Product`, `Cost Price`, `Selling Price`, `Product Discount`, `Stock Adjustment`, `Sale`, `Line Item`, `Held Bill`, `Void`, `Receipt`, `Server Terminal`, `Client Terminal`, `Pairing Code`, `Cash Drawer`). Gunakan istilah ini secara konsisten di nama struct Rust, interface TypeScript, dan tabel database.
 2. **[docs/PRD.md](file:///home/bimadev/project/antigravity/pos-kasir/docs/PRD.md)**: Visi produk, alur perjalanan pengguna, dan batasan fitur (*In-Scope vs Out-of-Scope*).
 3. **[docs/REQUIREMENTS.md](file:///home/bimadev/project/antigravity/pos-kasir/docs/REQUIREMENTS.md)**: Rumus matematika bisnis (`BR-01` s.d. `BR-03`) dan daftar kriteria penerimaan (`FR-*`, `NFR-*`).
 4. **[docs/ARCHITECTURE.md](file:///home/bimadev/project/antigravity/pos-kasir/docs/ARCHITECTURE.md)**: Topologi Dual-Mode (`SERVER` vs `CLIENT`), abstraksi `BackendDispatcher`, dan daftar crate Rust / paket NPM.
 5. **[docs/SYSTEM-DESIGN.md](file:///home/bimadev/project/antigravity/pos-kasir/docs/SYSTEM-DESIGN.md)**: Skema DDL SQLite (`schema.sql`), kontrak `local_config.json`, daftar Tauri Commands & HTTP Endpoints, algoritma transaksi atomik, dan byte **Raw ESC/POS**.
 6. **[docs/UI-UX-SPEC.md](file:///home/bimadev/project/antigravity/pos-kasir/docs/UI-UX-SPEC.md)**: Tata letak layar, pintasan keyboard (`F1`–`F10`), dan algoritma deteksi *USB Barcode Scanner*.
-7. **[docs/adr/](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/)**: Keputusan arsitektur yang mengikat ([ADR-0001](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0001-dual-mode-lan-server-sqlite.md), [ADR-0002](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0002-raw-escpos-windows-spooler-printing.md), [ADR-0003](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0003-unreserved-held-bills-and-atomic-sale-stock.md)).
+7. **[docs/adr/](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/)**: Keputusan arsitektur yang mengikat ([ADR-0001](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0001-dual-mode-lan-server-sqlite.md), [ADR-0002](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0002-raw-escpos-windows-spooler-printing.md), [ADR-0003](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0003-unreserved-held-bills-and-atomic-sale-stock.md), [ADR-0004](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0004-four-discrete-user-roles-and-approval-thresholds.md)).
 
 ---
 
-## 2. Sepuluh Invarian Mutlak (Guardrails untuk AI Agent)
+## 2. Tiga Belas Invarian Mutlak (Guardrails untuk AI Agent)
 
-Saat mengimplementasikan fitur, pastikan ke-10 invarian berikut selalu terpenuhi:
+Saat mengimplementasikan fitur, pastikan ke-13 invarian berikut selalu terpenuhi:
 
 1. **Rupiah & Kuantitas Bulat (`i64`)**: Seluruh harga (`cost_price`, `selling_price`, `discount_value`, `subtotal`, `total_amount`, `cash_received`, `change_amount`) dan jumlah stok/kuantitas (`stock`, `quantity`) menggunakan bilangan bulat (`i64` di Rust, `number` bulat di TypeScript). Pembagian persentase diskon wajib menggunakan pembulatan ke bawah integer (`(price * pct) / 100`).
 2. **Blokir Keras Stok `0` (`stock >= 0`)**: Barang dengan `stock == 0` atau permintaan kuantitas $> \text{stock}$ wajib ditolak baik di antarmuka kasir maupun di dalam transaksi `BEGIN IMMEDIATE` SQLite saat pembuatan **Sale**.
@@ -31,6 +31,9 @@ Saat mengimplementasikan fitur, pastikan ke-10 invarian berikut selalu terpenuhi
 8. **Satu Logika Bisnis di `CoreService`**: Jangan menduplikasi query SQL atau perhitungan bisnis di dua tempat. Baik panggilan lokal di **Server Terminal** maupun endpoint HTTP `Axum` untuk **Client Terminal** harus memanggil metode `CoreService` yang sama.
 9. **Eksekusi Perangkat Keras Selalu Lokal**: Pencetakan struk (`print_receipt`) dan pembukaan laci uang (`kick_drawer`) selalu dijalankan di komputer tempat kasir menekan tombol Bayar, bukan dikirim untuk dicetak di printer milik **Server Terminal**.
 10. **Perlindungan Jendela `Server Terminal`**: Menekan tombol Close (`X`) pada jendela **Server Terminal** wajib meminimalkan aplikasi ke *Windows System Tray* agar koneksi LAN ke 3–5 **Client Terminal** tidak terputus.
+11. **Pemisahan Peran Tegas Kasir vs Back-Office**: Hanya pengguna `ADMIN` dan `CASHIER` yang diizinkan mengakses layar kasir (POS), menahan/memanggil `Held Bill`, dan membuka shift kasir. Pengguna `STOCK` (Petugas Stok) dan `REPORTER` (Petugas Laporan) murni back-office dan diblokir dari seluruh aksi transaksi kasir.
+12. **Ambang Batas Persetujuan Stok & Audit Log**: Penyesuaian stok atau stock opname oleh pengguna `STOCK` dengan nilai $\ge \text{Rp } 100.000$ ATAU selisih $\ge 10\%$ dari stok sistem wajib berstatus `PENDING` dan memerlukan persetujuan PIN `ADMIN` sebelum stok fisik di database diperbarui. Seluruh perubahan stok terekam pada audit log.
+13. **Kerahasiaan Harga Modal Kasir**: `cost_price` hanya boleh diekspos kepada peran `ADMIN`, `STOCK` (saat input penerimaan barang), dan `REPORTER` (agregasi laporan laba). Peran `CASHIER` tidak boleh menerima nilai `cost_price` sama sekali.
 
 ---
 

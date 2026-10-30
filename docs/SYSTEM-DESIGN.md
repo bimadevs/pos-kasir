@@ -147,17 +147,19 @@ CREATE TABLE IF NOT EXISTS store_settings (
     store_phone TEXT NOT NULL DEFAULT '',
     receipt_footer TEXT NOT NULL DEFAULT 'Terima kasih atas kunjungan Anda. Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.',
     pairing_code TEXT NOT NULL,
+    stock_approval_amount_threshold INTEGER NOT NULL DEFAULT 100000,
+    stock_approval_percent_threshold INTEGER NOT NULL DEFAULT 10,
     updated_at TEXT NOT NULL
 );
 
--- 2. Pengguna (Admin & Cashier)
+-- 2. Pengguna (Admin, Cashier, Stock Keeper, Reporter)
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
     full_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     pin_hash TEXT, -- Wajib terisi jika role = 'ADMIN'
-    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'CASHIER')),
+    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'CASHIER', 'STOCK', 'REPORTER')),
     is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -335,6 +337,41 @@ CREATE TABLE IF NOT EXISTS product_price_tiers (
     updated_at TEXT NOT NULL,
     CONSTRAINT uq_product_tier UNIQUE (product_id, min_quantity)
 );
+
+-- 14. Audit Log
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL REFERENCES users(id),
+    action TEXT NOT NULL,
+    entity_name TEXT NOT NULL,
+    entity_id TEXT,
+    old_value_json TEXT,
+    new_value_json TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL
+);
+
+-- 15. Antrean Persetujuan Penyesuaian Stok
+CREATE TABLE IF NOT EXISTS stock_adjustment_requests (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL REFERENCES products(id),
+    adjustment_type TEXT NOT NULL CHECK (adjustment_type IN ('RESTOCK', 'DAMAGE', 'LOSS', 'CORRECTION')),
+    quantity_delta INTEGER NOT NULL,
+    cost_price_at_request INTEGER,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    requested_by TEXT NOT NULL REFERENCES users(id),
+    terminal_name TEXT NOT NULL,
+    approved_by TEXT REFERENCES users(id),
+    rejection_reason TEXT,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_adj_req_status ON stock_adjustment_requests(status);
+CREATE INDEX IF NOT EXISTS idx_adj_req_product ON stock_adjustment_requests(product_id);
 
 CREATE INDEX IF NOT EXISTS idx_shifts_terminal_status ON cashier_shifts(terminal_name, status);
 CREATE INDEX IF NOT EXISTS idx_shifts_cashier ON cashier_shifts(cashier_id, opened_at DESC);

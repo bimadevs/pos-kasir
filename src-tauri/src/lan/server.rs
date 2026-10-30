@@ -3,15 +3,17 @@ use crate::lan::middleware::{
     authenticate_request, extract_header_str, verify_pairing_header, HEADER_SESSION_TOKEN,
 };
 use crate::models::{
-    AuthSession, CancelOpnameSessionRequest, CashMovement, CashMovementRequest, CashierShift,
-    CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
-    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
-    HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest, OpenShiftRequest,
-    OpnameQuery, OpnameSessionDetail, Product, ProductFilter, ProductImportRow, ProductPriceTier,
-    RecalledHeldBill, ReceiptData, RecordOpnameScanRequest, SaleWithItems, SalesReport,
+    ApproveStockAdjustmentRequest, AuditLog, AuthSession, CancelOpnameSessionRequest, CashMovement,
+    CashMovementRequest, CashierShift, CloseShiftRequest, CommitOpnameSessionRequest,
+    CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
+    CreateStockAdjustmentRequest, CsvImportResult, FinancialReport, HealthCheckResponse, HeldBill,
+    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameQuery, OpnameSessionDetail,
+    Product, ProductFilter, ProductImportRow, ProductPriceTier, ProfitReport, RecalledHeldBill,
+    ReceiptData, RecordOpnameScanRequest, RejectStockAdjustmentRequest, SaleWithItems, SalesReport,
     SalesReportFilter, SetPriceTiersRequest, ShiftReportData, ShiftsQuery, StockAdjustment,
-    StockOpnameItem, StockOpnameSession, StoreSettings, UpdateOpnameItemQtyRequest,
-    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    StockAdjustmentRequest, StockAdjustmentResult, StockOpnameItem, StockOpnameSession, StockReport,
+    StoreSettings, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
+    UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use axum::{
@@ -39,6 +41,23 @@ pub struct LookupQuery {
 #[derive(Debug, Deserialize)]
 pub struct StockAdjustmentQuery {
     pub product_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StockAdjustmentRequestsQuery {
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuditLogsQuery {
+    pub entity_name: Option<String>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StockReportQuery {
+    pub category: Option<String>,
+    pub search: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,6 +105,19 @@ pub fn build_lan_router(state: LanServerState) -> Router {
             "/api/v1/stock-adjustments",
             get(handle_list_stock_adjustments).post(handle_create_stock_adjustment),
         )
+        .route(
+            "/api/v1/stock-adjustments/requests",
+            get(handle_list_stock_adjustment_requests),
+        )
+        .route(
+            "/api/v1/stock-adjustments/requests/approve",
+            post(handle_approve_stock_adjustment_request),
+        )
+        .route(
+            "/api/v1/stock-adjustments/requests/reject",
+            post(handle_reject_stock_adjustment_request),
+        )
+        .route("/api/v1/audit-logs", get(handle_list_audit_logs))
         .route("/api/v1/sales", post(handle_create_sale))
         .route("/api/v1/sales/today", get(handle_list_today_sales))
         .route("/api/v1/sales/{id}/receipt", get(handle_get_sale_receipt))
@@ -104,6 +136,9 @@ pub fn build_lan_router(state: LanServerState) -> Router {
             "/api/v1/reports/sales/csv",
             get(handle_export_sales_report_csv),
         )
+        .route("/api/v1/reports/financial", get(handle_get_financial_report))
+        .route("/api/v1/reports/profit", get(handle_get_profit_report))
+        .route("/api/v1/reports/stock", get(handle_get_stock_report))
         .route(
             "/api/v1/users",
             get(handle_list_users).post(handle_upsert_user),
@@ -274,12 +309,58 @@ async fn handle_create_stock_adjustment(
     State(state): State<LanServerState>,
     headers: HeaderMap,
     Json(req): Json<CreateStockAdjustmentRequest>,
-) -> AppResult<Json<StockAdjustment>> {
+) -> AppResult<Json<StockAdjustmentResult>> {
     let (user, terminal_name) = authenticate_request(&state.core, &headers)?;
-    let adj = state
+    let res = state
         .core
         .create_stock_adjustment(&user, &terminal_name, &req)?;
+    Ok(Json(res))
+}
+
+async fn handle_list_stock_adjustment_requests(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(query): Query<StockAdjustmentRequestsQuery>,
+) -> AppResult<Json<Vec<StockAdjustmentRequest>>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let list = state
+        .core
+        .list_stock_adjustment_requests(&user, query.status.as_deref())?;
+    Ok(Json(list))
+}
+
+async fn handle_approve_stock_adjustment_request(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<ApproveStockAdjustmentRequest>,
+) -> AppResult<Json<StockAdjustment>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let adj = state
+        .core
+        .approve_stock_adjustment_request(&user, &req)?;
     Ok(Json(adj))
+}
+
+async fn handle_reject_stock_adjustment_request(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Json(req): Json<RejectStockAdjustmentRequest>,
+) -> AppResult<Json<()>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    state.core.reject_stock_adjustment_request(&user, &req)?;
+    Ok(Json(()))
+}
+
+async fn handle_list_audit_logs(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(query): Query<AuditLogsQuery>,
+) -> AppResult<Json<Vec<AuditLog>>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let logs = state
+        .core
+        .list_audit_logs(&user, query.entity_name.as_deref(), query.limit)?;
+    Ok(Json(logs))
 }
 
 async fn handle_list_stock_adjustments(
@@ -401,6 +482,40 @@ async fn handle_export_sales_report_csv(
     let (user, _) = authenticate_request(&state.core, &headers)?;
     let csv_content = state.core.export_sales_report_csv(&user, &filter)?;
     Ok(Json(CsvPayload { csv_content }))
+}
+
+async fn handle_get_financial_report(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(filter): Query<SalesReportFilter>,
+) -> AppResult<Json<FinancialReport>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let report = state.core.get_financial_report(&user, &filter)?;
+    Ok(Json(report))
+}
+
+async fn handle_get_profit_report(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(filter): Query<SalesReportFilter>,
+) -> AppResult<Json<ProfitReport>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let report = state.core.get_profit_report(&user, &filter)?;
+    Ok(Json(report))
+}
+
+async fn handle_get_stock_report(
+    State(state): State<LanServerState>,
+    headers: HeaderMap,
+    Query(query): Query<StockReportQuery>,
+) -> AppResult<Json<StockReport>> {
+    let (user, _) = authenticate_request(&state.core, &headers)?;
+    let report = state.core.get_stock_report(
+        &user,
+        query.category.as_deref(),
+        query.search.as_deref(),
+    )?;
+    Ok(Json(report))
 }
 
 async fn handle_list_users(

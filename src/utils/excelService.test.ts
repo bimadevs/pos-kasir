@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
 import {
+  buildFinancialReportWorkbook,
   buildOpnameReportWorkbook,
   buildProductTemplateWorkbook,
   buildProductsExportWorkbook,
+  buildProfitReportWorkbook,
   buildSalesReportExportWorkbook,
+  buildStockReportWorkbook,
   parseProductImportExcel,
 } from "./excelService";
 import type {
+  FinancialReport,
   Product,
+  ProfitReport,
   SalesReport,
   StockOpnameItem,
   StockOpnameSession,
+  StockReport,
 } from "../types/domain";
 
 const sampleProducts: Product[] = [
@@ -387,5 +393,151 @@ describe("excelService — Layanan Excel Ramah Admin Awam", () => {
     expect(sheet2!.getRow(1).getCell(2).value).toBe("Kode SKU");
     expect(sheet2!.getRow(2).getCell(2).value).toBe("ATK-001");
     expect(sheet2!.getRow(2).getCell(8).value).toBe(-5);
+  });
+
+  it("menghasilkan file ekspor laporan keuangan & arus kas 2-sheet (Ringkasan & Rekap Harian)", () => {
+    const mockFinReport: FinancialReport = {
+      start_date: "2026-10-01",
+      end_date: "2026-10-28",
+      completed_sales_count: 15,
+      voided_sales_count: 1,
+      gross_sales: 1500000,
+      total_discount: 50000,
+      net_sales: 1450000,
+      total_void_amount: 30000,
+      cash_sales: 1450000,
+      cash_in_amount: 200000,
+      cash_out_amount: 100000,
+      total_shift_discrepancy: -5000,
+      net_cash_flow: 1545000,
+      daily_summaries: [
+        {
+          date: "2026-10-28",
+          completed_count: 5,
+          voided_count: 0,
+          gross_sales: 500000,
+          total_discount: 10000,
+          net_sales: 490000,
+          cash_sales: 490000,
+          cash_in: 50000,
+          cash_out: 20000,
+          shift_discrepancy: 0,
+          net_cash: 520000,
+        },
+      ],
+    };
+
+    const wb = buildFinancialReportWorkbook(mockFinReport, "Mudita Mart Test");
+    expect(wb.worksheets.length).toBe(2);
+
+    const sheet1 = wb.getWorksheet("Ringkasan Keuangan");
+    const sheet2 = wb.getWorksheet("Rekap Harian");
+    expect(sheet1).toBeDefined();
+    expect(sheet2).toBeDefined();
+
+    expect(sheet1!.getCell("B2").value).toContain("LAPORAN ARUS KAS & KEUANGAN");
+    expect(sheet2!.getRow(1).getCell(1).value).toBe("Tanggal");
+    expect(sheet2!.getRow(2).getCell("date").value).toBe("2026-10-28");
+    expect(sheet2!.getRow(2).getCell("net_sales").value).toBe(490000);
+  });
+
+  it("menghasilkan file ekspor laporan laba kotor 2-sheet (Laba per Kategori & Produk Paling Untung)", () => {
+    const mockProfitReport: ProfitReport = {
+      start_date: "2026-10-01",
+      end_date: "2026-10-28",
+      gross_sales: 1000000,
+      total_discount: 50000,
+      net_sales: 950000,
+      total_cogs: 700000,
+      gross_profit: 250000,
+      profit_margin_pct: 26.32,
+      category_profits: [
+        {
+          category_name: "Sembako",
+          total_qty_sold: 10,
+          net_revenue: 500000,
+          total_cogs: 380000,
+          gross_profit: 120000,
+          profit_margin_pct: 24.0,
+        },
+      ],
+      product_profits: [
+        {
+          product_id: "p1",
+          sku: "SMB-001",
+          product_name: "Beras 5kg",
+          unit: "sak",
+          total_qty_sold: 5,
+          net_revenue: 300000,
+          total_cost: 220000,
+          gross_profit: 80000,
+        },
+      ],
+    };
+
+    const wb = buildProfitReportWorkbook(mockProfitReport, "Mudita Mart Test");
+    expect(wb.worksheets.length).toBe(2);
+
+    const sheet1 = wb.getWorksheet("Laba per Kategori");
+    const sheet2 = wb.getWorksheet("Produk Paling Untung");
+    expect(sheet1).toBeDefined();
+    expect(sheet2).toBeDefined();
+
+    expect(sheet1!.getCell("B2").value).toContain("LAPORAN LABA KOTOR");
+    expect(sheet2!.getRow(1).getCell(1).value).toBe("Kode SKU");
+    expect(sheet2!.getRow(2).getCell("sku").value).toBe("SMB-001");
+    expect(sheet2!.getRow(2).getCell("gross_profit").value).toBe(80000);
+  });
+
+  it("menghasilkan file ekspor laporan inventaris & nilai stok 2-sheet (Ringkasan & Daftar Nilai)", () => {
+    const mockStockReport: StockReport = {
+      total_products: 50,
+      active_products: 48,
+      total_stock_qty: 1200,
+      total_cost_valuation: 15000000,
+      total_retail_valuation: 18500000,
+      potential_profit: 3500000,
+      movements: {
+        restock_qty: 500,
+        sold_qty: 350,
+        damage_qty: 5,
+        loss_qty: 2,
+        correction_delta: -10,
+      },
+      low_stock_count: 3,
+      out_of_stock_count: 1,
+      items: [
+        {
+          product_id: "p1",
+          sku: "MNM-001",
+          barcode: "899999",
+          product_name: "Teh Botol 450ml",
+          category_name: "Minuman",
+          unit: "botol",
+          stock: 4,
+          min_stock: 5,
+          cost_price: 3500,
+          selling_price: 5000,
+          total_cost_valuation: 14000,
+          total_retail_valuation: 20000,
+          potential_profit: 6000,
+          is_low_stock: true,
+        },
+      ],
+    };
+
+    const wb = buildStockReportWorkbook(mockStockReport, "Mudita Mart Test");
+    expect(wb.worksheets.length).toBe(2);
+
+    const sheet1 = wb.getWorksheet("Ringkasan Inventaris");
+    const sheet2 = wb.getWorksheet("Daftar Nilai Stok");
+    expect(sheet1).toBeDefined();
+    expect(sheet2).toBeDefined();
+
+    expect(sheet1!.getCell("B2").value).toContain("LAPORAN INVENTARIS");
+    expect(sheet2!.getRow(1).getCell(1).value).toBe("Kode SKU");
+    expect(sheet2!.getRow(2).getCell("sku").value).toBe("MNM-001");
+    expect(sheet2!.getRow(2).getCell("stock_status").value).toBe("Kritis");
+    expect(sheet2!.getRow(2).getCell("potential_profit").value).toBe(6000);
   });
 });

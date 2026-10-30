@@ -5,16 +5,18 @@ use crate::hardware::spooler::{
     list_local_printers as enumerate_printers, print_receipt_local, print_shift_report_local,
 };
 use crate::models::{
-    AuthSession, CashMovement, CashMovementRequest, CashierShift, CloseShiftRequest,
-    CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
-    CreateStockAdjustmentRequest, CsvImportResult, DiscountType, HealthCheckResponse, HeldBill,
-    ImportProductsResult, LocalPrinterInfo, LoginRequest, OpenShiftRequest, OpnameSessionDetail,
-    PrintOutcome, Product, ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill,
-    ReceiptData, RecordOpnameScanRequest, Sale, SaleLineItem, SaleStatus, SaleWithItems,
-    SalesReport, SalesReportFilter, SetPriceTiersRequest, SetupClientRequest, SetupServerRequest,
-    ShiftReportData, StockAdjustment, StockOpnameItem, StockOpnameSession, StoreSettings,
-    TerminalStatus, UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest,
-    UpsertUserRequest, User, VoidSaleRequest,
+    ApproveStockAdjustmentRequest, AuditLog, AuthSession, CashMovement, CashMovementRequest,
+    CashierShift, CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
+    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
+    DiscountType, FinancialReport, HealthCheckResponse, HeldBill, ImportProductsResult,
+    LocalPrinterInfo, LoginRequest, OpenShiftRequest, OpnameSessionDetail, PrintOutcome, Product,
+    ProductFilter, ProductImportRow, ProductPriceTier, ProfitReport, RecalledHeldBill,
+    ReceiptData, RecordOpnameScanRequest, RejectStockAdjustmentRequest, Sale, SaleLineItem,
+    SaleStatus, SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest,
+    SetupClientRequest, SetupServerRequest, ShiftReportData, StockAdjustment,
+    StockAdjustmentRequest, StockAdjustmentResult, StockOpnameItem, StockOpnameSession, StockReport,
+    StoreSettings, TerminalStatus, UpdateOpnameItemQtyRequest,
+    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
 };
 use crate::services::core_service::CoreService;
 use crate::services::dispatcher::BackendDispatcher;
@@ -141,7 +143,7 @@ pub async fn import_products(
 pub async fn create_stock_adjustment(
     state: DispatcherState<'_>,
     req: CreateStockAdjustmentRequest,
-) -> AppResult<StockAdjustment> {
+) -> AppResult<StockAdjustmentResult> {
     state.create_stock_adjustment(&req).await
 }
 
@@ -151,6 +153,39 @@ pub async fn list_stock_adjustments(
     product_id: Option<String>,
 ) -> AppResult<Vec<StockAdjustment>> {
     state.list_stock_adjustments(product_id.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn list_stock_adjustment_requests(
+    state: DispatcherState<'_>,
+    status: Option<String>,
+) -> AppResult<Vec<StockAdjustmentRequest>> {
+    state.list_stock_adjustment_requests(status.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn approve_stock_adjustment_request(
+    state: DispatcherState<'_>,
+    req: ApproveStockAdjustmentRequest,
+) -> AppResult<StockAdjustment> {
+    state.approve_stock_adjustment_request(&req).await
+}
+
+#[tauri::command]
+pub async fn reject_stock_adjustment_request(
+    state: DispatcherState<'_>,
+    req: RejectStockAdjustmentRequest,
+) -> AppResult<()> {
+    state.reject_stock_adjustment_request(&req).await
+}
+
+#[tauri::command]
+pub async fn list_audit_logs(
+    state: DispatcherState<'_>,
+    entity_name: Option<String>,
+    limit: Option<i64>,
+) -> AppResult<Vec<AuditLog>> {
+    state.list_audit_logs(entity_name.as_deref(), limit).await
 }
 
 // ============================================================================
@@ -234,6 +269,33 @@ pub async fn export_sales_report_csv(
     filter: SalesReportFilter,
 ) -> AppResult<String> {
     state.export_sales_report_csv(&filter).await
+}
+
+#[tauri::command]
+pub async fn get_financial_report(
+    state: DispatcherState<'_>,
+    filter: SalesReportFilter,
+) -> AppResult<FinancialReport> {
+    state.get_financial_report(&filter).await
+}
+
+#[tauri::command]
+pub async fn get_profit_report(
+    state: DispatcherState<'_>,
+    filter: SalesReportFilter,
+) -> AppResult<ProfitReport> {
+    state.get_profit_report(&filter).await
+}
+
+#[tauri::command]
+pub async fn get_stock_report(
+    state: DispatcherState<'_>,
+    category: Option<String>,
+    search: Option<String>,
+) -> AppResult<StockReport> {
+    state
+        .get_stock_report(category.as_deref(), search.as_deref())
+        .await
 }
 
 #[tauri::command]

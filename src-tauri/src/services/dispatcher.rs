@@ -4,15 +4,18 @@ use crate::error::{AppError, AppResult};
 use crate::lan::client::RemoteHttpClient;
 use crate::lan::server::spawn_lan_server;
 use crate::models::{
-    AuthSession, CashMovement, CashMovementRequest, CashierShift, CloseShiftRequest,
-    CommitOpnameSessionRequest, CreateHeldBillRequest, CreateOpnameSessionRequest, CreateSaleRequest,
-    CreateStockAdjustmentRequest, CsvImportResult, HealthCheckResponse, HeldBill,
-    ImportProductsResult, LoginRequest, OpenShiftRequest, OpnameSessionDetail, Product,
-    ProductFilter, ProductImportRow, ProductPriceTier, RecalledHeldBill, ReceiptData,
-    RecordOpnameScanRequest, SaleWithItems, SalesReport, SalesReportFilter, SetPriceTiersRequest,
-    SetupClientRequest, SetupServerRequest, ShiftReportData, StockAdjustment, StockOpnameItem,
-    StockOpnameSession, StoreSettings, TerminalStatus, UpdateOpnameItemQtyRequest,
-    UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest, User, VoidSaleRequest,
+    ApproveStockAdjustmentRequest, AuditLog, AuthSession, CashMovement, CashMovementRequest,
+    CashierShift, CloseShiftRequest, CommitOpnameSessionRequest, CreateHeldBillRequest,
+    CreateOpnameSessionRequest, CreateSaleRequest, CreateStockAdjustmentRequest, CsvImportResult,
+    FinancialReport, HealthCheckResponse, HeldBill, ImportProductsResult, LoginRequest,
+    OpenShiftRequest, OpnameSessionDetail, Product, ProductFilter, ProductImportRow,
+    ProductPriceTier, ProfitReport, RecalledHeldBill, ReceiptData, RecordOpnameScanRequest,
+    RejectStockAdjustmentRequest, SaleWithItems, SalesReport, SalesReportFilter,
+    SetPriceTiersRequest, SetupClientRequest, SetupServerRequest, ShiftReportData, StockAdjustment,
+    StockAdjustmentRequest, StockAdjustmentResult, StockOpnameItem, StockOpnameSession, StockReport,
+    StoreSettings, TerminalStatus,
+    UpdateOpnameItemQtyRequest, UpdateStoreSettingsRequest, UpsertProductRequest, UpsertUserRequest,
+    User, VoidSaleRequest,
 };
 use crate::services::auth_service::{now_unix_ts, SESSION_TTL_SECONDS};
 use crate::services::core_service::CoreService;
@@ -590,7 +593,7 @@ impl BackendDispatcher {
     pub async fn create_stock_adjustment(
         &self,
         req: &CreateStockAdjustmentRequest,
-    ) -> AppResult<StockAdjustment> {
+    ) -> AppResult<StockAdjustmentResult> {
         let sess = self.require_local_session()?;
         let cfg = self.get_config();
         match cfg.terminal_mode {
@@ -601,6 +604,86 @@ impl BackendDispatcher {
             TerminalMode::CLIENT => {
                 self.remote_client(&cfg)
                     .create_stock_adjustment(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn list_stock_adjustment_requests(
+        &self,
+        status_filter: Option<&str>,
+    ) -> AppResult<Vec<StockAdjustmentRequest>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.list_stock_adjustment_requests(&sess.user, status_filter),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .list_stock_adjustment_requests(&sess.session_token, status_filter)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn approve_stock_adjustment_request(
+        &self,
+        req: &ApproveStockAdjustmentRequest,
+    ) -> AppResult<StockAdjustment> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => {
+                self.core
+                    .approve_stock_adjustment_request(&sess.user, req)
+            }
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .approve_stock_adjustment_request(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn reject_stock_adjustment_request(
+        &self,
+        req: &RejectStockAdjustmentRequest,
+    ) -> AppResult<()> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.reject_stock_adjustment_request(&sess.user, req),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .reject_stock_adjustment_request(&sess.session_token, req)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn list_audit_logs(
+        &self,
+        entity_name: Option<&str>,
+        limit: Option<i64>,
+    ) -> AppResult<Vec<AuditLog>> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.list_audit_logs(&sess.user, entity_name, limit),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .list_audit_logs(&sess.session_token, entity_name, limit)
                     .await
             }
             TerminalMode::UNCONFIGURED => Err(AppError::Validation(
@@ -771,6 +854,61 @@ impl BackendDispatcher {
             TerminalMode::CLIENT => {
                 self.remote_client(&cfg)
                     .get_sales_report(&sess.session_token, filter)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_financial_report(
+        &self,
+        filter: &SalesReportFilter,
+    ) -> AppResult<FinancialReport> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_financial_report(&sess.user, filter),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .get_financial_report(&sess.session_token, filter)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_profit_report(&self, filter: &SalesReportFilter) -> AppResult<ProfitReport> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_profit_report(&sess.user, filter),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .get_profit_report(&sess.session_token, filter)
+                    .await
+            }
+            TerminalMode::UNCONFIGURED => Err(AppError::Validation(
+                "Terminal belum dikonfigurasi.".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_stock_report(
+        &self,
+        category: Option<&str>,
+        search: Option<&str>,
+    ) -> AppResult<StockReport> {
+        let sess = self.require_local_session()?;
+        let cfg = self.get_config();
+        match cfg.terminal_mode {
+            TerminalMode::SERVER => self.core.get_stock_report(&sess.user, category, search),
+            TerminalMode::CLIENT => {
+                self.remote_client(&cfg)
+                    .get_stock_report(&sess.session_token, category, search)
                     .await
             }
             TerminalMode::UNCONFIGURED => Err(AppError::Validation(

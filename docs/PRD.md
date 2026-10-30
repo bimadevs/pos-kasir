@@ -40,7 +40,7 @@ Fokus utama produk ini adalah **kecepatan layanan di meja kasir** (mendukung *Ba
 
 ## 3. Profil Pengguna & Peran (`User` Roles)
 
-Sistem hanya memiliki **2 peran pengguna** sesuai [GLOSSARY.md](file:///home/bimadev/project/antigravity/pos-kasir/GLOSSARY.md):
+Sistem memiliki **4 peran pengguna diskret** sesuai [GLOSSARY.md](file:///home/bimadev/project/antigravity/pos-kasir/GLOSSARY.md) dan [ADR-0004](file:///home/bimadev/project/antigravity/pos-kasir/docs/adr/0004-four-discrete-user-roles-and-approval-thresholds.md):
 
 ### 3.1. `Cashier` (Kasir)
 - **Profil**: Staf operator meja kasir yang melayani antrean pembeli.
@@ -48,6 +48,7 @@ Sistem hanya memiliki **2 peran pengguna** sesuai [GLOSSARY.md](file:///home/bim
 - **Hak Akses**:
   - Mengakses **Layar Kasir (POS Register)** untuk memindai/mencari **Product**, mengubah kuantitas bulat, dan memproses pembayaran tunai (**Sale**).
   - Menangguhkan keranjang belanja (**Held Bill**) dan memanggil kembali **Held Bill** dari meja kasir mana pun.
+  - Membuka dan menutup **Shift Kasir** serta mencatat modal awal dan kas masuk/keluar operasional.
   - Melihat **Riwayat Transaksi Hari Ini** dan melakukan cetak ulang struk (**Reprint** dengan penanda `"CETAKAN ULANG"`).
   - Mengajukan pembatalan transaksi (**Void**) pada transaksi hari ini dengan meminta **Admin** memasukkan PIN otorisasi di layar kasir.
   - Mengatur konfigurasi printer lokal di komputernya (pilih printer & test print).
@@ -55,19 +56,63 @@ Sistem hanya memiliki **2 peran pengguna** sesuai [GLOSSARY.md](file:///home/bim
   - Tidak dapat melihat **Cost Price** (harga modal) atau laba kotor.
   - Tidak dapat menambah/mengubah produk, harga, diskon, maupun stok.
   - Tidak dapat memberikan diskon manual di luar **Product Discount** yang telah ditetapkan **Admin**.
-  - Tidak dapat mengakses laporan bulanan atau manajemen pengguna.
+  - Tidak dapat mengakses laporan berkala atau manajemen pengguna.
 
 ### 3.2. `Admin` (Pengelola / Pemilik Toko)
 - **Profil**: Pemilik toko atau kepala toko yang mengelola inventaris, harga, staf kasir, dan keuangan, serta sewaktu-waktu ikut melayani antrean pembeli sebagai kasir.
-- **Kredensial**: `Username`, `Password`, dan **PIN 4–6 digit** (digunakan untuk otorisasi cepat seperti **Void**).
+- **Kredensial**: `Username`, `Password`, dan **PIN 4–6 digit** (digunakan untuk otorisasi cepat seperti **Void** dan persetujuan stok).
 - **Hak Akses**:
   - Memiliki **seluruh hak akses `Cashier`** (dapat berpindah ke **Layar Kasir (POS)** hanya dengan 1 klik tanpa ganti akun).
-  - Mengelola katalog **Product** (Tambah, Edit, Nonaktifkan/*Soft Delete*, atur **Cost Price**, **Selling Price**, **Product Discount**, serta **Import/Export CSV**).
-  - Mencatat **Stock Adjustment** (stok masuk dari supplier, barang rusak, hilang, atau koreksi opname).
+  - Mengelola katalog **Product** (Tambah, Edit, Nonaktifkan/*Soft Delete*, atur **Cost Price**, **Selling Price**, **Product Discount**, **Price Tiers**, serta **Import/Export Excel**).
+  - Mencatat **Stock Adjustment** (stok masuk, rusak, hilang, koreksi, dan stock opname massal).
+  - Mengotorisasi persetujuan penyesuaian stok yang diajukan oleh **Stock Keeper** melebihi batas ambang.
   - Mengotorisasi atau melakukan **Void** transaksi berjalan di hari yang sama.
-  - Melihat **Laporan Penjualan & Laba Kotor** (filter rentang tanggal, filter per **Cashier**, filter per terminal, rincian struk, dan ringkasan barang terlaris/stok menipis).
-  - Mengelola akun **User** (tambah/edit/nonaktifkan akun **Cashier** dan **Admin**, reset password/PIN).
-  - Mengelola **Pengaturan Toko & Server** (identitas toko di kop struk, **Pairing Code** LAN, serta **Backup & Restore Database**).
+  - Melihat seluruh laporan (**Penjualan**, **Shift**, **Keuangan/Arus Kas**, **Laba Kotor**, dan **Inventaris Stok**).
+  - Mengelola akun **User** (tambah/edit/nonaktifkan 4 peran pengguna, reset password/PIN).
+  - Mengelola **Pengaturan Toko & Server** (identitas toko, ambang batas persetujuan stok, **Pairing Code** LAN, serta **Backup & Restore Database**).
+
+### 3.3. `Stock Keeper` (Petugas Stok)
+- **Profil**: Staf gudang atau penanggung jawab inventaris barang fisik yang murni bekerja di back-office.
+- **Kredensial**: `Username` dan `Password`.
+- **Hak Akses**:
+  - Mengakses modul **Katalog Produk**: melihat daftar produk, menambah produk baru, mengedit nama/barcode/kategori/satuan, dan mengisi/melihat harga modal (**Cost Price**).
+  - Mengakses modul **Penyesuaian Stok**: mencatat penerimaan barang masuk (*Restock*), koreksi stok fisik, dan sesi *Stock Opname*.
+  - Melihat laporan persediaan dan mutasi stok barang (*Stock Report*).
+  - Mengatur konfigurasi printer lokal di komputernya.
+- **Pembatasan**:
+  - **Dilarang mengakses Layar Kasir (POS)**, tidak bisa bertransaksi kasir, dan tidak membuka shift kasir.
+  - Dilarang menetapkan atau mengubah harga jual (**Selling Price**), diskon produk (**Product Discount**), maupun harga grosir (**Price Tiers**).
+  - Penyesuaian stok atau selisih opname yang melampaui batas ambang ($\ge \text{Rp } 100.000$ ATAU $\ge 10\%$) berstatus `PENDING` dan wajib disetujui **Admin** dengan PIN sebelum stok fisik berubah.
+  - Dilarang mengakses laporan laba kotor, laporan keuangan/arus kas, manajemen pengguna, dan pengaturan sistem.
+
+### 3.4. `Reporter` (Petugas Laporan)
+- **Profil**: Staf akunting internal, auditor toko, atau analis pembukuan yang meninjau kinerja keuangan toko secara read-only.
+- **Kredensial**: `Username` dan `Password`.
+- **Hak Akses**:
+  - Melihat seluruh laporan toko: **Laporan Penjualan**, **Laporan Shift Kasir**, **Laporan Keuangan/Arus Kas**, **Laporan Laba Kotor**, dan **Laporan Inventaris Stok**.
+  - Melihat **Cost Price** dan laba kotor secara agregat untuk kebutuhan kalkulasi margin laba.
+  - Mengekspor laporan ke format Excel (`.xlsx`) dan menyimpannya secara manual ke folder lokal/jaringan.
+  - Mencetak laporan ke format A4/PDF (dialog cetak Windows) dan mencetak ringkasan harian ke printer thermal 58mm/80mm.
+  - Mengatur konfigurasi printer lokal di komputernya.
+- **Pembatasan**:
+  - **Dilarang mengakses Layar Kasir (POS)** dan tidak membuka shift kasir.
+  - **Murni Read-Only**: tidak dapat menambah/mengedit produk, tidak dapat mengubah stok, tidak dapat membatalkan transaksi (**Void**), dan tidak dapat mengelola pengguna atau pengaturan toko.
+
+| Hak Akses / Kemampuan | `ADMIN` | `CASHIER` | `STOCK` | `REPORTER` |
+|---|:---:|:---:|:---:|:---:|
+| Layar Kasir (POS) & Buka Shift | ✅ | ✅ | ❌ | ❌ |
+| Tahan / Panggil `Held Bill` | ✅ | ✅ | ❌ | ❌ |
+| Pengajuan Void (PIN Admin) | ✅ (Langsung) | ✅ (Ajukan PIN) | ❌ | ❌ |
+| Master Produk (Nama, Barcode, Kategori) | ✅ | ❌ | ✅ | ❌ |
+| Atur Harga Jual, Diskon, & Grosir | ✅ | ❌ | ❌ | ❌ |
+| Lihat & Isi Harga Modal (`Cost Price`) | ✅ | ❌ | ✅ | ✅ (Read-only) |
+| Restock & Koreksi Stok Fisik | ✅ (Langsung) | ❌ | ✅ (Ambang $\rightarrow$ PIN) | ❌ |
+| Sesi Stock Opname Massal | ✅ | ❌ | ✅ (Ambang $\rightarrow$ PIN) | ❌ |
+| Setujui Penyesuaian Stok Tertunda | ✅ (PIN) | ❌ | ❌ | ❌ |
+| Laporan Transaksi & Shift | ✅ | Transaksi Hari Ini | ❌ | ✅ |
+| Laporan Keuangan, Laba, & Nilai Stok | ✅ | ❌ | Stok saja | ✅ |
+| Ekspor Excel & Cetak Dokumen A4 / Thermal | ✅ | Struk Staf | ❌ | ✅ |
+| Manajemen User & Pengaturan Toko | ✅ | ❌ | ❌ | ❌ |
 
 ---
 

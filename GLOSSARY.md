@@ -7,16 +7,24 @@ Sistem Point-of-Sale (POS) ritel minimarket untuk operasional kasir multi-termin
 ### Peran & Pengguna
 
 **User**:
-Akun operator terdaftar yang memiliki kredensial masuk dan satu peran spesifik (**Admin** atau **Cashier**).
+Akun operator terdaftar yang memiliki kredensial masuk dan tepat satu peran spesifik (**Admin**, **Cashier**, **Stock Keeper**, atau **Reporter**).
 _Avoid_: Account, Staff, Employee
 
 **Cashier**:
-Peran pengguna yang bertugas melayani transaksi penjualan di meja kasir.
+Peran pengguna yang bertugas melayani transaksi penjualan dan mengelola shift kasir di meja kasir.
 _Avoid_: Operator, Clerk, Kasir (ketika merujuk pada layar atau mesin)
 
 **Admin**:
-Peran pengguna dengan akses penuh untuk mengelola katalog produk, inventaris, akun pengguna, laporan, dan otorisasi pembatalan transaksi, sekaligus dapat beroperasi sebagai **Cashier**.
+Peran pengguna dengan akses penuh untuk mengelola katalog produk, inventaris, akun pengguna, pengaturan toko, laporan keuangan/laba/stok, dan otorisasi persetujuan penyesuaian stok atau pembatalan transaksi, sekaligus dapat beroperasi sebagai **Cashier**.
 _Avoid_: Manager, Owner, Superuser
+
+**Stock Keeper**:
+Peran pengguna (*Petugas Stok*) murni back-office yang bertugas mengelola katalog produk (informasi dasar dan harga modal), penerimaan barang masuk, penyesuaian stok, dan stock opname fisik. Tidak memiliki akses transaksi kasir dan memerlukan otorisasi PIN Admin jika penyesuaian stok melebihi ambang batas.
+_Avoid_: Warehouse Staff, Gudang, Inventory Officer
+
+**Reporter**:
+Peran pengguna (*Petugas Laporan*) murni back-office yang bertugas meninjau, mengekspor (Excel), dan mencetak laporan transaksi penjualan, shift kasir, keuangan/arus kas, laba kotor, dan inventaris barang. Bersifat read-only dan tidak memiliki akses transaksi kasir maupun manipulasi data.
+_Avoid_: Accountant, Auditor, Kasir Laporan
 
 ### Katalog & Inventaris
 

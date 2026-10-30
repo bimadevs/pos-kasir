@@ -3,6 +3,27 @@
 Seluruh perubahan penting pada aplikasi **Mudita Mart** didokumentasikan di file ini.
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan proyek ini mematuhi disiplin **Semantic Versioning (`MAJOR.MINOR.PATCH`) Lockstep** di seluruh manifest (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) serta tampilan UI (`src/version.ts`).
 
+## [1.2.0] - 2026-10-30
+
+### Added
+- **4 Role Pengguna Terpisah & Role-Based Access Control (RBAC) Komprehensif**:
+  - Memperluas sistem otorisasi pengguna menjadi 4 role diskret: **Admin** (`ADMIN`), **Kasir** (`CASHIER`), **Petugas Stok** (`STOCK`), dan **Petugas Laporan** (`REPORTER`).
+  - Pemisahan tugas tegas (*Separation of Duties*): Petugas Stok dan Petugas Laporan dikhususkan untuk urusan *back-office* dan secara mutlak diblokir dari antarmuka POS kasir, pembukaan/penutupan shift, mutasi uang laci, dan checkout struk.
+  - Penjagaan kerahasiaan harga modal (HPP): Harga modal disensor/disamarkan (`•••`) untuk kasir, namun dapat diakses oleh Petugas Stok (keperluan restock) dan Petugas Laporan (analisis margin laba).
+  - Penguncian wewenang harga: Petugas Stok tidak dapat memodifikasi harga jual eceran, diskon promosi, maupun tier harga grosir (wewenang eksklusif Admin).
+- **Alur Kerja Persetujuan Penyesuaian Stok (Stock Adjustment Approval Workflow) & Ambang Batas**:
+  - Mengimplementasikan mekanisme *Dual-Control Approval*: Jika Petugas Stok melakukan penyesuaian stok dengan selisih nilai $\ge$ Rp 100.000 atau perubahan kuantitas $\ge$ 10%, penyesuaian berstatus `PENDING` (`StockAdjustmentResult::PendingApproval`).
+  - Penambahan antrean persetujuan stok (*Approval Queue*) pada halaman Penyesuaian Stok (`StockAdjustmentPage.tsx`) dengan verifikasi otorisasi PIN Admin sebelum stok fisik diperbarui.
+  - Konfigurasi ambang batas nominal dan persentase yang dapat disesuaikan langsung oleh Admin pada profil toko (`SettingsPage.tsx`).
+  - Audit log komprehensif (`audit_logs`) mencatat pengajuan, persetujuan, dan penolakan penyesuaian stok beserta alasan dan identitas pengguna.
+- **Tiga Modul Laporan Finansial & Inventaris Baru di Halaman Laporan (`ReportsPage.tsx`)**:
+  - **Laporan Arus Kas & Keuangan Komprehensif (`FinancialReportView`)**: Rekap omzet penjualan kotor, total diskon, total void, penjualan bersih, penerimaan kas laci, kas masuk operasional, kas keluar operasional, selisih kas shift, dan arus kas bersih harian (*Net Cash Flow*).
+  - **Laporan Laba Kotor & Margin Produk (`ProfitReportView`)**: Analisis gross profit akurat berdasarkan snapshot modal (HPP/COGS) saat transaksi terjadi (`BR-03`), rincian margin laba per kelompok kategori produk, serta daftar 50 produk paling menguntungkan.
+  - **Laporan Inventaris & Valuasi Nilai Stok (`StockReportView`)**: Valuasi total modal (HPP) vs nilai retail harga jual, potensi laba kotor stok gudang, peringatan stok kritis ($\le 5$) dan stok habis ($0$), serta rekap mutasi barang (restock, terjual, rusak, hilang, koreksi fisik).
+- **Kemampuan Ekspor Excel Multi-Sheet & Cetak Fleksibel (A4 / Thermal)**:
+  - Generator ekspor Excel profesional multi-sheet berformat tema *Mudita Forest Green* (`.xlsx`) via `exceljs` untuk Laporan Keuangan, Laba Kotor, dan Inventaris Stok.
+  - Pratinjau dan pencetakan ringkasan struk thermal ESC/POS 58mm/80mm (`ReportThermalModal.tsx`) serta pencetakan dokumen A4 / PDF via peramban.
+
 ## [1.1.5] - 2026-10-29
 
 ### Added

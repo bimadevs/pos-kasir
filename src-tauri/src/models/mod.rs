@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 pub enum UserRole {
     ADMIN,
     CASHIER,
+    STOCK,
+    REPORTER,
 }
 
 impl UserRole {
@@ -17,6 +19,8 @@ impl UserRole {
         match self {
             Self::ADMIN => "ADMIN",
             Self::CASHIER => "CASHIER",
+            Self::STOCK => "STOCK",
+            Self::REPORTER => "REPORTER",
         }
     }
 
@@ -24,6 +28,8 @@ impl UserRole {
         match raw.trim().to_uppercase().as_str() {
             "ADMIN" => Ok(Self::ADMIN),
             "CASHIER" => Ok(Self::CASHIER),
+            "STOCK" => Ok(Self::STOCK),
+            "REPORTER" => Ok(Self::REPORTER),
             other => Err(AppError::Validation(format!(
                 "Peran pengguna tidak dikenal: {other}"
             ))),
@@ -231,6 +237,63 @@ pub struct CreateStockAdjustmentRequest {
     /// Untuk RESTOCK/DAMAGE/LOSS berupa jumlah positif; untuk CORRECTION berupa nilai stok fisik aktual (>= 0).
     pub quantity: i64,
     pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StockAdjustmentRequest {
+    pub id: String,
+    pub product_id: String,
+    pub product_sku: String,
+    pub product_name: String,
+    pub adjustment_type: AdjustmentType,
+    pub quantity_delta: i64,
+    pub cost_price_at_request: i64,
+    pub total_estimated_value: i64,
+    pub discrepancy_percent: i64,
+    pub reason: String,
+    pub status: String,
+    pub requested_by: String,
+    pub requested_by_name: String,
+    pub terminal_name: String,
+    pub approved_by: Option<String>,
+    pub approved_by_name: Option<String>,
+    pub rejection_reason: Option<String>,
+    pub created_at: String,
+    pub resolved_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApproveStockAdjustmentRequest {
+    pub request_id: String,
+    pub admin_pin: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RejectStockAdjustmentRequest {
+    pub request_id: String,
+    pub admin_pin: String,
+    pub rejection_reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "outcome_type")]
+pub enum StockAdjustmentResult {
+    Executed { adjustment: StockAdjustment },
+    PendingApproval { request: StockAdjustmentRequest },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuditLog {
+    pub id: String,
+    pub actor_id: String,
+    pub actor_name: String,
+    pub action: String,
+    pub entity_name: String,
+    pub entity_id: Option<String>,
+    pub old_value_json: Option<String>,
+    pub new_value_json: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: String,
 }
 
 // ============================================================================
@@ -445,6 +508,108 @@ pub struct SalesReport {
 }
 
 // ============================================================================
+// 6b. Laporan Keuangan, Laba, dan Stok (FR-REP-04 .. FR-REP-06)
+// ============================================================================
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DailyFinancialSummary {
+    pub date: String,
+    pub completed_count: i64,
+    pub voided_count: i64,
+    pub gross_sales: i64,
+    pub total_discount: i64,
+    pub net_sales: i64,
+    pub cash_sales: i64,
+    pub cash_in: i64,
+    pub cash_out: i64,
+    pub shift_discrepancy: i64,
+    pub net_cash: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FinancialReport {
+    pub start_date: String,
+    pub end_date: String,
+    pub completed_sales_count: i64,
+    pub voided_sales_count: i64,
+    pub gross_sales: i64,
+    pub total_discount: i64,
+    pub net_sales: i64,
+    pub total_void_amount: i64,
+    pub cash_sales: i64,
+    pub cash_in_amount: i64,
+    pub cash_out_amount: i64,
+    pub total_shift_discrepancy: i64,
+    pub net_cash_flow: i64,
+    pub daily_summaries: Vec<DailyFinancialSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CategoryProfitRow {
+    pub category_name: String,
+    pub total_qty_sold: i64,
+    pub net_revenue: i64,
+    pub total_cogs: i64,
+    pub gross_profit: i64,
+    pub profit_margin_pct: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfitReport {
+    pub start_date: String,
+    pub end_date: String,
+    pub gross_sales: i64,
+    pub total_discount: i64,
+    pub net_sales: i64,
+    pub total_cogs: i64,
+    pub gross_profit: i64,
+    pub profit_margin_pct: f64,
+    pub category_profits: Vec<CategoryProfitRow>,
+    pub product_profits: Vec<TopProductRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StockMovementSummary {
+    pub restock_qty: i64,
+    pub damage_qty: i64,
+    pub loss_qty: i64,
+    pub correction_delta: i64,
+    pub sold_qty: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StockValuationItem {
+    pub product_id: String,
+    pub sku: String,
+    pub barcode: Option<String>,
+    pub product_name: String,
+    pub category_name: String,
+    pub unit: String,
+    pub stock: i64,
+    pub min_stock: i64,
+    pub cost_price: i64,
+    pub selling_price: i64,
+    pub total_cost_valuation: i64,
+    pub total_retail_valuation: i64,
+    pub potential_profit: i64,
+    pub is_low_stock: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StockReport {
+    pub total_products: i64,
+    pub active_products: i64,
+    pub total_stock_qty: i64,
+    pub total_cost_valuation: i64,
+    pub total_retail_valuation: i64,
+    pub potential_profit: i64,
+    pub movements: StockMovementSummary,
+    pub low_stock_count: i64,
+    pub out_of_stock_count: i64,
+    pub items: Vec<StockValuationItem>,
+}
+
+// ============================================================================
 // 7. Pengaturan Toko, Setup Terminal, Perangkat Keras, & CSV
 // ============================================================================
 
@@ -455,6 +620,8 @@ pub struct StoreSettings {
     pub store_phone: String,
     pub receipt_footer: String,
     pub pairing_code: String,
+    pub stock_approval_amount_threshold: i64,
+    pub stock_approval_percent_threshold: i64,
     pub updated_at: String,
 }
 
@@ -465,6 +632,8 @@ pub struct UpdateStoreSettingsRequest {
     pub store_phone: String,
     pub receipt_footer: String,
     pub regenerate_pairing_code: bool,
+    pub stock_approval_amount_threshold: Option<i64>,
+    pub stock_approval_percent_threshold: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
 // Kontrak Tipe Domain Frontend TypeScript — Identik 100% dengan Struct Rust di src-tauri/src/models/mod.rs
 
 export type TerminalMode = "UNCONFIGURED" | "SERVER" | "CLIENT";
-export type UserRole = "ADMIN" | "CASHIER";
+export type UserRole = "ADMIN" | "CASHIER" | "STOCK" | "REPORTER";
 export type DiscountType = "NONE" | "NOMINAL" | "PERCENT";
 export type AdjustmentType = "RESTOCK" | "DAMAGE" | "LOSS" | "CORRECTION";
 export type SaleStatus = "COMPLETED" | "VOIDED";
@@ -164,6 +164,56 @@ export interface CreateStockAdjustmentRequest {
   note: string;
 }
 
+export interface StockAdjustmentRequest {
+  id: string;
+  product_id: string;
+  product_sku: string;
+  product_name: string;
+  adjustment_type: AdjustmentType;
+  quantity_delta: number;
+  cost_price_at_request: number;
+  total_estimated_value: number;
+  discrepancy_percent: number;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requested_by: string;
+  requested_by_name: string;
+  terminal_name: string;
+  approved_by: string | null;
+  approved_by_name: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface ApproveStockAdjustmentRequest {
+  request_id: string;
+  admin_pin: string;
+}
+
+export interface RejectStockAdjustmentRequest {
+  request_id: string;
+  admin_pin: string;
+  rejection_reason: string;
+}
+
+export type StockAdjustmentResult =
+  | { outcome_type: "Executed"; adjustment: StockAdjustment }
+  | { outcome_type: "PendingApproval"; request: StockAdjustmentRequest };
+
+export interface AuditLog {
+  id: string;
+  actor_id: string;
+  actor_name: string;
+  action: string;
+  entity_name: string;
+  entity_id: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface Sale {
   id: string;
   receipt_number: string;
@@ -322,12 +372,105 @@ export interface SalesReport {
   sales: SaleWithItems[];
 }
 
+export interface DailyFinancialSummary {
+  date: string;
+  completed_count: number;
+  voided_count: number;
+  gross_sales: number;
+  total_discount: number;
+  net_sales: number;
+  cash_sales: number;
+  cash_in: number;
+  cash_out: number;
+  shift_discrepancy: number;
+  net_cash: number;
+}
+
+export interface FinancialReport {
+  start_date: string;
+  end_date: string;
+  completed_sales_count: number;
+  voided_sales_count: number;
+  gross_sales: number;
+  total_discount: number;
+  net_sales: number;
+  total_void_amount: number;
+  cash_sales: number;
+  cash_in_amount: number;
+  cash_out_amount: number;
+  total_shift_discrepancy: number;
+  net_cash_flow: number;
+  daily_summaries: DailyFinancialSummary[];
+}
+
+export interface CategoryProfitRow {
+  category_name: string;
+  total_qty_sold: number;
+  net_revenue: number;
+  total_cogs: number;
+  gross_profit: number;
+  profit_margin_pct: number;
+}
+
+export interface ProfitReport {
+  start_date: string;
+  end_date: string;
+  gross_sales: number;
+  total_discount: number;
+  net_sales: number;
+  total_cogs: number;
+  gross_profit: number;
+  profit_margin_pct: number;
+  category_profits: CategoryProfitRow[];
+  product_profits: TopProductRow[];
+}
+
+export interface StockMovementSummary {
+  restock_qty: number;
+  damage_qty: number;
+  loss_qty: number;
+  correction_delta: number;
+  sold_qty: number;
+}
+
+export interface StockValuationItem {
+  product_id: string;
+  sku: string;
+  barcode: string | null;
+  product_name: string;
+  category_name: string;
+  unit: string;
+  stock: number;
+  min_stock: number;
+  cost_price: number;
+  selling_price: number;
+  total_cost_valuation: number;
+  total_retail_valuation: number;
+  potential_profit: number;
+  is_low_stock: boolean;
+}
+
+export interface StockReport {
+  total_products: number;
+  active_products: number;
+  total_stock_qty: number;
+  total_cost_valuation: number;
+  total_retail_valuation: number;
+  potential_profit: number;
+  movements: StockMovementSummary;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  items: StockValuationItem[];
+}
+
 export interface StoreSettings {
   store_name: string;
   store_address: string;
   store_phone: string;
   receipt_footer: string;
   pairing_code: string;
+  stock_approval_amount_threshold: number;
+  stock_approval_percent_threshold: number;
   updated_at: string;
 }
 
@@ -337,6 +480,8 @@ export interface UpdateStoreSettingsRequest {
   store_phone: string;
   receipt_footer: string;
   regenerate_pairing_code: boolean;
+  stock_approval_amount_threshold?: number | null;
+  stock_approval_percent_threshold?: number | null;
 }
 
 export interface PrintOutcome {

@@ -160,6 +160,7 @@ pos-kasir/
 │       │   └── schema.sql               # Skema tabel SQLite lengkap
 │       ├── services/
 │       │   ├── core_service.rs          # Seluruh logika bisnis & transaksi SQLite atomik
+│       │   ├── permissions.rs           # Matriks evaluasi hak akses 4 peran (Admin, Cashier, Stock, Reporter)
 │       │   ├── dispatcher.rs            # Pemilih otomatis: Server (CoreService) vs Client (Reqwest)
 │       │   ├── auth_service.rs          # Verifikasi Argon2 password, PIN Admin, & session token
 │       │   └── csv_service.rs           # Import & export CSV produk/laporan
@@ -173,13 +174,13 @@ pos-kasir/
 │       └── commands/                    # Handler #[tauri::command] yang dipanggil oleh React
 └── src/
     ├── main.tsx
-    ├── App.tsx                          # Guard routing: SetupWizard -> Login -> POS / Admin Layout
+    ├── App.tsx                          # Guard routing: SetupWizard -> Login -> POS / Admin / Back-Office Layout
     ├── types/
     │   └── domain.ts                    # Kontrak TypeScript yang identik dengan struct Rust
     ├── services/
     │   └── ipc.ts                       # Wrapper bertipe kuat untuk seluruh panggilan invoke()
     ├── context/
-    │   ├── AuthContext.tsx              # State sesi User aktif (Admin / Cashier)
+    │   ├── AuthContext.tsx              # State sesi User aktif (4 peran) & permission guard
     │   └── TerminalContext.tsx          # Status koneksi LAN, mode terminal, & pratinjau struk
     ├── hooks/
     │   ├── useBarcodeScanner.ts         # Detektor input cepat USB Barcode Scanner (HID Keyboard Wedge)
@@ -188,11 +189,11 @@ pos-kasir/
     │   ├── SetupWizardPage.tsx          # Layar konfigurasi awal (Server vs Client Terminal)
     │   ├── LoginPage.tsx                # Layar masuk kasir/admin
     │   ├── PosRegisterPage.tsx          # Layar utama kasir + modal bayar tunai, Held Bill, & riwayat hari ini
-    │   ├── ProductsPage.tsx             # Kelola katalog Product + Import/Export CSV (Admin)
-    │   ├── StockAdjustmentPage.tsx      # Form & riwayat stok masuk / koreksi stok (Admin)
-    │   ├── ReportsPage.tsx              # Laporan omzet, HPP, laba kotor, & produk terlaris (Admin)
-    │   ├── UsersPage.tsx                # Kelola akun Cashier & Admin beserta PIN (Admin)
-    │   └── SettingsPage.tsx             # Pengaturan Printer lokal, Toko, Pairing Code, & Backup DB
+    │   ├── ProductsPage.tsx             # Kelola katalog Product + Import/Export Excel (Admin & Petugas Stok)
+    │   ├── StockAdjustmentPage.tsx      # Form stok masuk, koreksi, opname + persetujuan Admin (Admin & Petugas Stok)
+    │   ├── ReportsPage.tsx              # Laporan penjualan, shift, arus kas, laba, & inventaris stok (Admin, Petugas Laporan, Petugas Stok)
+    │   ├── UsersPage.tsx                # Kelola akun 4 peran beserta PIN Admin (Admin)
+    │   └── SettingsPage.tsx             # Pengaturan Printer lokal, Toko, Ambang Persetujuan, Pairing Code, & Backup DB
     └── components/
         ├── layout/                      # TopBar (indikator LAN, jam, user), AdminSidebar
         ├── pos/                         # CartTable, PaymentModal, HeldBillsModal, TodaySalesDrawer, VoidPinModal

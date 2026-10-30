@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  ApproveStockAdjustmentRequest,
+  AuditLog,
   AuthSession,
   CashMovement,
   CashMovementRequest,
@@ -11,6 +13,7 @@ import type {
   CreateSaleRequest,
   CreateStockAdjustmentRequest,
   CsvImportResult,
+  FinancialReport,
   HealthCheckResponse,
   HeldBill,
   ImportProductsResult,
@@ -25,9 +28,11 @@ import type {
   ProductFilter,
   ProductImportRow,
   ProductPriceTier,
+  ProfitReport,
   RecalledHeldBill,
   ReceiptData,
   RecordOpnameScanRequest,
+  RejectStockAdjustmentRequest,
   SaleWithItems,
   SalesReport,
   SalesReportFilter,
@@ -36,8 +41,11 @@ import type {
   SetupServerRequest,
   ShiftReportData,
   StockAdjustment,
+  StockAdjustmentRequest,
+  StockAdjustmentResult,
   StockOpnameItem,
   StockOpnameSession,
+  StockReport,
   StoreSettings,
   TerminalStatus,
   UpdateOpnameItemQtyRequest,
@@ -129,10 +137,23 @@ export const ipc = {
 
   // 4. Inventaris & Stock Adjustment
   createStockAdjustment: (req: CreateStockAdjustmentRequest) =>
-    callCommand<StockAdjustment>("create_stock_adjustment", { req }),
+    callCommand<StockAdjustmentResult>("create_stock_adjustment", { req }),
   listStockAdjustments: (productId?: string | null) =>
     callCommand<StockAdjustment[]>("list_stock_adjustments", {
       productId: productId ?? null,
+    }),
+  listStockAdjustmentRequests: (status?: string | null) =>
+    callCommand<StockAdjustmentRequest[]>("list_stock_adjustment_requests", {
+      status: status ?? null,
+    }),
+  approveStockAdjustmentRequest: (req: ApproveStockAdjustmentRequest) =>
+    callCommand<StockAdjustment>("approve_stock_adjustment_request", { req }),
+  rejectStockAdjustmentRequest: (req: RejectStockAdjustmentRequest) =>
+    callCommand<void>("reject_stock_adjustment_request", { req }),
+  listAuditLogs: (entityName?: string | null, limit?: number | null) =>
+    callCommand<AuditLog[]>("list_audit_logs", {
+      entityName: entityName ?? null,
+      limit: limit ?? null,
     }),
 
   // 5. Kasir (Sale, Reprint, Void, Held Bill)
@@ -156,6 +177,15 @@ export const ipc = {
     callCommand<SalesReport>("get_sales_report", { filter }),
   exportSalesReportCsv: (filter: SalesReportFilter) =>
     callCommand<string>("export_sales_report_csv", { filter }),
+  getFinancialReport: (filter: SalesReportFilter) =>
+    callCommand<FinancialReport>("get_financial_report", { filter }),
+  getProfitReport: (filter: SalesReportFilter) =>
+    callCommand<ProfitReport>("get_profit_report", { filter }),
+  getStockReport: (category?: string | null, search?: string | null) =>
+    callCommand<StockReport>("get_stock_report", {
+      category: category ?? null,
+      search: search ?? null,
+    }),
   listUsers: () => callCommand<User[]>("list_users"),
   upsertUser: (req: UpsertUserRequest) =>
     callCommand<User>("upsert_user", { req }),

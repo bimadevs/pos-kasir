@@ -67,6 +67,10 @@ export const SettingsPage: React.FC = () => {
   const [storePhone, setStorePhone] = useState<string>("");
   const [receiptFooter, setReceiptFooter] = useState<string>("");
   const [pairingCode, setPairingCode] = useState<string>("");
+  const [stockApprovalAmountThreshold, setStockApprovalAmountThreshold] =
+    useState<number>(100000);
+  const [stockApprovalPercentThreshold, setStockApprovalPercentThreshold] =
+    useState<number>(10);
 
   // Database Backup & Restore state (Admin on Server)
   const [backupPath, setBackupPath] = useState<string>(
@@ -132,6 +136,12 @@ export const SettingsPage: React.FC = () => {
       setStorePhone(settings.store_phone);
       setReceiptFooter(settings.receipt_footer);
       setPairingCode(settings.pairing_code);
+      setStockApprovalAmountThreshold(
+        settings.stock_approval_amount_threshold ?? 100000
+      );
+      setStockApprovalPercentThreshold(
+        settings.stock_approval_percent_threshold ?? 10
+      );
     } catch (err) {
       setFeedback({
         type: "error",
@@ -266,12 +276,16 @@ export const SettingsPage: React.FC = () => {
         store_phone: storePhone.trim(),
         receipt_footer: receiptFooter.trim(),
         regenerate_pairing_code: regenerateCode,
+        stock_approval_amount_threshold: Number(stockApprovalAmountThreshold) || 0,
+        stock_approval_percent_threshold: Number(stockApprovalPercentThreshold) || 0,
       });
       setStoreName(updated.store_name);
       setStoreAddress(updated.store_address);
       setStorePhone(updated.store_phone);
       setReceiptFooter(updated.receipt_footer);
       setPairingCode(updated.pairing_code);
+      setStockApprovalAmountThreshold(updated.stock_approval_amount_threshold);
+      setStockApprovalPercentThreshold(updated.stock_approval_percent_threshold);
       await refreshTerminalStatus();
       setFeedback({
         type: "success",
@@ -691,6 +705,60 @@ export const SettingsPage: React.FC = () => {
                 onChange={(e) => setReceiptFooter(e.target.value)}
                 className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
+            </div>
+
+            {/* Ambang Batas Persetujuan Selisih Stok (Role Petugas Stok) */}
+            <div className="pt-2 border-t border-zinc-200">
+              <label className="block font-bold text-zinc-800 mb-0.5">
+                Ambang Batas Persetujuan Stok (Role Petugas Stok)
+              </label>
+              <p className="text-[11px] text-zinc-500 mb-2">
+                Jika penyesuaian stok oleh Petugas Stok melebihi salah satu batas di bawah, perubahan wajib disetujui Admin via PIN.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-zinc-600 mb-1">
+                    Ambang Nominal Selisih HPP (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="10000"
+                    disabled={!isAdmin}
+                    value={stockApprovalAmountThreshold}
+                    onChange={(e) =>
+                      setStockApprovalAmountThreshold(
+                        Math.max(0, parseInt(e.target.value, 10) || 0)
+                      )
+                    }
+                    className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl font-mono disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                  />
+                  <p className="text-[10px] text-zinc-400 mt-1">
+                    Standar: Rp 100.000 (|Qty Fisik - Sistem| &times; HPP)
+                  </p>
+                </div>
+                <div>
+                  <label className="block font-semibold text-zinc-600 mb-1">
+                    Ambang Persentase Perubahan (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    disabled={!isAdmin}
+                    value={stockApprovalPercentThreshold}
+                    onChange={(e) =>
+                      setStockApprovalPercentThreshold(
+                        Math.max(0, parseInt(e.target.value, 10) || 0)
+                      )
+                    }
+                    className="w-full px-3.5 py-2 border border-zinc-300 rounded-xl font-mono disabled:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                  />
+                  <p className="text-[10px] text-zinc-400 mt-1">
+                    Standar: 10% (Persentase perubahan kuantitas)
+                  </p>
+                </div>
+              </div>
             </div>
 
             {isAdmin && (
