@@ -786,7 +786,14 @@ impl CoreService {
     }
 
     pub fn list_users(&self, actor: &User) -> AppResult<Vec<User>> {
-        require_permission(actor, Permission::ManageUsers)?;
+        if !role_has(actor.role, Permission::ManageUsers)
+            && !role_has(actor.role, Permission::ViewSalesReport)
+        {
+            return Err(AppError::Forbidden(format!(
+                "Akses ditolak: pengguna '{}' dengan peran {:?} tidak memiliki izin melihat daftar pengguna.",
+                actor.username, actor.role
+            )));
+        }
         let conn = self.db.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, username, full_name, pin_hash, role, is_active, created_at, updated_at
@@ -5836,5 +5843,28 @@ mod tests {
         assert_eq!(stock_rep.potential_profit, 528_000);
         assert_eq!(stock_rep.movements.sold_qty, 6);
         assert_eq!(stock_rep.items.len(), 2);
+
+        // 10. Pengujian Hak Akses List Users untuk Reporter vs Stock Keeper
+        // Reporter BERHAK melihat daftar pengguna untuk keperluan filter kasir laporan
+        let users_reporter = service.list_users(&reporter).unwrap();
+        assert!(users_reporter.len() >= 3);
+
+        // Petugas Stok DILARANG melihat daftar pengguna
+        assert!(service.list_users(&stock_keeper).is_err());
+
+        // Reporter tetap DILARANG mengelola (tambah/edit) pengguna
+        let upsert_forbidden = service.upsert_user(
+            &reporter,
+            &UpsertUserRequest {
+                id: None,
+                username: "hacker".to_string(),
+                full_name: "Hacker".to_string(),
+                role: UserRole::ADMIN,
+                password: Some("123456".to_string()),
+                pin: None,
+                is_active: true,
+            },
+        );
+        assert!(upsert_forbidden.is_err());
     }
 }

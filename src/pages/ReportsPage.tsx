@@ -81,20 +81,28 @@ export const ReportsPage: React.FC = () => {
     message: string;
   } | null>(null);
 
+  // Muat daftar kasir untuk filter dropdown secara independen saat tab SALES aktif
+  useEffect(() => {
+    if (activeReportTab === "SALES" && users.length === 0) {
+      ipc
+        .listUsers()
+        .then((userList) => setUsers(userList))
+        .catch((err) => {
+          console.warn("Gagal memuat daftar kasir untuk filter laporan:", err);
+        });
+    }
+  }, [activeReportTab, users.length]);
+
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const [rep, userList] = await Promise.all([
-        ipc.getSalesReport({
-          start_date: startDate,
-          end_date: endDate,
-          cashier_id: cashierId || null,
-          terminal_name: terminalName.trim() || null,
-        }),
-        ipc.listUsers(),
-      ]);
+      const rep = await ipc.getSalesReport({
+        start_date: startDate,
+        end_date: endDate,
+        cashier_id: cashierId || null,
+        terminal_name: terminalName.trim() || null,
+      });
       setReport(rep);
-      setUsers(userList);
     } catch (err) {
       setFeedback({
         type: "error",
@@ -684,7 +692,7 @@ export const ReportsPage: React.FC = () => {
                                 <Printer className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {!isVoided && isSameDay && (
+                            {!isVoided && isSameDay && user?.role === "ADMIN" && (
                               <button
                                 type="button"
                                 onClick={() => setVoidTarget(sale)}
