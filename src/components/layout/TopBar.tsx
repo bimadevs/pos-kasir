@@ -110,76 +110,124 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
   const visibleTabs = navItems.filter((item) => item.visible);
 
   return (
-    <header className="h-14 bg-emerald-800 text-white border-b border-emerald-900/60 px-4 flex items-center justify-between gap-3 shrink-0 select-none z-30 relative shadow-sm">
-      {/* Kiri: Identitas Mudita Mart & Nama Toko (Tanpa max-w sempit) */}
-      <div className="flex items-center gap-2.5 shrink-0 min-w-0">
-        <img
-          src="/logo-emblem.png"
-          alt="Logo Mudita Mart"
-          className="w-8 h-8 rounded-lg object-contain bg-white/10 border border-white/20 p-0.5 shadow-xs shrink-0"
-        />
-        <div className="flex flex-col justify-center leading-tight min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-extrabold text-sm tracking-tight whitespace-nowrap">
-              <span className="text-white">Mudita </span>
-              <span className="text-amber-300">Mart</span>
-              {terminalStatus?.store_name && (
-                <span className="text-emerald-100 font-medium text-xs ml-1.5">
-                  • {terminalStatus.store_name}
-                </span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-emerald-200 font-medium whitespace-nowrap">
-            <Monitor className="w-3 h-3 text-emerald-300 shrink-0" />
-            <span>
-              {formatTerminalName(cfg?.terminal_name, isServer)}
-            </span>
-            <span
-              className="px-1.5 py-0.2 rounded bg-emerald-900/80 border border-emerald-700/60 text-[9.5px] font-mono text-emerald-200 cursor-help"
-              title="Mudita Mart — Dikembangkan oleh BimaDev"
-            >
-              {APP_VERSION_LABEL}
-            </span>
+    <header className="h-14 bg-emerald-800 text-white border-b border-emerald-900/60 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 select-none z-30 relative shadow-sm">
+      {/* Kiri: Identitas Brand & Toolbar Navigasi Utama (Tersambung Rapi di Sisi Kiri) */}
+      <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 min-w-0">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <img
+            src="/logo-emblem.png"
+            alt="Logo Mudita Mart"
+            className="w-8 h-8 rounded-lg object-contain bg-white/10 border border-white/20 p-0.5 shadow-xs shrink-0"
+          />
+          <div className="flex flex-col justify-center leading-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-sm tracking-tight whitespace-nowrap">
+                <span className="text-white">Mudita </span>
+                <span className="text-amber-300">Mart</span>
+                {terminalStatus?.store_name &&
+                  terminalStatus.store_name.toLowerCase().trim() !== "mudita mart" && (
+                    <span className="text-emerald-100 font-medium text-xs ml-1.5">
+                      • {terminalStatus.store_name}
+                    </span>
+                  )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-200 font-medium whitespace-nowrap">
+              <Monitor className="w-3 h-3 text-emerald-300 shrink-0" />
+              <span>{formatTerminalName(cfg?.terminal_name, isServer)}</span>
+              <span
+                className="px-1.5 py-0.2 rounded bg-emerald-900/80 border border-emerald-700/60 text-[9.5px] font-mono text-emerald-200 cursor-help"
+                title="Mudita Mart — Dikembangkan oleh BimaDev"
+              >
+                {APP_VERSION_LABEL}
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Pemisah Vertikal Halus */}
+        <div className="w-px h-6 bg-emerald-700/60 shrink-0 hidden md:block" />
+
+        {/* Toolbar Navigasi Sesuai Hak Akses Peran */}
+        <nav
+          aria-label="Navigasi Utama"
+          className="flex items-center bg-emerald-900/60 p-1 rounded-xl border border-emerald-700/40 shadow-inner max-w-full overflow-x-auto scrollbar-none"
+        >
+          <div className="flex items-center gap-1">
+            {visibleTabs.map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onSelectTab(tab.id)}
+                  className={`whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                    active
+                      ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
+                      : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
 
-      {/* Tengah: Navigasi Segmented Control Sesuai Role Pengguna (Semua Tab Langsung Terlihat & Mudah Diklik) */}
-      <nav
-        aria-label="Navigasi Utama"
-        className="flex items-center bg-emerald-900/60 p-1 rounded-xl border border-emerald-700/40 shadow-inner max-w-full overflow-x-auto scrollbar-none"
-      >
-        <div className="flex items-center gap-0.5">
-          {visibleTabs.map((tab) => {
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onSelectTab(tab.id)}
-                className={`whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  active
-                    ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
-                    : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Tengah: Konteks Operasional / Status Kerja (Memberikan Keseimbangan Visual & Konteks Kerja Instan) */}
+      <div className="hidden xl:flex items-center justify-center min-w-0 pointer-events-none">
+        {user?.role === "CASHIER" ? (
+          activeShift ? (
+            <div
+              title={`Shift Aktif: Dibuka ${new Date(activeShift.opened_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} oleh ${activeShift.cashier_name_snapshot}`}
+              className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-900/70 border border-emerald-600/50 text-xs shadow-inner"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="font-semibold text-emerald-100">
+                Sesi Kasir Aktif
+              </span>
+              <span className="text-emerald-300/90 font-mono text-[11px]">
+                (Shift dibuka {new Date(activeShift.opened_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})
+              </span>
+            </div>
+          ) : (
+            <div
+              title="Shift kasir belum dibuka. Buka shift untuk memulai transaksi."
+              className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-950/60 border border-amber-600/50 text-xs shadow-inner"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <span className="font-semibold text-amber-200">
+                Sesi Kasir Standby — Shift Belum Dibuka
+              </span>
+            </div>
+          )
+        ) : user?.role === "STOCK" ? (
+          <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-900/70 border border-emerald-600/50 text-xs shadow-inner">
+            <ClipboardList className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+            <span className="font-semibold text-emerald-100">
+              Modul Inventaris & Penyesuaian Stok
+            </span>
+          </div>
+        ) : user?.role === "REPORTER" ? (
+          <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-900/70 border border-emerald-600/50 text-xs shadow-inner">
+            <BarChart3 className="w-3.5 h-3.5 text-teal-300 shrink-0" />
+            <span className="font-semibold text-emerald-100">
+              Pusat Analisis & Laporan Keuangan Toko
+            </span>
+          </div>
+        ) : null}
+      </div>
 
-      {/* Kanan: Status Shift Kasir / Back-Office, Jam, & Profil Pengguna */}
+      {/* Kanan: Status Shift (Layar Kecil / Fallback), LAN, Jam, & Profil Pengguna */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Status Shift Kasir Aktif / Tutup (Hanya relevan untuk pengguna dengan wewenang Kasir) */}
+        {/* Status Shift Kasir / Back-Office (Tampil di Kanan Khusus Layar di Bawah XL atau Saat Dibutuhkan) */}
         {canAccessPos ? (
           activeShift ? (
             <div
               title={`Shift Aktif: Dibuka ${new Date(activeShift.opened_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} oleh ${activeShift.cashier_name_snapshot}`}
-              className="hidden sm:flex items-center gap-1.5 bg-emerald-700/60 border border-emerald-600/60 rounded-xl px-2.5 py-1 text-xs font-semibold text-emerald-100 shadow-xs"
+              className="hidden sm:flex xl:hidden items-center gap-1.5 bg-emerald-700/60 border border-emerald-600/60 rounded-xl px-2.5 py-1 text-xs font-semibold text-emerald-100 shadow-xs"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               <span className="whitespace-nowrap">Shift Aktif</span>
@@ -187,7 +235,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
           ) : (
             <div
               title="Belum ada sesi shift kasir aktif di terminal ini"
-              className="hidden sm:flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-700/40 rounded-xl px-2.5 py-1 text-xs font-medium text-emerald-300/70 shadow-xs"
+              className="hidden sm:flex xl:hidden items-center gap-1.5 bg-emerald-950/40 border border-emerald-700/40 rounded-xl px-2.5 py-1 text-xs font-medium text-emerald-300/70 shadow-xs"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 shrink-0" />
               <span className="whitespace-nowrap">Shift Tutup</span>
@@ -196,7 +244,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
         ) : (
           <div
             title={`Mode Back-Office: ${user?.role === "STOCK" ? "Pengelolaan Stok & Produk" : "Pelaporan & Analisis Laba"}`}
-            className="hidden sm:flex items-center gap-1.5 bg-emerald-700/60 border border-emerald-600/60 rounded-xl px-2.5 py-1 text-xs font-semibold text-emerald-100 shadow-xs"
+            className="hidden sm:flex xl:hidden items-center gap-1.5 bg-emerald-700/60 border border-emerald-600/60 rounded-xl px-2.5 py-1 text-xs font-semibold text-emerald-100 shadow-xs"
           >
             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
             <span className="whitespace-nowrap">Back-Office</span>
@@ -245,7 +293,17 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             <div className="text-xs font-bold text-white truncate max-w-[120px]">
               {user?.full_name || user?.username}
             </div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+            <div
+              className={`text-[10px] font-semibold uppercase tracking-wider ${
+                user?.role === "ADMIN"
+                  ? "text-amber-300"
+                  : user?.role === "STOCK"
+                  ? "text-emerald-300"
+                  : user?.role === "REPORTER"
+                  ? "text-teal-300"
+                  : "text-amber-200"
+              }`}
+            >
               {user?.role === "ADMIN"
                 ? "ADMIN"
                 : user?.role === "STOCK"
@@ -263,7 +321,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
             onClick={() => void logout()}
             title="Keluar Sesi Kasir"
             aria-label="Keluar Sesi Kasir"
-            className="p-1 rounded-lg text-emerald-100 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer shrink-0"
+            className="p-1 rounded-lg text-emerald-100 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
             <LogOut className="w-4 h-4" />
           </button>
