@@ -181,16 +181,6 @@ export const ReportsPage: React.FC = () => {
 
   const getHeaderInfo = () => {
     switch (activeReportTab) {
-      case "SALES":
-        return {
-          title: "Laporan Penjualan & Riwayat Struk Transaksi",
-          desc: "Audit transaksi kasir, rincian diskon, pencetakan ulang struk, dan pembatalan transaksi (Void).",
-        };
-      case "SHIFTS":
-        return {
-          title: "Riwayat Shift Kasir & Rekap Kas Laci (Laporan X & Z)",
-          desc: "Audit rekap kas, saldo modal awal (float), mutasi kas masuk/keluar, dan selisih kas fisik laci (cash discrepancy).",
-        };
       case "FINANCIAL":
         return {
           title: "Laporan Arus Kas & Keuangan Komprehensif",
@@ -206,16 +196,87 @@ export const ReportsPage: React.FC = () => {
           title: "Laporan Inventaris & Valuasi Nilai Stok",
           desc: "Valuasi total modal (HPP) vs harga retail, potensi laba inventaris toko, serta rekap mutasi barang.",
         };
+      case "SALES":
+        return {
+          title: "Laporan Penjualan & Riwayat Struk Transaksi",
+          desc: "Audit transaksi kasir, rincian diskon, pencetakan ulang struk, dan pembatalan transaksi (Void).",
+        };
+      case "SHIFTS":
+        return {
+          title: "Riwayat Shift Kasir & Rekap Kas Laci (Laporan X & Z)",
+          desc: "Audit rekap kas, saldo modal awal (float), mutasi kas masuk/keluar, dan selisih kas fisik laci (cash discrepancy).",
+        };
     }
   };
   const headerInfo = getHeaderInfo();
 
+  const reportModules: Array<{
+    id: ReportTab;
+    title: string;
+    subtitle: string;
+    badge: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      id: "FINANCIAL",
+      title: "Arus Kas & Keuangan",
+      subtitle: "Omzet, diskon, void, kas operasional, & arus kas harian",
+      badge: "Keuangan Lengkap",
+      icon: <Wallet className="w-4 h-4 text-teal-600" />,
+    },
+    {
+      id: "PROFIT",
+      title: "Laba Kotor (Profit)",
+      subtitle: "Margin laba & snapshot HPP/COGS historis per kategori",
+      badge: "Laba & Margin",
+      icon: <PieChart className="w-4 h-4 text-indigo-600" />,
+    },
+    {
+      id: "STOCK",
+      title: "Inventaris & Nilai Stok",
+      subtitle: "Valuasi total modal HPP vs harga retail & rekap mutasi",
+      badge: "Laporan Stok",
+      icon: <Boxes className="w-4 h-4 text-amber-600" />,
+    },
+    {
+      id: "SALES",
+      title: "Penjualan & Struk",
+      subtitle: "Audit transaksi kasir, rincian diskon, struk, & void",
+      badge: "Audit Penjualan",
+      icon: <TrendingUp className="w-4 h-4 text-emerald-600" />,
+    },
+    {
+      id: "SHIFTS",
+      title: "Rekap Shift & Laci Kas",
+      subtitle: "Saldo modal awal, fisik laci, & Laporan X / Z",
+      badge: "Kas Laci",
+      icon: <Clock className="w-4 h-4 text-sky-600" />,
+    },
+  ];
+
+  const visibleModules = isStockOnly
+    ? reportModules.filter((m) => m.id === "STOCK")
+    : reportModules;
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-zinc-100/70 space-y-5">
-      {/* Header */}
+      {/* Header Pusat Laporan */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-100 text-teal-800 border border-teal-200 uppercase tracking-wider">
+              {user?.role === "ADMIN"
+                ? "Hak Akses Penuh: Admin"
+                : user?.role === "STOCK"
+                ? "Petugas Stok"
+                : "Petugas Laporan"}
+            </span>
+            <span className="text-xs text-zinc-400">•</span>
+            <span className="text-xs font-semibold text-zinc-500">
+              Pusat Laporan Lengkap Mudita Mart
+            </span>
+          </div>
+          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight mt-1">
             {headerInfo.title}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
@@ -237,34 +298,62 @@ export const ReportsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Subtab Switcher */}
+      {/* Grid Kartu Menu Laporan Lengkap (Pusat Navigasi Visual) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 print:hidden">
+        {visibleModules.map((mod) => {
+          const isActive = activeReportTab === mod.id;
+          return (
+            <button
+              key={mod.id}
+              type="button"
+              onClick={() => setActiveReportTab(mod.id)}
+              className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                isActive
+                  ? "bg-white border-teal-600 shadow-md ring-2 ring-teal-500/20"
+                  : "bg-white/80 border-zinc-200/90 hover:border-zinc-300 hover:bg-white shadow-2xs"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div
+                  className={`p-2 rounded-xl border ${
+                    isActive
+                      ? "bg-teal-50 border-teal-200 shadow-2xs"
+                      : "bg-zinc-50 border-zinc-200/80"
+                  }`}
+                >
+                  {mod.icon}
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    isActive
+                      ? "bg-teal-600 text-white"
+                      : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                  }`}
+                >
+                  {isActive ? "Aktif" : mod.badge}
+                </span>
+              </div>
+              <div>
+                <h3
+                  className={`text-xs font-extrabold ${
+                    isActive ? "text-teal-950" : "text-zinc-800"
+                  }`}
+                >
+                  {mod.title}
+                </h3>
+                <p className="text-[11px] text-zinc-500 line-clamp-2 mt-0.5 leading-snug">
+                  {mod.subtitle}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Subtab Switcher (Tab Strip Ringkas) */}
       <div className="flex border-b border-zinc-200 gap-1 overflow-x-auto print:hidden">
         {!isStockOnly && (
           <>
-            <button
-              type="button"
-              onClick={() => setActiveReportTab("SALES")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeReportTab === "SALES"
-                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
-                  : "border-transparent text-zinc-500 hover:text-zinc-800"
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Penjualan &amp; Struk
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveReportTab("SHIFTS")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeReportTab === "SHIFTS"
-                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
-                  : "border-transparent text-zinc-500 hover:text-zinc-800"
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              Rekap Shift &amp; Kas Laci
-            </button>
             <button
               type="button"
               onClick={() => setActiveReportTab("FINANCIAL")}
@@ -289,20 +378,58 @@ export const ReportsPage: React.FC = () => {
               <PieChart className="w-4 h-4" />
               Laba Kotor (Gross Profit)
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("STOCK")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "STOCK"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <Boxes className="w-4 h-4" />
+              Inventaris &amp; Nilai Stok
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("SALES")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "SALES"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Penjualan &amp; Struk
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab("SHIFTS")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeReportTab === "SHIFTS"
+                  ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Rekap Shift &amp; Kas Laci
+            </button>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => setActiveReportTab("STOCK")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeReportTab === "STOCK"
-              ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
-              : "border-transparent text-zinc-500 hover:text-zinc-800"
-          }`}
-        >
-          <Boxes className="w-4 h-4" />
-          Inventaris &amp; Nilai Stok
-        </button>
+        {isStockOnly && (
+          <button
+            type="button"
+            onClick={() => setActiveReportTab("STOCK")}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeReportTab === "STOCK"
+                ? "border-teal-600 text-teal-700 bg-white rounded-t-xl border-t border-x border-zinc-200 -mb-px shadow-2xs"
+                : "border-transparent text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            <Boxes className="w-4 h-4" />
+            Inventaris &amp; Nilai Stok
+          </button>
+        )}
       </div>
 
       {activeReportTab === "SHIFTS" && <ShiftHistoryView />}

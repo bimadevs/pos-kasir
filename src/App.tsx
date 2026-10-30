@@ -81,7 +81,9 @@ const AppShell: React.FC = () => {
       <TopBar activeTab={activeTab} onSelectTab={setActiveTab} />
 
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {activeTab === "POS" && canAccessPos && <PosRegisterPage />}
+        {activeTab === "POS" && canAccessPos && (
+          <PosRegisterPage onNavigateTab={setActiveTab} />
+        )}
         {activeTab === "PRODUCTS" && canManageProducts && <ProductsPage />}
         {activeTab === "STOCK" && canAdjustStock && <StockAdjustmentPage />}
         {activeTab === "REPORTS" && canViewReports && <ReportsPage />}

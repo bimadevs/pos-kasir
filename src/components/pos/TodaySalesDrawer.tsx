@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Ban, Eye, History, Printer, X } from "lucide-react";
+import { Ban, BarChart3, Eye, History, Printer, X } from "lucide-react";
 import type { Sale, SaleWithItems } from "../../types/domain";
 import { formatDateTimeId, formatRupiah } from "../../utils/posCalculator";
 import { VoidPinModal } from "./VoidPinModal";
@@ -15,6 +15,7 @@ interface TodaySalesDrawerProps {
     adminPin: string,
     voidReason: string
   ) => Promise<void>;
+  onOpenReports?: () => void;
 }
 
 export const TodaySalesDrawer: React.FC<TodaySalesDrawerProps> = ({
@@ -24,6 +25,7 @@ export const TodaySalesDrawer: React.FC<TodaySalesDrawerProps> = ({
   onClose,
   onReprintSale,
   onVoidSale,
+  onOpenReports,
 }) => {
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<Sale | null>(null);
@@ -188,6 +190,22 @@ export const TodaySalesDrawer: React.FC<TodaySalesDrawerProps> = ({
             })
           )}
         </div>
+
+        {onOpenReports && (
+          <div className="p-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between gap-3">
+            <div className="text-xs text-zinc-500">
+              Butuh laporan komprehensif, laba, keuangan, atau periode lainnya?
+            </div>
+            <button
+              type="button"
+              onClick={onOpenReports}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Pusat Laporan Lengkap &rarr;
+            </button>
+          </div>
+        )}
 
         <VoidPinModal
           sale={voidTarget}

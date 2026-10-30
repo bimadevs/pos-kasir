@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Banknote,
   Barcode,
+  BarChart3,
   CheckCircle2,
   Clock,
   FileText,
@@ -27,6 +28,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { ipc } from "../services/ipc";
 import type {
+  AppNavTab,
   CartItem,
   HeldBill,
   PrintOutcome,
@@ -43,8 +45,15 @@ import {
 import { playErrorBeep, playScanSuccessBeep } from "../utils/sound";
 import { APP_VERSION_LABEL } from "../version";
 
-export const PosRegisterPage: React.FC = () => {
+interface PosRegisterPageProps {
+  onNavigateTab?: (tab: AppNavTab) => void;
+}
+
+export const PosRegisterPage: React.FC<PosRegisterPageProps> = ({
+  onNavigateTab,
+}) => {
   const { user, logout } = useAuth();
+  const canViewReports = user?.role === "ADMIN" || user?.role === "REPORTER";
   const {
     activeShift,
     loadingShift,
@@ -888,6 +897,20 @@ export const PosRegisterPage: React.FC = () => {
                 </span>
                 <span className="text-[10px] text-zinc-400 font-mono">Audit</span>
               </button>
+
+              {canViewReports && onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab("REPORTS")}
+                  className="col-span-2 flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 active:scale-[0.98] border border-emerald-200 text-left text-xs font-bold text-emerald-900 transition-all cursor-pointer shadow-2xs"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    Pusat Laporan Lengkap (Semua Modul)
+                  </span>
+                  <span className="text-[11px] text-emerald-700 font-bold">&rarr;</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1131,6 +1154,14 @@ export const PosRegisterPage: React.FC = () => {
             "Transaksi berhasil dibatalkan (Void) & stok dikembalikan."
           );
         }}
+        onOpenReports={
+          canViewReports && onNavigateTab
+            ? () => {
+                setTodaySalesOpen(false);
+                onNavigateTab("REPORTS");
+              }
+            : undefined
+        }
       />
 
       {/* Shift Open Modal (Barrier modal if cashier has no active shift) */}

@@ -1,9 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart3,
-  ChevronDown,
   ClipboardList,
-  LayoutGrid,
   LogOut,
   Monitor,
   Package,
@@ -42,8 +40,6 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
   } = useAuth();
   const { terminalStatus, activeShift } = useTerminal();
   const [clock, setClock] = useState<string>("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const updateClock = () => {
@@ -58,33 +54,6 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
     const id = window.setInterval(updateClock, 1000);
     return () => window.clearInterval(id);
   }, []);
-
-  // Tutup dropdown saat klik di luar atau menekan tombol Escape
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setDropdownOpen(false);
-      }
-    };
-
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [dropdownOpen]);
 
   const cfg = terminalStatus?.config;
   const isServer = cfg?.terminal_mode === "SERVER";
@@ -137,14 +106,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
     },
   ];
 
-  // Tab yang diizinkan untuk peran saat ini
+  // Tab yang diizinkan untuk peran saat ini - tampilkan seluruh tab secara langsung dan konsisten
   const visibleTabs = navItems.filter((item) => item.visible);
-  const isCompactRole = visibleTabs.length <= 4;
-  const primaryTabs = visibleTabs.slice(0, 3);
-  const secondaryTabs = visibleTabs.slice(3);
-  const activeSecondaryTab = secondaryTabs.find(
-    (item) => item.id === activeTab
-  );
 
   return (
     <header className="h-14 bg-emerald-800 text-white border-b border-emerald-900/60 px-4 flex items-center justify-between gap-3 shrink-0 select-none z-30 relative shadow-sm">
@@ -182,149 +145,31 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab }) => {
         </div>
       </div>
 
-      {/* Tengah: Navigasi Segmented Control Sesuai Role Pengguna */}
+      {/* Tengah: Navigasi Segmented Control Sesuai Role Pengguna (Semua Tab Langsung Terlihat & Mudah Diklik) */}
       <nav
         aria-label="Navigasi Utama"
-        className="flex items-center bg-emerald-900/60 p-1 rounded-xl border border-emerald-700/40 shadow-inner"
+        className="flex items-center bg-emerald-900/60 p-1 rounded-xl border border-emerald-700/40 shadow-inner max-w-full overflow-x-auto scrollbar-none"
       >
-        {isCompactRole ? (
-          // Untuk Peran Kasir, Petugas Stok, & Petugas Laporan: Seluruh Tab Tampil Langsung
-          <div className="flex items-center gap-0.5">
-            {visibleTabs.map((tab) => {
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => onSelectTab(tab.id)}
-                  className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    active
-                      ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
-                      : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
-                  }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          // Untuk Admin (6 Tab): Tampilan Lengkap di Desktop (>= 1024px), Menu Dropdown di Layar Kecil
-          <>
-            {/* Tampilan Desktop Lengkap (>= 1024px) */}
-            <div className="hidden lg:flex items-center gap-0.5">
-              {visibleTabs.map((tab) => {
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onSelectTab(tab.id)}
-                    className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      active
-                        ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
-                        : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Tampilan Layar Kecil (< 1024px) */}
-            <div className="flex lg:hidden items-center gap-0.5">
-              {primaryTabs.map((tab) => {
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onSelectTab(tab.id)}
-                    className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      active
-                        ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
-                        : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-
-              {/* Dropdown Menu Sisa Tab */}
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen((prev) => !prev)}
-                  aria-haspopup="true"
-                  aria-expanded={dropdownOpen}
-                  className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeSecondaryTab
-                      ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
-                      : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
-                  }`}
-                >
-                  {activeSecondaryTab ? (
-                    <>
-                      {activeSecondaryTab.icon}
-                      <span>{activeSecondaryTab.label}</span>
-                    </>
-                  ) : (
-                    <>
-                      <LayoutGrid className="w-4 h-4 shrink-0" />
-                      <span>Menu</span>
-                    </>
-                  )}
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-emerald-200 transition-transform duration-200 ${
-                      dropdownOpen ? "rotate-180 text-white" : ""
-                    }`}
-                  />
-                </button>
-
-                {/* Panel Dropdown Menu */}
-                {dropdownOpen && (
-                  <div className="absolute top-full mt-2 left-0 w-48 bg-emerald-950 border border-emerald-700/80 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-0.5">
-                    <div className="px-2.5 py-1 text-[10px] font-semibold tracking-wider text-emerald-300 uppercase">
-                      Menu Lanjutan
-                    </div>
-                    {secondaryTabs.map((tab) => {
-                      const active = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => {
-                            onSelectTab(tab.id);
-                            setDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer ${
-                            active
-                              ? "bg-white text-emerald-950 font-bold shadow-xs"
-                              : "text-emerald-100 hover:bg-emerald-800/80 hover:text-white"
-                          }`}
-                        >
-                          <span
-                            className={
-                              active ? "text-emerald-950" : "text-emerald-300"
-                            }
-                          >
-                            {tab.icon}
-                          </span>
-                          <span>{tab.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-0.5">
+          {visibleTabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onSelectTab(tab.id)}
+                className={`whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  active
+                    ? "bg-white text-emerald-950 shadow-xs border border-white/80 font-bold"
+                    : "text-emerald-100 hover:text-white hover:bg-emerald-800/60"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Kanan: Status Shift Kasir / Back-Office, Jam, & Profil Pengguna */}
